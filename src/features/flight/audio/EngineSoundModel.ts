@@ -29,6 +29,19 @@ function follow(current: number, target: number, dt: number, response: number) {
   return current + (target - current) * (1 - Math.exp(-dt / response));
 }
 
+/** Feature adapter accepts ships with or without optional translation axes. */
+export function engineTranslationEffort(input: {
+  throttle: number;
+  strafe?: number;
+  lift?: number;
+  reverse?: boolean;
+}) {
+  return Math.max(
+    bounded(Math.hypot(input.strafe ?? 0, input.lift ?? 0)),
+    input.reverse && input.throttle <= 0 ? 1 : 0,
+  );
+}
+
 /** Audio-only inertia and edge detection. All outputs are reused; this never affects flight. */
 export class EngineSoundModel {
   power = 0;
@@ -64,7 +77,12 @@ export class EngineSoundModel {
     if (this.release) this.releaseCooldown = 0.45;
     this.power = follow(this.power, demand, dt, demand > this.power ? 0.22 : 0.48);
     this.boost = follow(this.boost, boosting ? 1 : 0, dt, boosting ? 0.12 : 0.35);
-    this.jets = follow(this.jets, Math.max(braking, bounded(input.translation) * 0.65), dt, 0.1);
+    this.jets = follow(
+      this.jets,
+      input.braking ? braking : bounded(input.translation) * 0.65,
+      dt,
+      0.1,
+    );
     this.cabin = follow(this.cabin, input.cockpit ? 1 : 0, dt, 0.38);
     this.strain = this.boost * (1 - bounded(input.boostReserve)) ** 2;
     this.pulse = 0.86 + Math.sin(this.elapsed * 48) ** 2 * 0.14;

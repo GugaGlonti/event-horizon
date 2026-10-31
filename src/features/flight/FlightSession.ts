@@ -6,6 +6,11 @@ import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { RenderOrigin } from '@/engine/world/RenderOrigin';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { ExplorationSession } from '@/features/exploration/ExplorationSession';
+import { EngineAudio } from '@/features/flight/audio/EngineAudio';
+import {
+  createEngineSoundInput,
+  engineTranslationEffort,
+} from '@/features/flight/audio/EngineSoundModel';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -21,6 +26,8 @@ export class FlightSession {
   readonly orientation = new Quaternion();
   readonly exploration: ExplorationSession;
   readonly journey = new HyperspaceFlight();
+  readonly engineAudio = new EngineAudio();
+  private readonly engineSoundInput = createEngineSoundInput();
   private readonly previousPosition = new Vector3();
   private readonly currentPosition = new Vector3();
   private readonly previousOrientation = new Quaternion();
@@ -37,7 +44,10 @@ export class FlightSession {
   constructor() {
     this.exploration = new ExplorationSession({
       onPause: this.pause,
-      onDepart: (direction) => this.journey.begin(this.position, this.orientation, direction),
+      onDepart: (direction) => {
+        if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
+        this.journey.begin(this.position, this.orientation, direction);
+      },
       onCommit: (system) => {
         this.journey.arrive(system);
         this.journey.sample(this.exploration.jump, this.position, this.orientation);
@@ -90,6 +100,7 @@ export class FlightSession {
 
   attach(target: HTMLElement) {
     this.manager?.dispose();
+    this.engineAudio.prepare();
     this.exploration.mount(this.position, this.orientation);
     const store = useFlightStore.getState();
     store.publishTelemetry(this.controller.getTelemetry());
@@ -97,6 +108,7 @@ export class FlightSession {
       target,
       {
         onMode: (mode) => {
+          if (mode === null) this.engineAudio.stop();
           this.loop.reset();
           this.controller.copyTransform(this.currentPosition, this.currentOrientation);
           this.previousPosition.copy(this.currentPosition);
@@ -124,6 +136,7 @@ export class FlightSession {
       document.removeEventListener('visibilitychange', this.onVisibility);
       manager.dispose();
       this.exploration.dispose();
+      this.engineAudio.dispose();
       useFlightStore.getState().setRendererReady(false);
       if (this.manager === manager) this.manager = null;
     };
@@ -179,13 +192,16 @@ export class FlightSession {
 
   startMouse = () => {
     if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay)
-      void this.manager?.requestMouse();
+      if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
+    void this.manager?.requestMouse();
   };
   startKeyboard = () => {
     if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay)
-      this.manager?.startKeyboard();
+      if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
+    this.manager?.startKeyboard();
   };
   pause = () => {
+    this.engineAudio.stop();
     this.manager?.pause();
     this.loop.reset();
     useFlightStore.getState().setInputMode(null);
@@ -200,6 +216,29 @@ export class FlightSession {
     this.exploration.syncPose(this.position, this.orientation);
     useFlightStore.setState({ notice: null, telemetry: this.controller.getTelemetry() });
   };
+  toggleEngineSound = () => {
+    const enabled = !useFlightStore.getState().engineSound;
+    useFlightStore.setState({ engineSound: enabled });
+    if (!enabled) this.engineAudio.stop();
+  };
+
+  private updateEngineAudio(delta: number) {
+    const state = useFlightStore.getState();
+    const input = this.engineSoundInput;
+    input.throttle = this.controller.enginePower;
+    input.requestedThrottle = this.input.throttle;
+    input.speed = this.controller.speed;
+    input.boosting = this.controller.isBoosting;
+    input.boostReserve = state.telemetry.boostCharge;
+    input.braking = this.input.brake;
+    input.translation = engineTranslationEffort(this.input);
+    input.cockpit = state.cameraMode === 'cockpit';
+    this.engineAudio.update(
+      input,
+      delta,
+      state.engineSound && state.phase === 'flying' && !this.exploration.jump.busy,
+    );
+  }
   markReady = () => {
     useFlightStore.getState().setRendererReady(true);
   };
@@ -236,5 +275,6 @@ export class FlightSession {
       this.journey.sample(this.exploration.jump, this.position, this.orientation, reducedMotion);
     this.origin.update(this.position);
     this.origin.toRender(this.position, this.renderPosition);
+    this.updateEngineAudio(delta);
   }
 }

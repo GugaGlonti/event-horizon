@@ -10,6 +10,7 @@ interface FlightState {
   inputMode: InputMode | null;
   cameraMode: CameraMode;
   assistance: boolean;
+  engineSound: boolean;
   rendererReady: boolean;
   notice: string | null;
   telemetry: FlightTelemetry;
@@ -26,6 +27,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
   inputMode: null,
   cameraMode: 'chase',
   assistance: true,
+  engineSound: true,
   rendererReady: false,
   notice: null,
   telemetry: {

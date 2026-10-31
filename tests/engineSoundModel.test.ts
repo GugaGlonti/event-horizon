@@ -1,7 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { createEngineSoundInput, EngineSoundModel } from '@/features/flight/audio/EngineSoundModel';
+import {
+  createEngineSoundInput,
+  EngineSoundModel,
+  engineTranslationEffort,
+} from '@/features/flight/audio/EngineSoundModel';
 
 describe('engine sound response', () => {
+  it('supports optional translation jets and gives forward thrust priority over reverse', () => {
+    expect(engineTranslationEffort({ throttle: 0 })).toBe(0);
+    expect(engineTranslationEffort({ throttle: 0, strafe: -1 })).toBe(1);
+    expect(engineTranslationEffort({ throttle: 0, lift: 0.5 })).toBe(0.5);
+    expect(engineTranslationEffort({ throttle: 0, reverse: true })).toBe(1);
+    expect(engineTranslationEffort({ throttle: 1, reverse: true })).toBe(0);
+  });
   it('keeps coasting quiet regardless of ship speed, with a winding-down tail after release', () => {
     const input = createEngineSoundInput();
     const model = new EngineSoundModel();

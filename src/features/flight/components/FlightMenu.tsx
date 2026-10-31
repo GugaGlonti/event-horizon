@@ -25,6 +25,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
   const ready = useFlightStore((state) => state.rendererReady);
   const notice = useFlightStore((state) => state.notice);
   const assistance = useFlightStore((state) => state.assistance);
+  const engineSound = useFlightStore((state) => state.engineSound);
   const overlay = useExplorationStore((state) => state.overlay);
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
   const systemId = useExplorationStore((state) => state.systemId);
@@ -140,6 +141,9 @@ export function FlightMenu({ session }: { session: FlightSession }) {
               </InstrumentButton>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
+              <InstrumentButton aria-pressed={engineSound} onClick={session.toggleEngineSound}>
+                Engine audio {engineSound ? 'on' : 'off'}
+              </InstrumentButton>
               <InstrumentButton
                 disabled={!ready}
                 onClick={() => session.exploration.openMap('local')}
