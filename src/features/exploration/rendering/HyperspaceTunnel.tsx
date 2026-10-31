@@ -19,31 +19,42 @@ const fragment = /* glsl */ `
   uniform float uTime, uOpacity, uExposure, uStarlight;
   uniform vec2 uLens;
   varying vec2 vUv;
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1,0)), f.x), mix(hash(i + vec2(0,1)), hash(i + vec2(1,1)), f.x), f.y);
+  float hash(vec3 p) {
+    p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
+    return fract((p.x + p.y) * p.z);
+  }
+  float noise(vec3 p) {
+    vec3 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+    return mix(
+      mix(mix(hash(i), hash(i + vec3(1,0,0)), f.x),
+          mix(hash(i + vec3(0,1,0)), hash(i + vec3(1,1,0)), f.x), f.y),
+      mix(mix(hash(i + vec3(0,0,1)), hash(i + vec3(1,0,1)), f.x),
+          mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
   }
   void main() {
     vec2 ray = (vUv * 2.0 - 1.0) * uLens;
-    float radius = max(length(ray), 0.025), angle = atan(ray.y, ray.x);
-    vec3 color = vec3(0.025, 0.045, 0.12);
-    // Broad, soft cloud walls flow past the eye; stars supply every entry streak.
+    float radius = max(length(ray), 0.025);
+    vec2 radial = ray / radius;
+    vec3 color = vec3(0.003, 0.009, 0.035);
+    // Three bounded depth shells sample a 3D cloud field; no angular rotation or seam.
     for (int layer = 0; layer < 3; layer++) {
-      float shell = 7.0 + float(layer) * 5.0;
-      float depth = min(420.0, shell / radius);
-      float z = depth - uTime * (42.0 + float(layer) * 12.0);
-      float twist = angle + sin(depth * 0.025 - uTime * 0.35) * 0.25 + depth * 0.006;
-      vec2 circle = vec2(cos(twist), sin(twist));
-      vec2 p = circle * 2.2 + vec2(z * 0.025, z * 0.017 + float(layer) * 21.0);
-      float cloud = noise(p) * 0.65 + noise(p * 2.1) * 0.25 + noise(p * 4.3) * 0.1;
-      float depthFade = exp(-depth * 0.005);
-      color += mix(vec3(0.016, 0.027, 0.09), vec3(0.2, 0.43, 0.8), cloud * cloud) * depthFade * 0.85;
+      float shell = 3.0 + float(layer) * 3.5;
+      float depth = min(240.0, shell / radius);
+      float z = depth - uTime * (22.0 + float(layer) * 9.0);
+      vec2 bend = vec2(sin(depth * 0.09 + 0.6), cos(depth * 0.06)) * vec2(0.5, 0.35);
+      vec3 p = vec3(radial * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
+      float broad = noise(p * 0.65);
+      float detail = noise(p * 2.3 + broad * 0.8);
+      float cloud = smoothstep(0.25, 0.83, broad * 0.72 + detail * 0.28);
+      float wisps = smoothstep(0.48, 0.82, detail) * (0.3 + cloud * 0.7);
+      float depthFade = exp(-depth * 0.008);
+      color += mix(vec3(0.004, 0.012, 0.04), vec3(0.04, 0.14, 0.38), cloud * cloud) * depthFade * 0.55;
+      color += vec3(0.09, 0.28, 0.58) * wisps * wisps * depthFade * 0.3;
     }
-    float core = exp(-radius * 4.5);
-    color += vec3(0.42, 0.62, 0.9) * core;
-    color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.3;
-    color = mix(vec3(0.025, 0.10, 0.24), color * 0.25, smoothstep(0.0, 0.85, uOpacity));
+    float mist = noise(vec3(ray * 8.0, uTime * 0.45));
+    color += mix(vec3(0.03, 0.08, 0.2), vec3(0.2, 0.32, 0.5), mist) * exp(-radius * 5.0) * 0.55;
+    color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
+    color = mix(vec3(0.025, 0.10, 0.24), color, smoothstep(0.0, 0.85, uOpacity));
     color = mix(color, vec3(0.82, 0.93, 1.0), uExposure);
     gl_FragColor = vec4(color, max(max(uOpacity, uExposure * 0.8), uStarlight * 0.22));
     #include <tonemapping_fragment>
