@@ -191,7 +191,7 @@ export class ExplorationSession {
   suspend = () => {
     if (!this.jump.busy) return;
     this.suspended = true;
-    this.audio.update(this.jump.intensity, true);
+    this.audio.update(this.jump, true);
     this.publish();
   };
   resumeJourney = () => {
@@ -256,7 +256,7 @@ export class ExplorationSession {
       }
       this.publish();
     }
-    if (this.jump.busy) this.audio.update(this.jump.intensity, false);
+    if (this.jump.busy) this.audio.update(this.jump, false);
     if (this.arrivalElapsed > 0) {
       this.arrivalElapsed -= dt;
       if (this.arrivalElapsed <= 0) useExplorationStore.setState({ arrival: null });
