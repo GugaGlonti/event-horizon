@@ -72,6 +72,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
     name: 'Solara',
     description: 'A golden sun. Blue oceans. The familiar edge of the unknown.',
     chartPosition: [19, 65],
+    galacticPosition: [19, 0, 65],
     environment: {
       background: '#040a13',
       nebula: '#214d69',
@@ -131,6 +132,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
     name: 'Vesper',
     description: 'Cold rings and long shadows beneath an ember-red sun.',
     chartPosition: [49, 27],
+    galacticPosition: [49, 3, 27],
     environment: {
       background: '#080611',
       nebula: '#54315e',
@@ -195,6 +197,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
     name: 'Aether',
     description: 'A blue-white beacon over living seas and volcanic fire.',
     chartPosition: [82, 64],
+    galacticPosition: [82, -2, 64],
     environment: {
       background: '#030a16',
       nebula: '#293d85',

@@ -51,6 +51,8 @@ export interface StarSystemDefinition {
   readonly name: string;
   readonly description: string;
   readonly chartPosition: readonly [number, number];
+  /** Shared galactic axes: +Y up, -Z chart north. Used for jump headings, not local metres. */
+  readonly galacticPosition: Position3;
   readonly environment: {
     readonly background: string;
     readonly nebula: string;

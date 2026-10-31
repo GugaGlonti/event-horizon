@@ -15,6 +15,7 @@ export function validateSystem(system: StarSystemDefinition): void {
   if (!/^[a-z][a-z0-9-]*$/.test(system.id) || !system.name.trim() || !system.description.trim())
     fail('Invalid system identity.');
   if (!tuple(system.chartPosition, 2)) fail('Invalid chart position.');
+  if (!tuple(system.galacticPosition, 3)) fail('Invalid galactic position.');
   const environment = system.environment;
   if (
     ![environment.background, environment.nebula, environment.accent].every(color) ||
@@ -111,4 +112,6 @@ export function validateCatalog(systems: readonly StarSystemDefinition[]) {
   if (new Set(systems.map((system) => system.id)).size !== systems.length)
     throw new Error('Duplicate star system IDs.');
   for (const system of systems) validateSystem(system);
+  if (new Set(systems.map((system) => system.galacticPosition.join(','))).size !== systems.length)
+    throw new Error('Star systems need distinct galactic positions.');
 }
