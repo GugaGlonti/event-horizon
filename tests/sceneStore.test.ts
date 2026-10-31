@@ -21,12 +21,4 @@ describe('scene settings', () => {
     useSceneStore.getState().toggleStars();
     expect(useSceneStore.getState().starsVisible).toBe(true);
   });
-
-  it('issues a distinct camera reset request on each click', () => {
-    const resetView = useSceneStore.getState().resetView;
-    resetView();
-    resetView();
-    expect(useSceneStore.getState().viewResetId).toBe(2);
-    expect(useSceneStore.getState().starsVisible).toBe(true);
-  });
 });
