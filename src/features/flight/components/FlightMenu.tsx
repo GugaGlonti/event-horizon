@@ -8,9 +8,10 @@ const controls = [
   ['↑ / ↓', 'Nose down / up'],
   ['← / →', 'Roll left / right'],
   ['Q / E', 'Yaw left / right'],
-  ['W / S', 'Throttle up / down'],
+  ['W', 'Raise throttle gradually'],
+  ['S', 'Slow down / brake'],
   ['SHIFT', 'Engine boost'],
-  ['SPACE', 'Brake'],
+  ['SPACE', 'Reserved for weapons'],
   ['C', 'Chase / cockpit'],
   ['F', 'Flight assistance'],
   ['M / L', 'Galaxy / local map'],
@@ -64,8 +65,9 @@ export function FlightMenu({ session }: { session: FlightSession }) {
           ))}
         </dl>
         <p className="mt-5 text-[10px] leading-relaxed text-slate-500">
-          Mouse steering recenters gently. Braking preserves your throttle setting. Release Shift
-          after boost depletion to rearm. Desktop keyboard required. Escape pauses flight.
+          Hold W to raise throttle; release to slow down. S applies stronger braking. Space is
+          reserved for future weapons. Mouse steering recenters gently. Release Shift after boost
+          depletion to rearm. Desktop keyboard required. Escape pauses flight.
         </p>
         {notice && (
           <p

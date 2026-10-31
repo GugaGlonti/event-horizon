@@ -69,6 +69,7 @@ describe('exploration input integration', () => {
       expect(useFlightStore.getState().phase).toBe('paused');
       advance(10);
       expect(session.position.equals(position)).toBe(true);
+      expect(session.controller.enginePower).toBe(throttle);
       key(shortcut, true);
       expect(useExplorationStore.getState().overlay).toBe(view);
       key(shortcut);
@@ -76,7 +77,7 @@ describe('exploration input integration', () => {
       expect(useFlightStore.getState().phase).toBe('paused');
       session.startKeyboard();
       advance(1);
-      expect(session.controller.enginePower).toBe(throttle);
+      expect(session.controller.enginePower).toBe(0);
     },
   );
 
@@ -151,7 +152,8 @@ describe('exploration input integration', () => {
     session.exploration.selectDestination('vesper');
     session.exploration.beginJump();
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
-    advance(10);
+    for (let frame = 0; frame < 1200 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
+      advance(1 / 120);
     expect(session.exploration.world.definition.id).toBe('vesper');
     const source = SYSTEMS.find((system) => system.id === 'solara');
     if (!source) throw new Error('Missing fixture.');
@@ -163,9 +165,12 @@ describe('exploration input integration', () => {
     expect(useFlightStore.getState().cameraMode).toBe('cockpit');
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(useExplorationStore.getState().arrival).toMatch(/Welcome to Vesper/);
+    advance(1);
+    expect(session.controller.speed).toBeCloseTo(100 - FLIGHT_CONFIG.deceleration);
+    const speed = session.controller.speed;
     key('KeyW');
     advance(1);
-    expect(session.controller.speed).toBeGreaterThan(0);
+    expect(session.controller.speed).toBeGreaterThan(speed);
   });
 
   it('holds an opaque destination until that scene reports readiness, then restores flight', async () => {
@@ -181,7 +186,8 @@ describe('exploration input integration', () => {
     expect(session.exploration.jump.coverage).toBe(1);
     expect(useFlightStore.getState().phase).toBe('paused');
     session.exploration.markArrivalReady('vesper');
-    advance(2);
+    for (let frame = 0; frame < 240 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
+      advance(1 / 120);
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(session.controller.speed).toBeCloseTo(100);
   });

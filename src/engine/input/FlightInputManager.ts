@@ -170,9 +170,9 @@ export class FlightInputManager {
       1,
     );
     this.input.roll = Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'));
-    this.input.throttle = Number(keys.has('KeyW')) - Number(keys.has('KeyS'));
+    this.input.throttle = Number(keys.has('KeyW') && !keys.has('KeyS'));
     this.input.boost = keys.has('ShiftLeft') || keys.has('ShiftRight');
-    this.input.brake = keys.has('Space');
+    this.input.brake = keys.has('KeyS');
     const decay = Math.exp(-this.returnRate * Math.max(0, Math.min(dt, 0.1)));
     this.stickX *= decay;
     this.stickY *= decay;

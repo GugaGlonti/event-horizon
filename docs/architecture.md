@@ -36,6 +36,11 @@ objects. Feature orchestration composes engine services and supplies browser ada
 Metres, seconds and radians; local forward -Z, up +Y, right +X. Positive input pitch raises the nose,
 yaw turns right, roll banks right. Combined body rates integrate a normalized quaternion. Keyboard
 Up/Down are inverted pitch, Left/Right roll, and Q/E yaw; mouse motion remains pitch/yaw.
+Holding W gradually raises stored throttle from 0 to 100%. Releasing W gradually returns throttle to
+zero and slows the full velocity vector at normal deceleration. S lowers throttle and applies stronger
+braking, taking priority over thrust/boost. Both slow the ship with or without assistance. Boost needs
+W held. Braking caps stored throttle at the remaining forward cruise speed. Space is consumed during
+active piloting but has no flight action; it is reserved for weapons.
 
 `FlightController.step(input, dt)` owns logical position, velocity, orientation, throttle, boost and
 assistance. It does not read clocks, stores or input devices. `copyTransform` copies into scratch

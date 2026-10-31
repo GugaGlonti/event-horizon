@@ -20,7 +20,8 @@ npm run dev
 
 Open Vite's printed Local URL (normally `http://127.0.0.1:5173`). Choose **Keyboard flight** or **Fly
 with mouse**. You start stationary near Pelagos in Solara, facing its blue hemisphere. Hold W to raise
-throttle; release W to hold that setting. T selects the next contact, including the moon Lyra. L opens
+throttle gradually from 0% to 100%; release W to ease back toward a stop. Hold S for stronger braking.
+T selects the next contact, including the moon Lyra. L opens
 the local system map; M opens the galaxy map. Select Vesper and choose **Engage hyperdrive**.
 
 No API keys, downloaded models, textures, fonts, or services are required. **No dependencies were added
@@ -49,9 +50,10 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | ↑ / ↓          | Nose down/up (inverted pitch)                                  |
 | ← / →          | Roll left/right                                                |
 | Q / E          | Yaw left/right                                                 |
-| W / S          | Increase/decrease throttle                                     |
+| W              | Gradually raise throttle to 100%; release to slow down         |
+| S              | Slow down and lower throttle; hold to stop                     |
 | Shift          | Hold for engine boost                                          |
-| Space          | Hold to brake; stored throttle is preserved                    |
+| Space          | Reserved for future weapons firing; currently no action        |
 | C              | Switch chase/cockpit camera                                    |
 | F              | Toggle flight assistance                                       |
 | M              | Open/close galaxy map                                          |
@@ -75,7 +77,9 @@ and exposes the nearest contact.
 safe arrival in its current system, restoring engine reserve and clearing momentum. Camera and
 assistance preferences survive reset. Boost lasts about four seconds, recharges after a delay, and
 requires releasing Shift after depletion to rearm at 18% reserve. Assistance damps drift and angular
-momentum; without it, use counter-steering or brake.
+momentum; without it, use counter-steering to settle rotation. Releasing W gradually lowers throttle
+and slows the ship; S applies stronger braking. Both work with assistance on or off and override boost.
+Hold W with Shift to boost.
 
 ## Hyperspace
 
@@ -122,8 +126,9 @@ mechanical charge chatter, stereo rushing air, bass impacts and short latch tran
 follows the visual reveal, and a compressor controls peaks. Disable audio in the galaxy map.
 
 Arrival preserves engine reserve, trip distance, assistance and camera choice, handing back a
-controlled 100 m/s forward cruise with matching throttle. Keyboard control returns without another
-click. Mouse users can pause and select **Resume with mouse** to recapture through a user gesture.
+controlled 100 m/s forward motion with matching throttle. Hold W to accelerate after arrival;
+otherwise the ship gradually slows. Keyboard control returns without another click. Mouse users can
+pause and select **Resume with mouse** to recapture through a user gesture.
 
 Escape or **Abort jump** cancels safely. Before arrival commit, you remain in the source system. After
 commit, you remain at the destination's safe arrival. Reset/unmount invalidate pending preparation,

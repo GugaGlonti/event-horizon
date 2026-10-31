@@ -106,16 +106,14 @@ export class FlightController {
     if (dt === 0) return;
     const config = this.config;
     const previousSpeed = this.speed;
-    this.throttle = MathUtils.clamp(
-      this.throttle + MathUtils.clamp(input.throttle, -1, 1) * config.throttleRate * dt,
-      0,
-      1,
-    );
+    const throttleTarget = input.brake ? 0 : MathUtils.clamp(input.throttle, 0, 1);
+    this.throttle = approach(this.throttle, throttleTarget, config.throttleRate * dt);
 
     if (!input.boost && this.boostCharge >= config.boostMinimumCharge) this.boostExhausted = false;
     this.boosting =
       input.boost &&
       !input.brake &&
+      throttleTarget > 0 &&
       this.throttle > 0 &&
       !this.boostExhausted &&
       this.boostCharge > 0;
@@ -152,10 +150,17 @@ export class FlightController {
       this.lateral.copy(this.velocity).addScaledVector(this.forward, -forwardSpeed);
       this.velocity.addScaledVector(this.lateral, Math.expm1(-config.lateralDamping * dt));
     }
-    if (input.brake) {
+    if (input.brake || throttleTarget === 0) {
       const speed = this.speed;
-      if (speed > 0)
-        this.velocity.multiplyScalar(Math.max(0, speed - config.brakeDeceleration * dt) / speed);
+      const deceleration = input.brake ? config.brakeDeceleration : config.deceleration;
+      if (speed > 0) this.velocity.multiplyScalar(Math.max(0, speed - deceleration * dt) / speed);
+      if (input.brake) {
+        // Braking also sheds stored power so pressing W again starts from the reduced speed.
+        this.throttle = Math.min(
+          this.throttle,
+          Math.max(0, this.velocity.dot(this.forward)) / config.maxSpeed,
+        );
+      }
     } else {
       const targetSpeed = this.throttle * (this.boosting ? config.boostMaxSpeed : config.maxSpeed);
       const thrust = MathUtils.clamp(

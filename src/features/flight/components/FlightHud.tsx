@@ -222,10 +222,11 @@ export function FlightHud({ session }: { session: FlightSession }) {
       <HyperspaceStatus session={session} />
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
-        Left and Right arrows roll left and right. Q and E yaw left and right. Use W and S for
-        throttle, Shift for boost, Space to brake, C for camera, F for assistance, and Escape to
-        pause. M opens the galaxy map; L opens the local system map. T cycles navigation targets; X
-        clears the target. Maps pause flight. Controls are available in the flight briefing.
+        Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
+        raise throttle; release to slow down. S applies stronger braking. Space is reserved for
+        future weapons. Use Shift for boost, C for camera, F for assistance, and Escape to pause. M
+        opens the galaxy map; L opens the local system map. T cycles navigation targets; X clears
+        the target. Maps pause flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

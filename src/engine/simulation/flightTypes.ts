@@ -3,8 +3,10 @@ export interface FlightInput {
   pitch: number;
   yaw: number;
   roll: number;
+  /** Requested throttle, 0..1; stored engine power approaches it gradually. */
   throttle: number;
   boost: boolean;
+  /** Slows velocity and lowers stored throttle; overrides thrust and boost. */
   brake: boolean;
 }
 

@@ -45,34 +45,74 @@ describe('arcade flight simulation', () => {
     expect(pose(ship).position.x).toBe(0);
   });
 
-  it('holds throttle after release, then decelerates to rest when throttle is reduced', () => {
+  it('ramps throttle gradually while held and eases it to zero on release', () => {
     const ship = new FlightController(FLIGHT_CONFIG);
-    fly(ship, 10, { throttle: 1 });
-    fly(ship, 1);
-    expect(ship.getTelemetry().throttle).toBe(1);
-    fly(ship, 12, { throttle: -1 });
-    expect(ship.getTelemetry().throttle).toBe(0);
-    expect(ship.speed).toBeCloseTo(0);
+    fly(ship, 1, { throttle: 1 });
+    expect(ship.enginePower).toBeCloseTo(FLIGHT_CONFIG.throttleRate);
+    const speed = ship.speed;
+    fly(ship, 0.5);
+    expect(ship.enginePower).toBeCloseTo(FLIGHT_CONFIG.throttleRate * 0.5);
+    expect(ship.speed).toBeCloseTo(speed - FLIGHT_CONFIG.deceleration * 0.5);
+    fly(ship, 3);
+    expect(ship.enginePower).toBe(0);
+    expect(ship.speed).toBe(0);
+    fly(ship, 3, { throttle: 1 });
+    expect(ship.enginePower).toBe(1);
   });
 
-  it('brakes even with full throttle and boost held', () => {
+  it.each([true, false])('slows to a stop when W is released with assistance %s', (assistance) => {
+    const ship = new FlightController(FLIGHT_CONFIG);
+    ship.setAssistance(assistance);
+    fly(ship, 10, { throttle: 1 });
+    fly(ship, 1);
+    expect(ship.enginePower).toBeCloseTo(1 - FLIGHT_CONFIG.throttleRate);
+    expect(ship.speed).toBeCloseTo(FLIGHT_CONFIG.maxSpeed - FLIGHT_CONFIG.deceleration);
+    fly(ship, 8);
+    expect(ship.enginePower).toBe(0);
+    expect(ship.speed).toBe(0);
+  });
+
+  it.each([true, false])(
+    'brakes faster with assistance %s, overrides thrust/boost, and keeps slowing on release',
+    (assistance) => {
+      const ship = new FlightController(FLIGHT_CONFIG);
+      ship.setAssistance(assistance);
+      fly(ship, 8, { throttle: 1 });
+      fly(ship, 0.5, { throttle: 1, brake: true, boost: true });
+      const speed = ship.speed;
+      expect(speed).toBeCloseTo(FLIGHT_CONFIG.maxSpeed - FLIGHT_CONFIG.brakeDeceleration * 0.5);
+      expect(ship.getTelemetry().boosting).toBe(false);
+      expect(ship.getTelemetry().boostCharge).toBe(1);
+      expect(ship.enginePower * FLIGHT_CONFIG.maxSpeed).toBeCloseTo(speed);
+      fly(ship, 1);
+      expect(ship.speed).toBeCloseTo(speed - FLIGHT_CONFIG.deceleration);
+      fly(ship, 3, { brake: true });
+      expect(ship.speed).toBe(0);
+      expect(ship.enginePower).toBe(0);
+      fly(ship, 1);
+      expect(ship.speed).toBe(0);
+    },
+  );
+
+  it('brakes sideways drift with assistance off', () => {
     const ship = new FlightController(FLIGHT_CONFIG);
     fly(ship, 8, { throttle: 1 });
-    fly(ship, 3, { brake: true, boost: true });
-    expect(ship.speed).toBe(0);
-    expect(ship.getTelemetry().boosting).toBe(false);
-    expect(ship.getTelemetry().throttle).toBe(1);
+    ship.setAssistance(false);
+    fly(ship, 2, { yaw: 1 });
+    const speed = ship.speed;
+    fly(ship, 0.5, { brake: true });
+    expect(ship.speed).toBeCloseTo(speed - FLIGHT_CONFIG.brakeDeceleration * 0.5);
   });
 
   it('boosts above cruise speed without exceeding its configured limit', () => {
     const ship = new FlightController(FLIGHT_CONFIG);
     fly(ship, 8, { throttle: 1 });
-    fly(ship, 2, { boost: true });
+    fly(ship, 2, { throttle: 1, boost: true });
     expect(ship.speed).toBeCloseTo(FLIGHT_CONFIG.boostMaxSpeed);
     expect(ship.getTelemetry().boostCharge).toBeCloseTo(0.5);
     expect(ship.getTelemetry().boosting).toBe(true);
     const speed = ship.speed;
-    ship.step(createFlightInput(), dt);
+    ship.step({ ...createFlightInput(), throttle: 1 }, dt);
     expect(ship.speed).toBeLessThan(speed);
     expect(ship.speed).toBeGreaterThan(FLIGHT_CONFIG.maxSpeed);
   });
@@ -82,12 +122,12 @@ describe('arcade flight simulation', () => {
     fly(ship, 5, { throttle: 1, boost: true });
     expect(ship.getTelemetry().boosting).toBe(false);
     expect(ship.getTelemetry().boostCharge).toBeCloseTo(0);
-    fly(ship, 5, { boost: true });
+    fly(ship, 5, { throttle: 1, boost: true });
     expect(ship.getTelemetry().boosting).toBe(false);
     expect(ship.getTelemetry().boostCharge).toBeGreaterThan(0.3);
-    fly(ship, 10);
+    fly(ship, 10, { throttle: 1 });
     expect(ship.getTelemetry().boostCharge).toBe(1);
-    fly(ship, 0.5, { boost: true });
+    fly(ship, 0.5, { throttle: 1, boost: true });
     expect(ship.getTelemetry().boosting).toBe(true);
   });
 
@@ -96,6 +136,18 @@ describe('arcade flight simulation', () => {
     fly(ship, 3, { boost: true });
     expect(ship.getTelemetry().boostCharge).toBe(1);
     expect(ship.speed).toBe(0);
+  });
+
+  it('slows down on W release even if Shift remains held', () => {
+    const ship = new FlightController(FLIGHT_CONFIG);
+    fly(ship, 8, { throttle: 1 });
+    fly(ship, 1, { throttle: 1, boost: true });
+    const charge = ship.getTelemetry().boostCharge;
+    const speed = ship.speed;
+    fly(ship, 0.5, { boost: true });
+    expect(ship.speed).toBeLessThan(speed);
+    expect(ship.getTelemetry().boosting).toBe(false);
+    expect(ship.getTelemetry().boostCharge).toBe(charge);
   });
 
   it.each(['pitch', 'yaw', 'roll'] as const)(
@@ -136,13 +188,15 @@ describe('arcade flight simulation', () => {
     expect(b.angleTo(pose(unassisted).orientation)).toBeGreaterThan(0.5);
   });
 
-  it('unassisted flight preserves translation at zero throttle until the pilot brakes', () => {
+  it('slows sideways drift after W release without assistance', () => {
     const ship = new FlightController(FLIGHT_CONFIG);
     fly(ship, 8, { throttle: 1 });
     ship.setAssistance(false);
-    fly(ship, 10, { throttle: -1 });
-    expect(ship.speed).toBeCloseTo(FLIGHT_CONFIG.maxSpeed);
-    fly(ship, 3, { brake: true });
+    fly(ship, 1, { throttle: 1, yaw: 1 });
+    const speed = ship.speed;
+    fly(ship, 1);
+    expect(ship.speed).toBeCloseTo(speed - FLIGHT_CONFIG.deceleration);
+    fly(ship, 8);
     expect(ship.speed).toBe(0);
   });
 

@@ -55,19 +55,43 @@ describe('flight input lifecycle', () => {
   });
 
   it('ignores flight keys before launch and releases scrolling defaults after pause', () => {
-    expect(key('keydown', 'Space').defaultPrevented).toBe(false);
+    expect(key('keydown', 'KeyS').defaultPrevented).toBe(false);
     manager.startKeyboard();
-    expect(key('keydown', 'Space').defaultPrevented).toBe(true);
+    expect(key('keydown', 'KeyS').defaultPrevented).toBe(true);
     expect(manager.sample(0.01).brake).toBe(true);
     const wheel = new Event('wheel', { cancelable: true });
     doc.dispatchEvent(wheel);
     expect(wheel.defaultPrevented).toBe(true);
     manager.pause();
     expect(manager.sample(0.01).brake).toBe(false);
-    expect(key('keydown', 'Space').defaultPrevented).toBe(false);
+    expect(key('keydown', 'KeyS').defaultPrevented).toBe(false);
     const pausedWheel = new Event('wheel', { cancelable: true });
     doc.dispatchEvent(pausedWheel);
     expect(pausedWheel.defaultPrevented).toBe(false);
+  });
+
+  it('maps S to braking and lower throttle, including while W and boost are held', () => {
+    manager.startKeyboard();
+    key('keydown', 'KeyS');
+    expect(manager.sample(0.01)).toMatchObject({ throttle: 0, brake: true });
+    key('keydown', 'KeyW');
+    key('keydown', 'ShiftLeft');
+    expect(manager.sample(0.01)).toMatchObject({ throttle: 0, brake: true, boost: true });
+    key('keyup', 'KeyS');
+    expect(manager.sample(0.01)).toMatchObject({ throttle: 1, brake: false, boost: true });
+  });
+
+  it('reserves Space without changing flight input or allowing active-flight scrolling', () => {
+    expect(key('keydown', 'Space').defaultPrevented).toBe(false);
+    manager.startKeyboard();
+    key('keydown', 'KeyW');
+    const before = { ...manager.sample(0.01) };
+    expect(key('keydown', 'Space').defaultPrevented).toBe(true);
+    expect(manager.sample(0.01)).toEqual(before);
+    expect(key('keyup', 'Space').defaultPrevented).toBe(true);
+    expect(manager.sample(0.01)).toEqual(before);
+    manager.pause();
+    expect(key('keydown', 'Space').defaultPrevented).toBe(false);
   });
 
   it('handles simultaneous controls and does not repeat camera/assistance toggles', () => {
@@ -120,10 +144,14 @@ describe('flight input lifecycle', () => {
     expect(manager.sample(0.01)).toMatchObject({ yaw: 0, roll: 0 });
   });
 
-  it('clears held keys on blur, visibility loss, and Escape', () => {
+  it.each(['KeyW', 'KeyS'])('clears held %s on blur, visibility loss, and Escape', (code) => {
     for (const action of ['blur', 'hidden', 'escape']) {
       manager.startKeyboard();
-      key('keydown', 'KeyW');
+      key('keydown', code);
+      expect(manager.sample(0.01)).toMatchObject({
+        throttle: Number(code === 'KeyW'),
+        brake: code === 'KeyS',
+      });
       if (action === 'blur') windowTarget.dispatchEvent(new Event('blur'));
       if (action === 'hidden') {
         doc.hidden = true;
@@ -131,6 +159,7 @@ describe('flight input lifecycle', () => {
       }
       if (action === 'escape') key('keydown', 'Escape');
       expect(manager.sample(0.01).throttle).toBe(0);
+      expect(manager.sample(0.01).brake).toBe(false);
       expect(onMode).toHaveBeenLastCalledWith(null);
     }
   });
