@@ -1,35 +1,47 @@
-import { Icon } from '@/components/ui/Icon';
+import { InstrumentButton } from '@/components/ui/InstrumentButton';
+import { SegmentReadout } from '@/components/ui/SegmentReadout';
 import { HyperspaceStatus } from '@/features/exploration/components/HyperspaceStatus';
-import { NavigationHud } from '@/features/exploration/components/NavigationHud';
+import { NavigationHud, NavigationMarker } from '@/features/exploration/components/NavigationHud';
 import { SYSTEMS } from '@/features/exploration/data/systems';
-import { FlightMenu, flightButtonClassName } from '@/features/flight/components/FlightMenu';
+import { FlightMenu } from '@/features/flight/components/FlightMenu';
+import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
-function Meter({
-  label,
-  value,
-  color = 'bg-teal-100/65',
-}: {
-  label: string;
-  value: number;
-  color?: string;
-}) {
+const gaugeSegments = Array.from({ length: 24 }, (_, position) => position);
+const compassTicks = Array.from({ length: 25 }, (_, position) => position);
+
+function Meter({ label, value, amber = false }: { label: string; value: number; amber?: boolean }) {
   return (
-    <div className="mt-3">
-      <div className="flex justify-between gap-5 font-mono text-[9px] text-slate-400">
+    <div className={amber ? 'text-instrument' : 'text-phosphor'}>
+      <div className="mb-2 flex justify-between gap-3 text-[11px] font-bold tracking-wider">
         <span>{label}</span>
-        <span className="text-stone-200">{Math.round(value * 100)}%</span>
+        <span>
+          {Math.round(value * 100)
+            .toString()
+            .padStart(3, '0')}
+          %
+        </span>
       </div>
       <meter aria-label={label} value={value} min={0} max={1} className="sr-only" />
-      <div aria-hidden="true" className="mt-2 h-0.5 overflow-hidden bg-white/10">
-        <div className={`h-full origin-left ${color}`} style={{ transform: `scaleX(${value})` }} />
+      <div aria-hidden="true" className="relative h-4 border border-current/40 p-0.5">
+        <div className="flex h-full gap-0.5">
+          {gaugeSegments.map((segment) => (
+            <span
+              key={segment}
+              className={`h-full flex-1 bg-current ${value * 24 > segment ? 'opacity-90' : 'opacity-10'}`}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
+
+const panelTitleClassName =
+  'flex items-center justify-between border-b border-line px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-phosphor-dim';
 
 export function FlightHud({ session }: { session: FlightSession }) {
   const telemetry = useFlightStore((state) => state.telemetry);
@@ -44,189 +56,248 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
   const busy = jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN';
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
+  const heading = Math.round(telemetry.heading) % 360;
 
   return (
-    <div className="pointer-events-none absolute inset-0 font-sans">
-      <header className="absolute inset-x-5 top-6 flex items-center justify-between gap-4 tablet:inset-x-10 tablet:top-8">
+    <div className="phosphor-glow pointer-events-none absolute inset-0 font-mono uppercase text-phosphor">
+      <header className="absolute inset-x-3 top-3 flex flex-wrap items-center justify-between gap-3 border border-line bg-console/95 p-3 tablet:inset-x-6 tablet:top-5 tablet:flex-nowrap tablet:px-4">
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-full border border-stone-200/15 text-stone-300">
-            <Icon name="orbit" className="size-6" />
-          </span>
+          <div
+            aria-hidden="true"
+            className="grid size-9 place-items-center border border-phosphor/60 text-lg font-bold"
+          >
+            EH
+          </div>
           <div>
-            <h1 className="text-[10px] font-medium tracking-[0.22em] tablet:text-xs">
-              EVENT HORIZON
-            </h1>
-            <p className="mt-1 font-mono text-[8px] tracking-[0.15em] text-slate-400">
-              {system?.name.toUpperCase()} / CHARTED REACHES
+            <h1 className="text-sm font-bold tracking-[0.18em] tablet:text-lg">Event Horizon</h1>
+            <p className="mt-1 text-[10px] tracking-[0.1em] text-phosphor-dim">
+              Kestrel flight systems / MK.III
             </p>
           </div>
         </div>
-        <div className="pointer-events-auto flex gap-1.5 tablet:gap-2">
-          <button
-            type="button"
+        <div className="hidden text-right text-[11px] tracking-wider min-[1100px]:block">
+          <p className="text-phosphor-dim">Sector 07 / charted reaches</p>
+          <p className="mt-1 text-instrument">Local space : {system?.name}</p>
+        </div>
+        <nav
+          aria-label="Flight panels"
+          className="pointer-events-auto flex w-full gap-2 tablet:w-auto"
+        >
+          <InstrumentButton
             aria-label="Open local system map"
             disabled={!ready || busy}
             onClick={() => session.exploration.openMap('local')}
-            className={flightButtonClassName}
+            className="min-w-0 flex-1 max-tablet:gap-1 max-tablet:px-1.5 max-tablet:text-[11px] tablet:flex-none"
           >
-            <span className="mr-2 hidden tablet:inline">System</span>
-            <kbd>L</kbd>
-          </button>
-          <button
-            type="button"
+            <kbd className="text-instrument">L</kbd> System
+          </InstrumentButton>
+          <InstrumentButton
             aria-label="Open galaxy map"
             disabled={!ready || busy}
             onClick={() => session.exploration.openMap('galaxy')}
-            className={flightButtonClassName}
+            className="min-w-0 flex-1 max-tablet:gap-1 max-tablet:px-1.5 max-tablet:text-[11px] tablet:flex-none"
           >
-            <span className="mr-2 hidden tablet:inline">Galaxy</span>
-            <kbd>M</kbd>
-          </button>
-          <button
-            type="button"
+            <kbd className="text-instrument">M</kbd> Galaxy
+          </InstrumentButton>
+          <InstrumentButton
             onClick={session.pause}
             disabled={phase !== 'flying'}
-            className={`pointer-events-auto ${flightButtonClassName}`}
+            className="min-w-0 flex-1 max-tablet:gap-1 max-tablet:px-1.5 max-tablet:text-[11px] tablet:flex-none"
           >
-            Controls <span className="ml-2 hidden text-slate-500 tablet:inline">ESC</span>
-          </button>
-        </div>
+            <kbd className="text-instrument">ESC</kbd> Controls
+          </InstrumentButton>
+        </nav>
       </header>
 
-      <div className={busy ? 'hidden' : 'contents'} aria-hidden={busy}>
-        <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center font-mono tablet:top-9">
-          <p className="text-[8px] tracking-[0.3em] text-slate-500">HEADING</p>
-          <output
-            className="mt-1 block text-lg tracking-[0.16em] text-teal-100/80"
-            aria-label="Heading"
-            aria-live="off"
+      {!busy && (
+        <>
+          <section
+            aria-label="Orientation"
+            className="absolute top-36 left-1/2 w-52 -translate-x-1/2 text-center tablet:top-28 tablet:w-72"
           >
-            {Math.round(telemetry.heading).toString().padStart(3, '0')}
-            <span className="text-xs">°</span>
-          </output>
-          <p className="mt-1 text-[8px] tracking-widest text-slate-500">
-            PITCH {telemetry.pitch >= 0 ? '+' : ''}
-            {Math.round(telemetry.pitch)}°
-          </p>
-        </div>
-
-        <div
-          className="absolute top-1/2 left-1/2 -translate-1/2 text-teal-100/60"
-          aria-hidden="true"
-        >
-          <svg
-            aria-hidden="true"
-            width="72"
-            height="72"
-            viewBox="0 0 72 72"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1"
-          >
-            <circle cx="36" cy="36" r="18" strokeOpacity="0.4" />
-            <path d="M36 8v10M36 54v10M8 36h10M54 36h10" />
-            <circle cx="36" cy="36" r="1.5" fill="currentColor" />
-          </svg>
-        </div>
-
-        <section
-          aria-label="Flight telemetry"
-          className="absolute bottom-24 left-5 w-32 tablet:bottom-28 tablet:left-10 tablet:w-48"
-        >
-          <p className="font-mono text-[8px] tracking-[0.18em] text-slate-400">VELOCITY / M·S⁻¹</p>
-          <output
-            className="mt-1 block font-mono text-4xl font-light tracking-tight text-stone-100 tablet:text-5xl"
-            aria-label="Speed"
-            aria-live="off"
-          >
-            {Math.round(telemetry.speed).toString().padStart(3, '0')}
-          </output>
-          <Meter label="THROTTLE" value={telemetry.throttle} />
-          <p className="mt-3 hidden font-mono text-[8px] tracking-widest text-slate-500 tablet:block">
-            CRUISE {FLIGHT_CONFIG.maxSpeed} / BOOST {FLIGHT_CONFIG.boostMaxSpeed}
-          </p>
-        </section>
-
-        <section
-          aria-label="Ship systems"
-          className="absolute right-5 bottom-24 w-32 text-right tablet:right-10 tablet:bottom-28 tablet:w-48"
-        >
-          <p
-            className={`font-mono text-[9px] tracking-[0.14em] ${telemetry.boosting ? 'text-amber-200' : 'text-slate-400'}`}
-          >
-            {telemetry.boosting
-              ? 'BOOST ACTIVE'
-              : telemetry.boostReady
-                ? 'BOOST READY'
-                : 'RECHARGING'}
-          </p>
-          <Meter
-            label="BOOST"
-            value={telemetry.boostCharge}
-            color={telemetry.boosting ? 'bg-amber-200' : 'bg-teal-100/65'}
-          />
-          <p className="mt-4 font-mono text-[9px] text-slate-400">
-            FLIGHT ASSIST{' '}
-            <span className={assistance ? 'text-teal-100' : 'text-amber-200'}>
-              {assistance ? 'ON' : 'OFF'}
-            </span>
-          </p>
-          <p className="mt-2 font-mono text-[9px] uppercase text-slate-500">{cameraMode} camera</p>
-        </section>
-      </div>
-      <footer className="absolute inset-x-5 bottom-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 tablet:inset-x-10 tablet:bottom-7">
-        <p className="font-mono text-[8px] tracking-[0.1em] text-slate-500">
-          <span className="text-teal-100/70">
-            {busy ? 'HYPERDRIVE ACTIVE' : phase === 'flying' ? 'FLIGHT ACTIVE' : 'STANDBY'}
-          </span>
-          {busy && (
-            <button
-              type="button"
-              aria-label="Abort jump"
-              onClick={() => session.exploration.cancelJump()}
-              className="pointer-events-auto ml-3 cursor-pointer text-slate-400 hover:text-cyan-100 focus-visible:outline-2 focus-visible:outline-focus"
+            <div
+              aria-hidden="true"
+              className="flex justify-between border-x border-t border-phosphor/40 px-2 pt-1 text-[10px] text-phosphor-dim"
             >
-              ESC · ABORT
-            </button>
-          )}
-          <span className={busy ? 'hidden' : 'ml-3 hidden tablet:inline'}>
+              {[-60, -30, 0, 30, 60].map((offset) => (
+                <span key={offset}>
+                  {((heading + offset + 360) % 360).toString().padStart(3, '0')}
+                </span>
+              ))}
+            </div>
+            <div
+              aria-hidden="true"
+              className="mt-1 flex justify-between border-b border-phosphor/40 px-3"
+            >
+              {compassTicks.map((tick) => (
+                <span
+                  key={tick}
+                  className={`w-px bg-phosphor/50 ${tick % 6 === 0 ? 'h-2' : 'h-1'}`}
+                />
+              ))}
+            </div>
+            <div className="mx-auto mt-2 flex w-fit items-center gap-3 bg-console/75 px-3 py-2">
+              <span className="text-[10px] tracking-widest">
+                HDG
+                <br />
+                DEG
+              </span>
+              <SegmentReadout
+                label="Heading"
+                value={heading.toString().padStart(3, '0')}
+                className="h-6 text-instrument"
+              />
+              <span className="text-[10px] text-phosphor-dim">
+                PITCH
+                <br />
+                <span className="text-phosphor">
+                  {telemetry.pitch >= 0 ? '+' : ''}
+                  {Math.round(telemetry.pitch)}°
+                </span>
+              </span>
+            </div>
+          </section>
+          <div
+            aria-hidden="true"
+            className="absolute top-[46%] left-1/2 -translate-1/2 text-phosphor/60"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 160 90"
+              className="w-36 tablet:w-48"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="0.8"
+            >
+              <path d="M12 20V8h25m86 0h25v12M12 70v12h25m86 0h25V70M0 45h42l8 6h20m20 0h20l8-6h42M80 24v10m0 28v8M73 45h14m-7-7v14" />
+              <path d="M29 30h13m76 0h13M29 60h13m76 0h13" opacity="0.35" />
+            </svg>
+          </div>
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-[29%] left-6 hidden w-3 border-y border-l border-line tablet:block"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-y-[29%] right-6 hidden w-3 border-y border-r border-line tablet:block"
+          />
+
+          <div className="absolute inset-x-3 bottom-14 grid grid-cols-2 gap-2 tablet:inset-x-6 tablet:grid-cols-[1fr_1.1fr_0.9fr_1.3fr]">
+            <section aria-label="Flight telemetry" className="border border-line bg-console/95">
+              <div className={panelTitleClassName}>
+                <span>01 / velocity</span>
+                <span>M·S⁻¹</span>
+              </div>
+              <div className="flex items-end gap-3 px-3 pt-3 pb-2 tablet:px-4">
+                <SegmentReadout
+                  label="Speed"
+                  value={Math.round(telemetry.speed).toString().padStart(3, '0')}
+                  className="h-10 text-instrument tablet:h-14"
+                />
+                <span className="pb-1 text-[10px] text-phosphor-dim">M/S</span>
+              </div>
+              <div className="flex justify-between gap-2 px-3 pb-3 text-[10px] text-phosphor-dim tablet:px-4">
+                <span>CRS {FLIGHT_CONFIG.maxSpeed}</span>
+                <span>MAX {FLIGHT_CONFIG.boostMaxSpeed}</span>
+              </div>
+            </section>
+            <section aria-label="Ship systems" className="border border-line bg-console/95">
+              <div className={panelTitleClassName}>
+                <span>02 / propulsion</span>
+                <span>{telemetry.boosting ? 'BST' : 'STD'}</span>
+              </div>
+              <div className="space-y-3 p-3">
+                <Meter label="THROTTLE" value={telemetry.throttle} />
+                <Meter label="BOOST" value={telemetry.boostCharge} amber={telemetry.boosting} />
+              </div>
+            </section>
+            <section
+              aria-label="Airframe configuration"
+              className="hidden border border-line bg-console/95 tablet:block"
+            >
+              <div className={panelTitleClassName}>
+                <span>03 / airframe</span>
+                <span>K-01</span>
+              </div>
+              <div className="flex items-center gap-1 px-2 py-1">
+                <ShipSchematic className="h-23 w-[55%] text-phosphor/80" />
+                <dl className="space-y-3 text-[10px]">
+                  <div>
+                    <dt className="text-phosphor-dim">ASSIST</dt>
+                    <dd className={assistance ? 'text-phosphor' : 'text-instrument'}>
+                      {assistance ? 'ENGAGED' : 'MANUAL'}
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-phosphor-dim">BOOST</dt>
+                    <dd className={telemetry.boosting ? 'text-instrument' : 'text-phosphor'}>
+                      {telemetry.boosting ? 'ACTIVE' : telemetry.boostReady ? 'READY' : 'RECHARGE'}
+                    </dd>
+                  </div>
+                </dl>
+              </div>
+            </section>
+            <NavigationHud session={session} />
+          </div>
+          <NavigationMarker />
+        </>
+      )}
+      <footer className="absolute inset-x-3 bottom-3 flex min-h-8 items-center justify-between gap-2 border-y border-line bg-console/95 px-2 text-[10px] font-bold tracking-wider tablet:inset-x-6 tablet:px-3">
+        <p className="flex items-center gap-2">
+          <span
+            aria-hidden="true"
+            className={`size-1.5 ${busy ? 'bg-instrument' : 'bg-phosphor'}`}
+          />
+          <span>
+            {busy ? 'Hyperdrive active' : phase === 'flying' ? 'Flight active' : 'Standby'}
+          </span>
+          <span className="hidden text-phosphor-dim min-[1100px]:inline">
+            /{' '}
             {inputMode === 'mouse'
-              ? 'MOUSE CAPTURED'
+              ? 'MOUSE LINK'
               : inputMode === 'keyboard'
-                ? 'KEYBOARD CONTROL'
-                : 'KESTREL / 01'}
+                ? 'KEYBOARD LINK'
+                : 'AWAITING INPUT'}
           </span>
         </p>
-        <div className="pointer-events-auto flex gap-2">
-          <button
-            type="button"
-            onClick={toggleCamera}
-            className={flightButtonClassName}
-            aria-label="Switch camera"
+        {busy ? (
+          <InstrumentButton
+            aria-label="Abort jump"
+            onClick={() => session.exploration.cancelJump()}
+            className="pointer-events-auto min-h-7 border-instrument/50 py-1 text-instrument"
           >
-            <span className="mr-2 text-slate-500">C</span>
-            <span className="capitalize">{cameraMode}</span>
-          </button>
-          <button
-            type="button"
-            onClick={toggleAssistance}
-            className={flightButtonClassName}
-            aria-pressed={assistance}
-            aria-label="Flight assistance"
-          >
-            <span className="mr-2 text-slate-500">F</span>Assist {assistance ? 'on' : 'off'}
-          </button>
-        </div>
+            ESC / Abort
+          </InstrumentButton>
+        ) : (
+          <div className="pointer-events-auto flex gap-2">
+            <button
+              type="button"
+              aria-label="Switch camera"
+              onClick={toggleCamera}
+              className="cursor-pointer px-1 py-2 hover:text-instrument focus-visible:outline-2 focus-visible:outline-focus"
+            >
+              <kbd className="text-instrument">C</kbd> / {cameraMode}
+            </button>
+            <button
+              type="button"
+              aria-label="Flight assistance"
+              aria-pressed={assistance}
+              onClick={toggleAssistance}
+              className="cursor-pointer border-l border-line px-2 py-2 hover:text-instrument focus-visible:outline-2 focus-visible:outline-focus"
+            >
+              <kbd className="text-instrument">F</kbd> / ASSIST {assistance ? 'ON' : 'OFF'}
+            </button>
+          </div>
+        )}
       </footer>
-      <NavigationHud session={session} />
       <HyperspaceStatus session={session} />
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
         Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
         raise throttle; release to slow down. S applies stronger braking. Space is reserved for
-        future weapons. Use Shift for boost, C for camera, F for assistance, and Escape to pause. M
-        opens the galaxy map; L opens the local system map. T cycles navigation targets; X clears
-        the target. Maps pause flight. Controls are available in the flight briefing.
+        future weapons. Use Shift with W for boost, C for camera, F for assistance, and Escape to
+        pause. M opens the galaxy map; L opens the local system map. T cycles navigation targets; X
+        clears the target. Maps pause flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

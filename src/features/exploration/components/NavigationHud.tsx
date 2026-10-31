@@ -6,61 +6,91 @@ import { useExplorationStore } from '@/stores/explorationStore';
 export function NavigationHud({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
   const navigation = useExplorationStore((state) => state.navigation);
-  const phase = useExplorationStore((state) => state.jump.phase);
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
   const target = system?.bodies.find((body) => body.id === navigation.targetId);
   const nearest = system?.bodies.find((body) => body.id === navigation.nearestId);
-  const busy = phase !== 'IDLE' && phase !== 'COOLDOWN';
-  if (busy) return null;
   return (
-    <>
-      <section
-        aria-label="Navigation target"
-        className="pointer-events-auto absolute top-40 left-5 max-w-52 tablet:top-28 tablet:left-10"
-      >
-        <p className="font-mono text-[8px] tracking-[0.18em] text-cyan-200/45">
-          {target ? 'TRACKING / LOCAL CONTACT' : 'NAVIGATION / FREE FLIGHT'}
-        </p>
-        <button
-          type="button"
-          onClick={() => session.exploration.openMap('local')}
-          aria-label="Choose navigation target"
-          className="mt-2 cursor-pointer text-left outline-none focus-visible:ring-2 focus-visible:ring-cyan-100"
-        >
-          <span className="block text-lg font-light text-stone-200">
-            {target?.name ?? 'Choose a destination'}
-          </span>
-          <span className="mt-1 block font-mono text-[9px] text-slate-400">
-            {target
-              ? `${bodyLabel(target)} · ${formatDistance(navigation.surfaceDistance)} to surface`
-              : 'L · Open local system map'}
-          </span>
-        </button>
-        <p className="mt-3 font-mono text-[8px] leading-4 text-slate-500">
-          {target
-            ? navigation.behind
-              ? 'TARGET BEHIND / TURN TO ACQUIRE'
-              : navigation.aligned
-                ? 'COURSE ALIGNED'
-                : 'ADJUST COURSE TO TARGET'
-            : nearest
-              ? `NEAR ${nearest.name.toUpperCase()} / ${formatDistance(navigation.nearestDistance)}`
-              : 'T · Cycle contacts'}
-        </p>
-      </section>
-      {target && (
-        <div
+    <section
+      aria-label="Navigation target"
+      className="pointer-events-auto col-span-2 border border-line bg-console/95 tablet:col-span-1"
+    >
+      <div className="flex justify-between border-b border-line px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-phosphor-dim">
+        <span>04 / navigation</span>
+        <span>{target ? 'TRACK' : 'FREE'}</span>
+      </div>
+      <div className="flex items-center gap-3 px-3 py-2">
+        <svg
+          viewBox="0 0 100 100"
+          className="size-16 shrink-0 text-phosphor tablet:size-23"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="0.7"
           aria-hidden="true"
-          style={{
-            left: `${50 + navigation.bearingX * 40}%`,
-            top: `${47 + navigation.bearingY * 26}%`,
-          }}
-          className="absolute -translate-1/2 text-center text-cyan-100/60"
         >
-          <span className="block text-xl leading-none">{navigation.behind ? '‹' : '◇'}</span>
-          <span className="mt-1 block font-mono text-[8px] tracking-wider">{target.name}</span>
+          <circle cx="50" cy="50" r="44" />
+          <circle cx="50" cy="50" r="30" opacity="0.3" />
+          <circle cx="50" cy="50" r="14" opacity="0.3" />
+          <path d="M50 0v100M0 50h100M19 19l62 62M19 81l62-62" opacity="0.25" />
+          <path d="m45 54 5-11 5 11-5-3Z" fill="currentColor" />
+          {target && (
+            <g
+              transform={`translate(${50 + navigation.bearingX * 36} ${50 + navigation.bearingY * 36})`}
+              className="text-instrument"
+            >
+              <path d="M-5-3v-2h3m4 0h3v2M5 3v2H2m-4 0h-3V3" strokeWidth="1.5" />
+              <circle r="1.5" fill="currentColor" />
+            </g>
+          )}
+        </svg>
+        <div className="min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => session.exploration.openMap('local')}
+            aria-label="Choose navigation target"
+            className="block w-full cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-focus"
+          >
+            <span className="block truncate text-sm font-bold tracking-wider text-phosphor">
+              {target?.name ?? 'No target'}
+            </span>
+            <span className="mt-1 block text-[11px] text-instrument">
+              {target
+                ? `${formatDistance(navigation.surfaceDistance)} / SURFACE`
+                : 'L / SELECT CONTACT'}
+            </span>
+          </button>
+          <p className="mt-2 text-[10px] leading-4 text-phosphor-dim">
+            {target
+              ? `${bodyLabel(target)} / ${navigation.behind ? 'ASTERN' : navigation.aligned ? 'ALIGNED' : 'OFF AXIS'}`
+              : nearest
+                ? `NEAR ${nearest.name}`
+                : 'T / CYCLE CONTACTS'}
+          </p>
         </div>
-      )}
-    </>
+      </div>
+    </section>
+  );
+}
+
+export function NavigationMarker() {
+  const systemId = useExplorationStore((state) => state.systemId);
+  const navigation = useExplorationStore((state) => state.navigation);
+  const target = SYSTEMS.find((system) => system.id === systemId)?.bodies.find(
+    (body) => body.id === navigation.targetId,
+  );
+  if (!target) return null;
+  return (
+    <div
+      aria-hidden="true"
+      style={{
+        left: `${50 + navigation.bearingX * 39}%`,
+        top: `${44 + navigation.bearingY * 22}%`,
+      }}
+      className="absolute -translate-1/2 text-center text-instrument/90"
+    >
+      <span className="block text-2xl leading-none">{navigation.behind ? '‹' : '⌖'}</span>
+      <span className="mt-1 block bg-console/70 px-1 text-[10px] tracking-wider">
+        {target.name}
+      </span>
+    </div>
   );
 }
