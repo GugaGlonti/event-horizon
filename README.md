@@ -46,8 +46,9 @@ fonts, textures, or services to configure. No new dependencies were needed for t
 | Input          | Action                                                   |
 | -------------- | -------------------------------------------------------- |
 | Mouse movement | Pitch/yaw; steering gently recenters when movement stops |
-| Arrow keys     | Pitch/yaw in either mode; ↑ nose down, ↓ nose up         |
-| Q / E          | Roll left/right                                          |
+| ↑ / ↓          | Pitch in either input mode; ↑ nose down, ↓ nose up       |
+| ← / →          | Roll left/right                                          |
+| Q / E          | Yaw left/right                                           |
 | W / S          | Increase/decrease throttle                               |
 | Shift          | Hold for temporary engine boost                          |
 | Space          | Hold to brake; stored throttle is preserved              |

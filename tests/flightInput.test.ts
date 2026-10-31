@@ -74,9 +74,16 @@ describe('flight input lifecycle', () => {
     manager.startKeyboard();
     key('keydown', 'KeyW');
     key('keydown', 'ArrowUp');
+    key('keydown', 'ArrowLeft');
     key('keydown', 'KeyE');
     key('keydown', 'ShiftLeft');
-    expect(manager.sample(0.01)).toMatchObject({ throttle: 1, pitch: -1, roll: 1, boost: true });
+    expect(manager.sample(0.01)).toMatchObject({
+      throttle: 1,
+      pitch: -1,
+      yaw: 1,
+      roll: -1,
+      boost: true,
+    });
     key('keydown', 'KeyC');
     key('keydown', 'KeyC', true);
     key('keydown', 'KeyF');
@@ -87,14 +94,30 @@ describe('flight input lifecycle', () => {
   });
 
   it.each([
-    ['ArrowUp', -1],
-    ['ArrowDown', 1],
-  ] as const)('maps %s to inverted pitch and clears it on release', (code, pitch) => {
+    ['ArrowUp', { pitch: -1, yaw: 0, roll: 0 }],
+    ['ArrowDown', { pitch: 1, yaw: 0, roll: 0 }],
+    ['ArrowLeft', { pitch: 0, yaw: 0, roll: -1 }],
+    ['ArrowRight', { pitch: 0, yaw: 0, roll: 1 }],
+    ['KeyQ', { pitch: 0, yaw: -1, roll: 0 }],
+    ['KeyE', { pitch: 0, yaw: 1, roll: 0 }],
+  ] as const)('maps %s to its flight axis and clears it on release', (code, axes) => {
     manager.startKeyboard();
     key('keydown', code);
-    expect(manager.sample(0.01).pitch).toBe(pitch);
+    expect(manager.sample(0.01)).toMatchObject(axes);
     key('keyup', code);
-    expect(manager.sample(0.01).pitch).toBe(0);
+    expect(manager.sample(0.01)).toMatchObject({ pitch: 0, yaw: 0, roll: 0 });
+  });
+
+  it('cancels opposing yaw and roll keys independently and restores held input on release', () => {
+    manager.startKeyboard();
+    for (const code of ['ArrowLeft', 'ArrowRight', 'KeyQ', 'KeyE']) key('keydown', code);
+    expect(manager.sample(0.01)).toMatchObject({ yaw: 0, roll: 0 });
+    key('keyup', 'ArrowRight');
+    key('keyup', 'KeyE');
+    expect(manager.sample(0.01)).toMatchObject({ yaw: -1, roll: -1 });
+    key('keyup', 'ArrowLeft');
+    key('keyup', 'KeyQ');
+    expect(manager.sample(0.01)).toMatchObject({ yaw: 0, roll: 0 });
   });
 
   it('clears held keys on blur, visibility loss, and Escape', () => {

@@ -165,11 +165,11 @@ export class FlightInputManager {
       1,
     );
     this.input.yaw = MathUtils.clamp(
-      this.stickX + Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft')),
+      this.stickX + Number(keys.has('KeyE')) - Number(keys.has('KeyQ')),
       -1,
       1,
     );
-    this.input.roll = Number(keys.has('KeyE')) - Number(keys.has('KeyQ'));
+    this.input.roll = Number(keys.has('ArrowRight')) - Number(keys.has('ArrowLeft'));
     this.input.throttle = Number(keys.has('KeyW')) - Number(keys.has('KeyS'));
     this.input.boost = keys.has('ShiftLeft') || keys.has('ShiftRight');
     this.input.brake = keys.has('Space');
