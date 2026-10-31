@@ -191,14 +191,16 @@ export class FlightSession {
   };
 
   startMouse = () => {
-    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay)
+    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay) {
       if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
-    void this.manager?.requestMouse();
+      void this.manager?.requestMouse();
+    }
   };
   startKeyboard = () => {
-    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay)
+    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay) {
       if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
-    this.manager?.startKeyboard();
+      this.manager?.startKeyboard();
+    }
   };
   pause = () => {
     this.engineAudio.stop();

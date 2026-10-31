@@ -88,6 +88,8 @@ describe('engine audio session boundaries', () => {
     documentTarget.hidden = false;
     session.startKeyboard();
     session.exploration.openMap('local');
+    session.startKeyboard();
+    expect(useFlightStore.getState().phase).toBe('paused');
     session.advance(0.1);
     expect(update.mock.lastCall?.[2]).toBe(false);
     session.exploration.closeMap();
