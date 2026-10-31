@@ -12,7 +12,7 @@
     "lineWidth": 100,
     "lineEnding": "lf"
   },
-  "linter": { "enabled": true, "rules": { "recommended": true } },
+  "linter": { "enabled": true, "rules": { "preset": "recommended" } },
   "javascript": {
     "formatter": { "quoteStyle": "single", "jsxQuoteStyle": "double", "semicolons": "always" }
   },

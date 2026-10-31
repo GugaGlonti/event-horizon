@@ -10,7 +10,7 @@ export function SceneToolbar() {
   const resetView = useSceneStore((state) => state.resetView);
 
   return (
-    <div className="scene-toolbar" role="group" aria-label="Scene controls">
+    <fieldset className="scene-toolbar" aria-label="Scene controls">
       <button
         type="button"
         className="toolbar-button"
@@ -35,10 +35,16 @@ export function SceneToolbar() {
         <span>Stars</span>
       </button>
       <span className="toolbar-divider" />
-      <button type="button" className="toolbar-button" onClick={resetView} title="Reset camera view">
+      <button
+        type="button"
+        className="toolbar-button"
+        onClick={resetView}
+        aria-label="Reset view"
+        title="Reset camera view"
+      >
         <Icon name="reset" />
-        <span>Reset view</span>
+        <span>Reset</span>
       </button>
-    </div>
+    </fieldset>
   );
 }
