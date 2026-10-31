@@ -1,0 +1,55 @@
+import { create } from 'zustand';
+import type { AiState, WeaponSlot } from '@/engine/combat/combatTypes';
+
+export interface TargetReadout {
+  readonly id: string;
+  readonly distance: number;
+  readonly shields: number;
+  readonly hull: number;
+  readonly state: AiState | 'practice';
+}
+export interface CombatReadout {
+  readonly weapon: WeaponSlot;
+  readonly weaponCooldown: number;
+  readonly weaponCharge: number;
+  readonly missileLocked: boolean;
+  readonly shields: number;
+  readonly hull: number;
+  readonly dead: boolean;
+  readonly invulnerable: boolean;
+  readonly hostiles: number;
+  readonly kills: number;
+  readonly status: string;
+  readonly target: TargetReadout | null;
+}
+export interface CombatMarker {
+  readonly x: number;
+  readonly y: number;
+  readonly aft: boolean;
+  readonly edge: boolean;
+  readonly leadX: number | null;
+  readonly leadY: number | null;
+}
+interface CombatState {
+  readout: CombatReadout;
+  marker: CombatMarker | null;
+  sound: boolean;
+}
+export const useCombatStore = create<CombatState>()(() => ({
+  readout: {
+    weapon: 1,
+    weaponCooldown: 0,
+    weaponCharge: 0,
+    missileLocked: false,
+    shields: 1,
+    hull: 1,
+    dead: false,
+    invulnerable: false,
+    hostiles: 0,
+    kills: 0,
+    status: 'B / Start patrol encounter',
+    target: null,
+  },
+  marker: null,
+  sound: true,
+}));
