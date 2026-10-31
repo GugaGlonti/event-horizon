@@ -43,6 +43,19 @@ afterEach(() => {
 });
 
 describe('exploration transactions', () => {
+  it('keeps a blocked flight plan open and never begins preparation or departure', () => {
+    const { session, events } = create();
+    session.openMap('galaxy');
+    session.syncPose(new Vector3(0, 0, 1300), new Quaternion());
+    session.selectDestination('vesper');
+    expect(session.beginJump()).toBe(false);
+    expect(session.jump.phase).toBe('IDLE');
+    expect(useExplorationStore.getState().overlay).toBe('galaxy');
+    expect(useExplorationStore.getState().error).toMatch(/Departure lane blocked/);
+    expect(events.onDepart).not.toHaveBeenCalled();
+    expect(events.onCommit).not.toHaveBeenCalled();
+  });
+
   it('travels Solara → Vesper → Aether → Solara, commits once per journey and restores flight', async () => {
     const { session, events } = create();
     for (const destination of ['vesper', 'aether', 'solara']) {

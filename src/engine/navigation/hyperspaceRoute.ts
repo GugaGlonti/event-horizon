@@ -61,7 +61,8 @@ export function routeArrival(
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const distance = Math.max(4800, anchor.radius * 7) + attempt * 2200;
     position.copy(center).addScaledVector(direction, -distance);
-    position.addScaledVector(right, anchor.radius * 1.7);
+    const lateralClearance = anchor.radius * Math.max(1.7, (anchor.rings?.outer ?? 1) * 1.25);
+    position.addScaledVector(right, lateralClearance);
     position.addScaledVector(up, anchor.radius * 0.45 + attempt * 500);
     if (!departureObstruction(world, position, direction, coastDistance + 1000))
       return { position, orientation };

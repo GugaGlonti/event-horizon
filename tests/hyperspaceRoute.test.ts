@@ -28,6 +28,14 @@ describe('galactic jump routes', () => {
             .dot(direction),
         ).toBeLessThan(0);
         expect(departureObstruction(world, arrival.position, direction, 1800)).toBeNull();
+        const body = destination.bodies.find(
+          (candidate) => candidate.id === destination.defaultTargetId,
+        );
+        const offset = arrival.position.clone().sub(anchor ?? new Vector3());
+        offset.addScaledVector(direction, -offset.dot(direction));
+        expect(offset.length()).toBeGreaterThan(
+          (body?.radius ?? 0) * (body?.rings?.outer ?? 1) + 180,
+        );
         expect(direction.clone().add(travelDirection(destination, source)).length()).toBeLessThan(
           1e-12,
         );

@@ -165,6 +165,24 @@ describe('exploration input integration', () => {
     advance(1);
     expect(session.controller.speed).toBeGreaterThan(0);
   });
+
+  it('holds an opaque destination until that scene reports readiness, then restores flight', async () => {
+    session.exploration.selectDestination('vesper');
+    session.exploration.beginJump();
+    await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
+    for (let frame = 0; frame < 1200 && session.exploration.jump.phase !== 'EXITING'; frame += 1)
+      session.advance(1 / 120);
+    expect(session.exploration.world.definition.id).toBe('vesper');
+    session.exploration.markArrivalReady('solara');
+    for (let frame = 0; frame < 120; frame += 1) session.advance(1 / 120);
+    expect(session.exploration.jump.progress).toBe(0);
+    expect(session.exploration.jump.coverage).toBe(1);
+    expect(useFlightStore.getState().phase).toBe('paused');
+    session.exploration.markArrivalReady('vesper');
+    advance(2);
+    expect(useFlightStore.getState().phase).toBe('flying');
+    expect(session.controller.speed).toBeCloseTo(100);
+  });
 });
 
 describe('logical flight arrivals', () => {

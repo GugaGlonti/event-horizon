@@ -112,7 +112,6 @@ export class ExplorationSession {
       return false;
     }
     this.callbacks.onPause();
-    this.closeMap();
     const target = SYSTEMS.find((system) => system.id === this.jump.destinationId);
     if (!target) return false;
     travelDirection(this.world.definition, target, this.direction);
@@ -129,6 +128,7 @@ export class ExplorationSession {
       return false;
     }
     this.callbacks.onDepart(this.direction);
+    this.closeMap();
     this.suspended = false;
     useExplorationStore.setState({ error: null, arrival: null });
     if (state.soundEnabled) this.audio.start();
