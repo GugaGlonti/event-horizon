@@ -8,6 +8,9 @@ export interface FlightInput {
   boost: boolean;
   /** Slows velocity and lowers stored throttle; overrides thrust and boost. */
   brake: boolean;
+  strafe: number;
+  lift: number;
+  reverse: boolean;
 }
 
 export interface FlightConfig {
@@ -28,6 +31,9 @@ export interface FlightConfig {
   readonly assistedAngularDamping: number;
   readonly unassistedAngularDamping: number;
   readonly lateralDamping: number;
+  readonly strafeAcceleration: number;
+  readonly strafeMaxSpeed: number;
+  readonly reverseMaxSpeed: number;
 }
 
 /** Scalar snapshots cannot mutate the simulation's vectors or quaternion. */
@@ -44,5 +50,15 @@ export interface FlightTelemetry {
 }
 
 export function createFlightInput(): FlightInput {
-  return { pitch: 0, yaw: 0, roll: 0, throttle: 0, boost: false, brake: false };
+  return {
+    pitch: 0,
+    yaw: 0,
+    roll: 0,
+    throttle: 0,
+    boost: false,
+    brake: false,
+    strafe: 0,
+    lift: 0,
+    reverse: false,
+  };
 }

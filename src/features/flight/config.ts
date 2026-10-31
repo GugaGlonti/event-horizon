@@ -18,6 +18,9 @@ export const FLIGHT_CONFIG: FlightConfig = Object.freeze({
   assistedAngularDamping: 5,
   unassistedAngularDamping: 0.12,
   lateralDamping: 2.2,
+  strafeAcceleration: 65,
+  strafeMaxSpeed: 65,
+  reverseMaxSpeed: 60,
 });
 
 export const GAME_CONFIG = {

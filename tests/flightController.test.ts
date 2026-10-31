@@ -285,3 +285,21 @@ describe('fixed-step clock', () => {
     ).toBeCloseTo(0.75);
   });
 });
+
+describe('six-degree translation', () => {
+  it('accelerates laterally, vertically and in reverse in the local ship frame', () => {
+    for (const [input, axis] of [
+      [{ strafe: 1 }, new Vector3(1, 0, 0)],
+      [{ lift: 1 }, new Vector3(0, 1, 0)],
+      [{ reverse: true }, new Vector3(0, 0, 1)],
+    ] as const) {
+      const ship = new FlightController(FLIGHT_CONFIG);
+      fly(ship, 2, input);
+      const velocity = ship.copyVelocity(new Vector3());
+      expect(velocity.dot(axis)).toBeGreaterThan(10);
+      expect(velocity.length()).toBeLessThanOrEqual(FLIGHT_CONFIG.strafeMaxSpeed);
+      fly(ship, 2, { brake: true });
+      expect(ship.speed).toBeLessThan(0.01);
+    }
+  });
+});
