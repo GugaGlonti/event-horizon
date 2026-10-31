@@ -73,7 +73,8 @@ helper is for visual planet animation, not flight timing.
 
 The app effect attaches one input manager and returns its disposer. Paused sessions keep only lifecycle
 listeners; keyboard, mouse, wheel, and context-menu handlers exist only while piloting. Keyboard-only
-launch is explicit, and arrows work in both modes. C/F actions ignore key repeat.
+launch is explicit, and arrows work in both modes. Up arrow pitches the nose down; Down arrow pitches
+the nose up. C/F actions ignore key repeat.
 
 Mouse capture is requested only by a user gesture. Relative movement drives a bounded steering input
 that gently recenters. Pointer-lock failure leaves the briefing visible with a keyboard alternative.

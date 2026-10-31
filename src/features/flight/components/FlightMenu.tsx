@@ -2,7 +2,7 @@ import type { FlightSession } from '@/features/flight/FlightSession';
 import { useFlightStore } from '@/stores/flightStore';
 
 const controls = [
-  ['MOUSE / ↑ ↓ ← →', 'Pitch & yaw'],
+  ['MOUSE / ↑ ↓ ← →', 'Steer · ↑ nose down / ↓ nose up'],
   ['Q / E', 'Roll left / right'],
   ['W / S', 'Throttle up / down'],
   ['SHIFT', 'Engine boost'],

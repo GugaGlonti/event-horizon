@@ -76,7 +76,7 @@ describe('flight input lifecycle', () => {
     key('keydown', 'ArrowUp');
     key('keydown', 'KeyE');
     key('keydown', 'ShiftLeft');
-    expect(manager.sample(0.01)).toMatchObject({ throttle: 1, pitch: 1, roll: 1, boost: true });
+    expect(manager.sample(0.01)).toMatchObject({ throttle: 1, pitch: -1, roll: 1, boost: true });
     key('keydown', 'KeyC');
     key('keydown', 'KeyC', true);
     key('keydown', 'KeyF');
@@ -84,6 +84,17 @@ describe('flight input lifecycle', () => {
     expect(onAssistance).toHaveBeenCalledTimes(1);
     key('keyup', 'KeyW');
     expect(manager.sample(0.01).throttle).toBe(0);
+  });
+
+  it.each([
+    ['ArrowUp', -1],
+    ['ArrowDown', 1],
+  ] as const)('maps %s to inverted pitch and clears it on release', (code, pitch) => {
+    manager.startKeyboard();
+    key('keydown', code);
+    expect(manager.sample(0.01).pitch).toBe(pitch);
+    key('keyup', code);
+    expect(manager.sample(0.01).pitch).toBe(0);
   });
 
   it('clears held keys on blur, visibility loss, and Escape', () => {

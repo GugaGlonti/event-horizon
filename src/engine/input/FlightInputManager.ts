@@ -160,7 +160,7 @@ export class FlightInputManager {
   sample(dt: number) {
     const keys = this.keys;
     this.input.pitch = MathUtils.clamp(
-      this.stickY + Number(keys.has('ArrowUp')) - Number(keys.has('ArrowDown')),
+      this.stickY + Number(keys.has('ArrowDown')) - Number(keys.has('ArrowUp')),
       -1,
       1,
     );

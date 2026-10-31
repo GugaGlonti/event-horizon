@@ -174,9 +174,10 @@ export function FlightHud({ session }: { session: FlightSession }) {
         </div>
       </footer>
       <p id="scene-instructions" className="sr-only">
-        Use mouse or arrow keys to steer, W and S for throttle, Q and E for roll, Shift for boost,
-        Space to brake, C for camera, F for assistance, and Escape to pause. Controls are available
-        in the flight briefing.
+        Use mouse or arrow keys to steer. Up arrow pitches the nose down; Down arrow pitches the
+        nose up. Use W and S for throttle, Q and E for roll, Shift for boost, Space to brake, C for
+        camera, F for assistance, and Escape to pause. Controls are available in the flight
+        briefing.
       </p>
       <FlightMenu session={session} />
     </div>
