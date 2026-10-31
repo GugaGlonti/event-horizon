@@ -22,6 +22,8 @@ export const HYPERSPACE_ENTRY = Object.freeze({
   tunnelStart: 0.72,
 });
 
+export const HYPERSPACE_EXIT = Object.freeze({ revealStart: 0.14, revealEnd: 0.23, settle: 0.3 });
+
 /** Keep the physical surge short while stars have time to stretch before ignition. */
 export function entrySurge(progress: number) {
   return Math.max(
@@ -63,7 +65,8 @@ export class HyperspaceController {
     if (this.phase === 'ACCELERATING')
       return smoothRamp(HYPERSPACE_ENTRY.tunnelStart, 1, this.progress);
     if (this.phase === 'HYPERSPACE') return 1;
-    if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.3, this.progress);
+    if (this.phase === 'EXITING')
+      return 1 - smoothRamp(HYPERSPACE_EXIT.revealStart, HYPERSPACE_EXIT.revealEnd, this.progress);
     return 0;
   }
 

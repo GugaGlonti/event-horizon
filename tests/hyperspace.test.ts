@@ -91,4 +91,14 @@ describe('hyperspace state machine', () => {
     expect(jump.phase).toBe('IDLE');
     expect(jump.error).toMatch(/Arrival rendering timed out/);
   });
+
+  it('holds the first arrival beat opaque, then reveals the prepared scene within a tenth second', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.14;
+    expect(jump.coverage).toBe(1);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.23;
+    expect(jump.coverage).toBe(0);
+    expect(HYPERSPACE_TIMING.EXITING * (0.23 - 0.14)).toBeLessThan(0.11);
+  });
 });

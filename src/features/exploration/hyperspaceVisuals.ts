@@ -1,6 +1,7 @@
 import {
   entrySurge,
   HYPERSPACE_ENTRY,
+  HYPERSPACE_EXIT,
   type HyperspaceController,
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
@@ -10,7 +11,7 @@ export function jumpStretch(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return smoothRamp(0.02, HYPERSPACE_ENTRY.stretchComplete, jump.progress);
   if (jump.phase === 'HYPERSPACE') return 1;
-  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.4, jump.progress);
+  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.1, HYPERSPACE_EXIT.settle, jump.progress);
   return 0;
 }
 
@@ -25,12 +26,18 @@ export function jumpStarTravel(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return smoothRamp(0.02, 0.85, jump.progress) * 0.065 + entrySurge(jump.progress) ** 3 * 0.935;
   if (jump.phase === 'HYPERSPACE') return 1;
-  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.02, 0.4, jump.progress);
+  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.04, HYPERSPACE_EXIT.settle, jump.progress);
   return 0;
 }
 
 /** One soft exposure crest as the streaks merge into the opaque cloud corridor. */
 export function jumpExposure(jump: HyperspaceController) {
+  if (jump.phase === 'EXITING')
+    return (
+      smoothRamp(0.1, HYPERSPACE_EXIT.revealStart, jump.progress) *
+      (1 - smoothRamp(HYPERSPACE_EXIT.revealStart, HYPERSPACE_EXIT.settle, jump.progress)) *
+      0.3
+    );
   if (jump.phase !== 'ACCELERATING') return 0;
   return smoothRamp(0.7, 0.87, jump.progress) * (1 - smoothRamp(0.87, 1, jump.progress));
 }

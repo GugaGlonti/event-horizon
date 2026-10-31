@@ -78,4 +78,21 @@ describe('continuous jump motion', () => {
     expect(position.distanceTo(lastFrame)).toBeLessThan(1e-9);
     expect(motion.active).toBe(false);
   });
+
+  it('moves foreground bodies decisively at ignition and settles before revealing the arrival', () => {
+    const { motion, jump, position, orientation, destination } = setup();
+    const launch = position.clone();
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.8;
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(launch)).toBeGreaterThan(1500);
+    motion.arrive(new SystemRuntime(destination));
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.3;
+    motion.sample(jump, position, orientation);
+    const before = position.clone();
+    jump.elapsed += 0.001;
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(before) / 0.001).toBeLessThan(360);
+  });
 });

@@ -27,6 +27,7 @@ export const GAME_CONFIG = {
   telemetryInterval: 0.1,
   navigationKeys: { galaxy: 'KeyM', local: 'KeyL', nextTarget: 'KeyT', clearTarget: 'KeyX' },
   input: { mouseSensitivity: 0.003, mouseReturnRate: 2.8 },
+  hyperspace: { departureDistance: 5200, arrivalSpeed: 3200, exitSpeed: 100 },
   camera: {
     chaseOffset: [0, 3.2, 12] as const,
     narrowScreenAspect: 0.9,

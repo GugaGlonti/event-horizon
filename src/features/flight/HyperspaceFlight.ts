@@ -7,15 +7,12 @@ import {
 } from '@/engine/navigation/HyperspaceController';
 import { routeArrival, routeOrientation } from '@/engine/navigation/hyperspaceRoute';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { GAME_CONFIG } from '@/features/flight/config';
 
-export const JUMP_MOTION = Object.freeze({
-  departureDistance: 1800,
-  arrivalSpeed: 2200,
-  exitSpeed: 100,
-});
+export const JUMP_MOTION = GAME_CONFIG.hyperspace;
 const exitDuration = HYPERSPACE_TIMING.EXITING;
 export const EXIT_COAST_DISTANCE =
-  exitDuration * (JUMP_MOTION.exitSpeed + (JUMP_MOTION.arrivalSpeed - JUMP_MOTION.exitSpeed) / 4);
+  exitDuration * (JUMP_MOTION.exitSpeed + (JUMP_MOTION.arrivalSpeed - JUMP_MOTION.exitSpeed) / 8);
 
 /** Bounded analytical cinematic poses. Hyperspeed never enters normal flight integration. */
 export class HyperspaceFlight {
@@ -65,12 +62,12 @@ export class HyperspaceFlight {
     } else if (jump.phase === 'EXITING') {
       const distance =
         JUMP_MOTION.exitSpeed * exitDuration * p +
-        ((JUMP_MOTION.arrivalSpeed - JUMP_MOTION.exitSpeed) * exitDuration * (1 - (1 - p) ** 4)) /
-          4;
+        ((JUMP_MOTION.arrivalSpeed - JUMP_MOTION.exitSpeed) * exitDuration * (1 - (1 - p) ** 8)) /
+          8;
       position.copy(this.arrival).addScaledVector(this.direction, distance);
     } else {
       const distance =
-        JUMP_MOTION.departureDistance * (jump.phase === 'ACCELERATING' ? entrySurge(p) ** 3 : 1);
+        JUMP_MOTION.departureDistance * (jump.phase === 'ACCELERATING' ? entrySurge(p) ** 2 : 1);
       position.copy(this.departure).addScaledVector(this.direction, distance);
     }
   }
