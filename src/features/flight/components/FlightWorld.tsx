@@ -54,8 +54,8 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       <SystemScene key={systemId} session={session} />
       <group ref={sky}>
         <Starfield
+          session={session}
           radius={GAME_CONFIG.environment.starRadius}
-          size={GAME_CONFIG.environment.starSize}
           seed={session.exploration.world.definition.environment.seed}
         />
       </group>

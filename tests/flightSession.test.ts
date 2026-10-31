@@ -102,4 +102,19 @@ describe('flight presentation boundaries', () => {
     rig.update(camera, session, 'cockpit', 1 / 60, false);
     expect(camera.fov).toBeGreaterThan(GAME_CONFIG.camera.cockpitFov);
   });
+
+  it('keeps cinematic camera lag bounded while the departure crosses render-origin cells', () => {
+    const session = new FlightSession();
+    const camera = new PerspectiveCamera();
+    const rig = new FlightCamera();
+    session.exploration.jump.phase = 'ACCELERATING';
+    rig.update(camera, session, 'chase', 1 / 60, false);
+    for (let frame = 0; frame < 20; frame += 1) {
+      session.position.z -= 100;
+      session.origin.update(session.position);
+      session.origin.toRender(session.position, session.renderPosition);
+      rig.update(camera, session, 'chase', 1 / 60, false);
+      expect(camera.position.distanceTo(session.renderPosition)).toBeLessThan(20);
+    }
+  });
 });

@@ -37,13 +37,12 @@ export const GAME_CONFIG = {
     chaseFov: 62,
     cockpitFov: 78,
     speedFov: 12,
-    hyperspaceFov: 28,
+    hyperspaceFov: 12,
     hyperspaceVibration: 0.035,
     near: 0.1,
     far: 65000,
   },
   environment: {
     starRadius: 18000,
-    starSize: 9,
   },
 } as const;

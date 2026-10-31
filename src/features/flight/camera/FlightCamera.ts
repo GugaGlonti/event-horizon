@@ -1,12 +1,20 @@
 import { MathUtils, type PerspectiveCamera, Vector3 } from 'three';
+import { smoothRamp } from '@/engine/navigation/HyperspaceController';
+import { jumpKick } from '@/features/exploration/hyperspaceVisuals';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import type { CameraMode } from '@/stores/flightStore';
 
 /** Presentation-only follow controller. It never writes to the flight controller. */
 export class FlightCamera {
   private readonly targetPosition = new Vector3();
   private readonly previousOrigin = new Vector3();
+  private readonly previousShip = new Vector3();
+  private readonly movement = new Vector3();
+  private readonly right = new Vector3();
+  private readonly up = new Vector3();
+  private jumping = false;
   private mode: CameraMode | null = null;
   private resetVersion = -1;
 
@@ -18,12 +26,24 @@ export class FlightCamera {
     reducedMotion: boolean,
   ) {
     const config = GAME_CONFIG.camera;
+    const jump = session.exploration.jump;
+    if (jump.busy && session.exploration.isSuspended) dt = 0;
+    const kick = reducedMotion ? 0 : jumpKick(jump);
     camera.position.add(this.previousOrigin).sub(session.origin.position);
     this.previousOrigin.copy(session.origin.position);
+    if (jump.busy && this.jumping) {
+      this.movement.copy(session.position).sub(this.previousShip);
+      camera.position.add(this.movement);
+    }
     const offset = mode === 'cockpit' ? config.cockpitOffset : config.chaseOffset;
     this.targetPosition.fromArray(offset);
     if (mode === 'chase') {
       this.targetPosition.multiplyScalar(Math.max(1, config.narrowScreenAspect / camera.aspect));
+      this.targetPosition.z += kick * 4;
+      if (jump.phase === 'EXITING')
+        this.targetPosition.z +=
+          (JUMP_MOTION.exitSpeed / config.positionDamping) * smoothRamp(0.25, 1, jump.progress);
+      this.targetPosition.y += kick * 0.35;
     }
     this.targetPosition.applyQuaternion(session.orientation).add(session.renderPosition);
     const snap =
@@ -40,12 +60,26 @@ export class FlightCamera {
       baseFov +
       (reducedMotion
         ? 0
-        : config.speedFov * Math.min(1, session.controller.speed / FLIGHT_CONFIG.boostMaxSpeed) +
-          config.hyperspaceFov * session.exploration.jump.intensity);
-    if (!reducedMotion && session.exploration.jump.busy) {
-      const strength = session.exploration.jump.intensity * config.hyperspaceVibration;
-      camera.position.x += Math.sin(session.exploration.world.time * 53) * strength;
-      camera.position.y += Math.cos(session.exploration.world.time * 47) * strength;
+        : config.speedFov *
+            Math.min(
+              1,
+              (jump.phase === 'EXITING' ? JUMP_MOTION.exitSpeed : session.controller.speed) /
+                FLIGHT_CONFIG.boostMaxSpeed,
+            ) +
+          config.hyperspaceFov * kick +
+          jump.coverage * 3);
+    if (!reducedMotion && jump.busy) {
+      const strength = kick * config.hyperspaceVibration;
+      this.right.set(1, 0, 0).applyQuaternion(session.orientation);
+      this.up.set(0, 1, 0).applyQuaternion(session.orientation);
+      camera.position.addScaledVector(
+        this.right,
+        Math.sin(session.exploration.world.time * 53) * strength,
+      );
+      camera.position.addScaledVector(
+        this.up,
+        Math.cos(session.exploration.world.time * 47) * strength,
+      );
     }
     const fov = snap ? targetFov : MathUtils.damp(camera.fov, targetFov, config.fovDamping, dt);
     if (Math.abs(fov - camera.fov) > 0.001) {
@@ -54,5 +88,7 @@ export class FlightCamera {
     }
     this.mode = mode;
     this.resetVersion = session.resetVersion;
+    this.previousShip.copy(session.position);
+    this.jumping = jump.busy;
   }
 }
