@@ -59,6 +59,34 @@ in-game mix; the others are authoring comparisons, not additional game settings.
 live compressor, parameter smoothing and quiet synthesized reinforcement, so they are not browser
 output captures.
 
+## Kestrel engine sound
+
+The six WAV files in `src/features/flight/audio/assets/` are separate CC0 derivatives of the same
+three kentspublicdomain recordings credited above. They use the same downloaded MP3 previews and
+source hashes; there are no new external sound sources or licences.
+
+- `idle.wav`: 3 s stereo loop of low machinery, slow motor winding and an original bass tone.
+- `turbine.wav`: 2.5 s stereo loop of faster motor/machinery with a restrained modulated harmonic.
+  The game plays two copies at slightly different rates and stereo positions.
+- `boost.wav`: 2.2 s stereo loop of rougher machinery, slower motor body and bass reinforcement.
+- `jets.wav`: 1.6 s stereo loop with offset-source subtraction emphasizing pressure texture.
+- `engage.wav`: 0.3 s relay/motor attack for boost engagement.
+- `release.wav`: 0.7 s falling motor/pressure release for throttle or boost wind-down.
+
+The independent offline recipe is `scripts/build-engine-audio.mjs`. The output uses the same
+32 kHz stereo PCM16 format, loop crossfades, filtering, saturation and bounded normalization as the
+hyperdrive assets (about 1.3 MB total). Its adjacent `manifest.json` records derivative hashes/levels.
+
+```sh
+node scripts/build-engine-audio.mjs /path/to/decoded-sources
+node scripts/build-engine-audio.mjs /path/to/decoded-sources /tmp/engine-stems /tmp/engine-preview
+```
+
+The optional 17-second listening preview runs idle (0–3 s), acceleration (3–7), boost (7–10),
+release (10–12), braking (12–14), then idle (14–17). It approximates the recorded layer's live
+envelopes/rates; it omits the live compressor, cockpit filter, panning and quiet synthesized bed.
+It is an authoring preview, not a browser audio capture.
+
 ## Interface font
 
-Share Tech Mono is bundled in `public/fonts/`. Its SIL Open Font License is included there.
+Share Tech Mono is bundled in `public/assets/fonts/`. Its SIL Open Font License is included there.
