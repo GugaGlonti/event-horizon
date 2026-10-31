@@ -1,16 +1,17 @@
 # Architecture and extension guide
 
-Milestone 3 extends the existing flight session. Physics, world definitions, navigation, jump timing,
-GPU presentation, and React overlays remain distinct. No combat, networking, or server infrastructure
-is implemented.
+Milestone 4 extends the existing flight session with shared combat simulation. Flight, collision,
+damage, AI, world definitions, navigation, jump timing, GPU presentation and React overlays remain
+distinct. No networking or server infrastructure is implemented.
 
 ## Dependencies and ownership
 
 ```text
 App → FlightSession → FlightInputManager + FixedStepLoop + FlightController + HyperspaceFlight
+                   → CombatSession → CombatSimulation → shared FlightControllers + SphereSolver
                    → ExplorationSession → SystemRuntime + NavigationComputer + HyperspaceController
 App → FlightHud + ExplorationOverlay → detached store read models / session actions
-SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + HyperspaceTunnel
+SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + CombatScene + HyperspaceTunnel
 SystemScene → shared celestial geometry + CelestialBody + sky + local references
 ```
 
@@ -21,6 +22,9 @@ objects. Feature orchestration composes engine services and supplies browser ada
 | Owner                           | Responsibility                                                                         |
 | ------------------------------- | -------------------------------------------------------------------------------------- |
 | `engine/simulation`             | Private flight state, quaternion integration, explicit fixed ticks                     |
+| `engine/physics`                | Continuous sphere contacts, logical doubles, bounded mass-weighted impulse solve       |
+| `engine/combat`                 | Entity lifetime, shared commands, health, weapons, target leading and AI               |
+| `CombatSession`                 | System collider adapter, encounter spawning, read models and optional combat audio     |
 | `engine/world`                  | Definition contracts/validation, analytical hierarchy, safe arrival, render conversion |
 | `engine/navigation`             | Target validity, logical distances/ship-relative bearings, pure jump state machine     |
 | `features/exploration/data`     | Handcrafted catalogue, explicitly cancellable preparation boundary                     |
@@ -39,8 +43,10 @@ Up/Down are inverted pitch, Left/Right roll, and Q/E yaw; mouse motion remains p
 Holding W gradually raises stored throttle from 0 to 100%. Releasing W gradually returns throttle to
 zero and slows the full velocity vector at normal deceleration. S lowers throttle and applies stronger
 braking, taking priority over thrust/boost. Both slow the ship with or without assistance. Boost needs
-W held. Braking caps stored throttle at the remaining forward cruise speed. Space is consumed during
-active piloting but has no flight action; it is reserved for weapons.
+W held. Braking caps stored throttle at the remaining forward cruise speed. A/D and R/V command
+local lateral/vertical velocity; Z commands bounded reverse thrust when main throttle is released.
+Translation jets use configurable acceleration/speed and braking takes priority over every axis.
+Space is primary fire, B begins a patrol, and N cycles hostile contacts independently of T/X navigation.
 
 `FlightController.step(input, dt)` owns logical position, velocity, orientation, throttle, boost and
 assistance. It does not read clocks, stores or input devices. `copyTransform` copies into scratch
@@ -55,10 +61,115 @@ preserving the camera revision and relative follow pose. Pause clears the accumu
 and flight telemetry publish at 10 Hz; discrete changes publish immediately. Paused idle navigation
 has no recurring store publications.
 
-Celestial time advances only during active flight or an unsuspended jump. Each frame contributes at
-most 0.1 seconds. Positions are analytical functions of this explicit session time, not accumulated
+Celestial time advances only during active flight or an unsuspended jump. FlightSession advances
+`ExplorationSession.advanceWorld` once per fixed gameplay tick before preparing moving celestial
+colliders. Standalone exploration and cinematic jumps retain bounded explicit frame deltas. Each
+frame contributes at most 0.1 seconds. Positions are analytical functions of this explicit session time, not accumulated
 Euler transforms or random frame deltas. Visual axial spin uses the same time. Paused maps therefore
 hold orbits still. Reduced motion suppresses visual axial spin, not essential logical moon positions.
+
+## Combat simulation and collisions
+
+`FlightSession` is the existing session composition point. It owns `CombatSession`, passing its
+player `FlightController` into `CombatSimulation`; there is no duplicate player transform or second
+movement integrator. `CombatShip` holds a stable ID, team, controller, health, cooldown and previous/
+current endpoints. `ShipCommand` contains a flight snapshot, fire flag and optional selected weapon slot. Browser input and
+`ShipAi` produce the same command shape. AI cannot set orientation or teleport; it consumes the same
+acceleration, damping and turn-rate limits. Configurations live in `features/combat/config.ts` and are
+passed into the engine, including mass/radius, handling, shield/hull, gun/missile/railgun/flak statistics and AI ranges.
+
+The fixed tick advances analytical celestial positions, prepares environment velocities, integrates
+ship orientation/velocity with the shared controller, resolves swept movement, sweeps existing shots,
+and emits new shots at end-of-tick muzzles. Collision-adjusted position/velocity return through
+`FlightController.resolveMotion`, preserving orientation, throttle, boost and trip state. Live player
+assistance settings do not change NPC assistance. Health/regeneration/cooldowns and all entity
+lifetimes use fixed simulation time. Presentation interpolates ship and projectile endpoints.
+
+Ship and asteroid shapes are conservative spheres. Stars, planets and moons use their surface radii;
+atmospheres, rings and beacons are non-solid. `sweepSphere` solves relative segment/sphere time of
+impact, including initial overlap, using a stable quadratic root. `SphereSolver` advances bodies
+together to the earliest impact, separates overlap, applies a mass-weighted impulse with 0.15
+restitution and retains tangential velocity. Environment bodies have infinite mass; moon velocity
+comes from consecutive analytical orbit positions. Up to 24 contacts are processed per tick; a crowded
+pileup freezes remaining travel instead of tunneling. True celestial positions are restored from the
+analytical runtime after solving. All collision math uses logical doubles and never the render origin.
+Impact damage is bounded, energy-scaled arcade tuning with a 12 m/s harmless-contact threshold.
+
+Rapier was evaluated against its official [CCD documentation](https://rapier.rs/docs/user_guides/javascript/rigid_bodies/)
+and [determinism contract](https://rapier.rs/docs/user_guides/javascript/determinism/). It offers richer
+rigid-body contacts and deterministic WASM simulation. This foundation only needs spheres and arcade
+flight already integrated in logical double precision. A second body world would require a local
+physics origin, kinematic/velocity handoff and lifetime synchronization. The focused analytical
+solver keeps one movement authority and adds no dependency. Reconsider Rapier when contact torque,
+complex rigid shapes, debris or larger scenes are actual requirements. This solver guarantees neither
+cross-platform bitwise replay nor general-purpose rigid-body dynamics.
+
+The default gun uses inherited ship velocity, cooldown, alternating muzzles, bounded lifetime and
+relative-motion sweeps against moving ships/environment. Missiles capture the selected hostile
+within a configured forward cone/range at launch, inherit launch velocity, and use bounded
+quaternion turns toward a constant-velocity intercept. Their target ID remains fixed when selection
+changes; target loss leaves ballistic flight. They use the same nearest-hit sweep and lifetime path.
+The railgun accumulates charge in fixed simulation ticks while fire is held and the shared reload
+has elapsed. Release, slot changes, pause, departure and destruction clear partial charge. At 0.8 s
+it traces a straight ray from local `[0, 0, -6]` against current collider positions; the first solid
+contact truncates damage and the recorded endpoint. Its 0.25-second tracer does not reapply damage.
+
+Flak emits a complete 12-pellet salvo from the same central muzzle, with deterministic disk coverage
+inside a configured cone. One central pellet and a golden-angle disk pattern give stable coverage
+without global randomness. Each pellet inherits ship velocity and follows the shared projectile
+sweep, lifetime and damage rules. Salvos reserve their entire capacity before firing; a full buffer
+does not emit a partial burst or consume reload. Short lifetime limits useful range.
+
+A shared nearest-hit query handles swept projectiles and instantaneous rays. Collision layers and
+owner/team filters disable self/friendly fire, while the environment blocks every weapon. Damage
+still depletes shield, then hull; only shields regenerate after the configured quiet interval. Gun
+assist and flak's lead cue use the selected contact's intercept; missiles show acquisition status,
+and the railgun's aim marker uses the target's current position. Number-row/numpad 1–4 are active-flight input callbacks;
+selection is published immediately, retained through pause/jumps and reset on respawn. Slot commands
+also flow through `ShipCommand` for simulation replay. All slots share the ship cooldown, preventing
+switching from resetting reload.
+
+Rail traces record owner, logical start/end, age and lifetime and are capped at 32. Presentation
+anchors the source to the interpolated central emitter and the endpoint to the recorded strike.
+`RailgunEffects` uses fixed instance buffers for a straight bright core and blue halo, with thickness
+bounded near the cockpit and scaled for distant visibility. A ref-driven central coil presents the
+simulation charge; reduced motion disables its rotation. `WeaponEffects` reuses bounded missile-body
+and amber exhaust-flare instances; `CombatScene` shares its bolt buffer with flak pellets. There are
+no emitted trail particles or per-frame geometry creation. Gun, missile, railgun, flak and detonation
+cues use the existing bounded optional audio adapter.
+
+`CombatSimulation` centrally owns spawning, destruction, target validity, projectiles and effects.
+NPCs are removed on destruction; player death is retained until explicit respawn. Limits are ten
+NPCs, 192 projectiles, 32 rail traces, 96 transient effects and eight encounter asteroids. Effect IDs and entity IDs
+are monotonic within the session. Target cycling follows stable insertion order and is range-limited.
+The encounter adapter searches deterministic clear spawn positions near the current ship and checks
+celestial bodies, asteroids and ships. B cannot stack waves. Practice uses the same ship/health/hit
+path with stationary AI. Victory enables another encounter. Reset/respawn clears it and restores the
+player at the current system's safe arrival with three seconds of protection.
+
+`ShipAi` uses explicit patrol, pursue, attack, evade and disengage states. Detection, home leash,
+attack alignment, separation, hit evasion and duration are configured. It calculates an intercept,
+steers in its local quaternion frame, avoids imminent spherical obstacles and fires only in the
+attack state while aligned. It is lightweight steering, not pathfinding or strategic planning.
+
+Maps/focus loss/pause stop the shared clock and clear fire as well as flight input. Hyperdrive
+departure clears the encounter and suspends normal collision/combat simulation. Arrival or abort
+rebuilds celestial colliders at the matching runtime's current time; existing masked handoff rules
+are unchanged. Player damage persists across jumps. Teardown clears entities and closes audio;
+reattachment rebuilds colliders for React Strict Mode.
+
+`combatStore` contains only 10 Hz detached readouts, discrete sound preference and HUD projections.
+`CombatScene` updates reused refs and fixed-capacity instance buffers for asteroids, lasers and effects;
+Fiber owns their geometry/material lifetime. Ten reusable enemy model slots hide unused/far transforms.
+Combat projections follow the readout cadence after camera update. Death shows a keyboard-focusable
+respawn action. Camera impact offsets are bounded, decay with simulation time and respect reduced
+motion. `CombatAudio` uses gesture-started synthesis, consumes each effect ID once, caps voices at 12,
+and stops/disconnects nodes on pause/mute/departure/disposal; audio never gates simulation.
+
+Future authority can validate commands and replay fixed ticks against stable system/entity IDs and
+shared configurations. A server implementation still needs serialization, input validation, explicit
+spawn/action events, synchronization, reconciliation, lag compensation and authoritative random/
+orbital policy. None of those are represented as implemented networking here.
 
 ## Logical coordinates and render origin
 
@@ -276,7 +387,11 @@ Solara → Vesper → Aether → Solara route, orbital contact selection, maps, 
 feedback, camera modes, abort/recovery, small layouts, focus and console health. Tests cannot certify
 native pointer capture, GPU performance or audio perception on every device.
 
-Next is Space Combat & PvE: introduce weapons, damage and explicit combat targeting without mixing
-navigation or camera state into physics. Authoritative multiplayer PvP follows as a separate milestone,
+Combat regression tests additionally cover cooldowns/expiry, aim assistance, shield/hull rules,
+regeneration timing, high-speed ship and relative projectile sweeps, moving moon boundaries, impact
+momentum/energy, AI state transitions, complete five-ship combat, all-system practice encounters,
+30/60/144 FPS replay, ten-enemy lifetime bounds, map/departure/respawn cleanup and audio teardown.
+
+Authoritative multiplayer PvP follows as a separate milestone,
 with input validation, serialization, prediction and reconciliation built around stable system IDs and
 logical poses. No speculative server implementation is included here.

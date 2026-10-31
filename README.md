@@ -1,10 +1,11 @@
 # Event Horizon
 
-A browser-based space flight, exploration, and future combat game, built one system at a time.
+A browser-based space flight, exploration, and PvE combat game, built one system at a time.
 
-**Milestone 3 — Galaxy exploration & hyperspace.** Pilot the original Kestrel through three handcrafted
-star systems. Track planets and moving moons, consult local and galaxy charts, charge the hyperdrive,
-and emerge into a different sky without reloading the page. Combat, AI, multiplayer, detailed terrain,
+**Milestone 4 — Flight, collisions & PvE combat.** Pilot the Kestrel through three handcrafted
+systems, engage a hostile patrol, and survive a complete dogfight. Lasers, shields, hull damage,
+swept collisions, target leading, destruction and respawn share the existing fixed-step flight loop.
+Galaxy exploration, charts and cinematic hyperspace remain available. Multiplayer, detailed terrain
 and landings belong to later milestones.
 
 ## Start exploring
@@ -25,7 +26,7 @@ T selects the next contact, including the moon Lyra. L opens
 the local system map; M opens the galaxy map. Select Vesper and choose **Engage hyperdrive**.
 
 No API keys, external services, or separate asset downloads are required. **No dependencies were added
-for Milestone 3.** All celestial definitions, shaders, audio, and interface assets are local.
+for Milestones 3 or 4.** All celestial definitions, shaders, audio, and interface assets are local.
 
 The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
@@ -61,7 +62,13 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | W              | Gradually raise throttle to 100%; release to slow down         |
 | S              | Slow down and lower throttle; hold to stop                     |
 | Shift          | Hold for engine boost                                          |
-| Space          | Reserved for future weapons firing; currently no action        |
+| A / D          | Strafe left/right in the ship’s local frame                    |
+| R / V          | Translate up/down                                              |
+| Z              | Reverse thrust; W takes priority                               |
+| Space          | Hold to fire the selected weapon                               |
+| 1 / 2 / 3 / 4  | Select gun / homing missiles / railgun / flak scattergun       |
+| B              | Start a five-ship patrol encounter when the sector is clear    |
+| N              | Cycle nearby hostile targets (separate from navigation)        |
 | C              | Switch chase/cockpit camera                                    |
 | F              | Toggle flight assistance                                       |
 | M              | Open/close galaxy map                                          |
@@ -96,6 +103,68 @@ requires releasing Shift after depletion to rearm at 18% reserve. Assistance dam
 momentum; without it, use counter-steering to settle rotation. Releasing W gradually lowers throttle
 and slows the ship; S applies stronger braking. Both work with assistance on or off and override boost.
 Hold W with Shift to boost.
+
+## Combat sandbox
+
+Choose **Practice target** in the briefing for a stationary shielded contact 260 m ahead. Hold Space
+to fire the selected weapon and destroy it; the HUD confirms the sector is clear. Choose **Engage patrol / B** or press B in flight
+for five AI ships and a small local asteroid field. Encounters are available in every system and
+spawn only in clear space. New waves require clearing the current wave. Reset flight, respawn or a
+hyperdrive departure clears the encounter. The asteroid field remains after victory until the next
+encounter, reset or departure.
+
+N cycles hostile contacts within 3.5 km. The amber bracket follows the selected ship; edge brackets
+and **AFT / TURN** identify off-screen/rear contacts. The gun's diamond is a constant-velocity lead cue:
+bring it toward the center gunsight. A small **2.3°** aim-assist cone helps shots toward the selected
+contact; it does not turn the ship or bypass obstacles. Gun bolts inherit ship velocity. T/X still select
+celestial navigation contacts, independently of the combat target.
+
+The player has **100 shield / 100 hull** and
+regenerates **10 shield/s after four seconds without damage**. Shields absorb hits before hull.
+Patrol craft have 45 shield / 55 hull and slower, weaker guns. The default gun has a cooldown and a
+2-second projectile lifetime; there is no ammunition resource. Friendly fire is disabled. Ships,
+asteroids, planets, moons and stars are solid spherical boundaries; lasers stop at the first solid
+contact. Impact damage scales with mass and closing speed; low-speed contacts are harmless. Rings,
+atmospheres and reference beacons remain visual effects.
+
+Select weapons with the number row, numpad, or the HUD's **1 / 2 / 3 / 4** buttons:
+
+| Key   | Weapon          | Behavior                                                                                                                                                     |
+| ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **1** | Default gun     | Rapid alternating bolts: 16 damage, 1,000 m/s, 0.14 s cooldown. Selected-target aim assist and lead cue.                                                     |
+| **2** | Homing missiles | 85 damage, 320 m/s, 1.4 s cooldown, seven-second lifetime. Bright amber exhaust flare.                                                                       |
+| **3** | Railgun         | Hold Space to charge for 0.8 s, then fire a precise 120-damage shot out to 3.5 km. Central emitter, straight blue-white tracer lasting 0.25 s, 1.6 s reload. |
+| **4** | Flak scattergun | 12 pellets × 10 damage in an 8° cone, 650 m/s, 0.75 s cooldown. Amber scatter burst; pellets expire after 0.5 s (325 m relative travel).                     |
+
+Missiles acquire the N-selected hostile within **2.2 km** and **60° of the nose**; the HUD shows
+**TARGET LOCKED**. They turn gradually toward that launch target and keep it when selection changes.
+Without a lock, or after losing the target, they fly unguided until impact or expiry. The railgun
+hits the first solid contact immediately on completing its charge. Its charge meter and central coil
+show progress; releasing Space, switching weapons or pausing discards a partial charge. Holding Space
+repeats the reload/charge cycle. The brief tracer is cosmetic and applies damage once. Flak spreads
+without aim assist, inherits ship velocity, and is strongest on close passes.
+
+All weapons obey environment collisions and share a reload timer, so switching does not bypass
+cooldowns. Selection survives pause and hyperspace; reset/respawn selects the default gun. AI patrols
+use the default gun. Reduced motion keeps the railgun coil stationary while retaining charge feedback
+and the tracer's fade.
+
+AI patrols, detects the player, pursues, leads its shots, attacks while aligned, breaks away at close
+range or when hit, avoids nearby obstacles, and returns home after disengaging. Enemies use the same
+flight controller, collision solver, weapon and damage rules as the player. Strafe, brake and boost
+to spoil their aim. Destroyed enemies are removed immediately. Player destruction pauses combat and
+offers **Respawn / keyboard flight** at a safe arrival, restoring hull, shields and boost with three
+seconds of protection. Maps, Escape, focus/visibility loss and pointer-lock release pause the fight
+and clear held fire. Jumping leaves the encounter behind and preserves player damage.
+
+Combat effects use bounded instance buffers, shield-hit wireframes, expanding destruction shells,
+engine plumes and restrained impact camera movement. Reduced motion suppresses impact shake.
+**Combat audio on/off** in the briefing controls optional synthesized fire/hit/destruction cues;
+hyperdrive audio retains its separate map setting. Sound unlocks through a flight-start gesture.
+
+Ship mass/radius/handling, defenses, gun/missile/railgun/flak stats, AI thresholds and encounter size live in
+`src/features/combat/config.ts`. The default is five enemies; configuration supports up to ten.
+There are no missions, factions, progression, network requests or combat persistence.
 
 ## Hyperspace
 
@@ -187,9 +256,12 @@ secrets.
 src/engine/
   input/                  Active-flight keyboard and pointer-lock adapter
   simulation/             Fixed-step flight physics and scalar telemetry
+  physics/                Continuous sphere sweeps and mass-weighted impact response
+  combat/                 Shared ships/commands, health, lasers, targeting and deterministic AI
   world/                  Serializable definitions, validation, analytical orbits, render origin
   navigation/             Pure target/bearing calculations and hyperspace state machine
 src/features/
+  combat/                 Encounter/world adapter, bounded effects, HUD and optional audio
   exploration/
     data/systems.ts       Handcrafted catalogue and cancellable bundled-definition loader
     ExplorationSession.ts Preparation, jump lifecycle, system commit, navigation publication
@@ -231,21 +303,36 @@ orbits, coordinate round-trips/rebases, target selection/bearings/distances, saf
 all jump phases, invalid destinations, cancellation, async failure/late completion, timeout,
 focus/visibility, reset/disposal, camera independence and bounded recoil, arrival state, keyboard
 restoration, audio cue timing/suspension/cleanup, async audio cancellation/cache reuse and bundled
-PCM levels/loop boundaries.
+PCM levels/loop boundaries. Combat tests cover shield absorption/regeneration, cooldowns/lifetimes,
+relative-motion projectile hits, fast ship sweeps, moving moon boundaries, mass-weighted impacts,
+AI transitions, 30/60/144 FPS command replay, complete moving dogfights, bounded ten-enemy runs,
+all-system practice encounters, map/fire suppression, respawn, departure cleanup and audio lifetime.
+Weapon tests cover all four slots, reload preservation, bounded missile steering/lock loss,
+railgun charge/cancellation, central emission under rotation, nearest-hit/range rules, tracer expiry,
+flak spread/inherited velocity, short-range damage, complete-salvo capacity and frame-rate replay.
 
-Browser playtesting covers launching in Solara, tracking/flying toward Lyra, both maps, the
-Solara → Vesper → Aether → Solara journey, cockpit/chase modes, input suppression and re-entry,
-responsive layouts, and browser console checks. Unit tests cannot certify GPU behavior or native
+Browser playtesting covers launching in Solara, celestial target selection, both maps and focus
+containment, the Solara → Vesper → Aether → Solara journey, cockpit/chase modes, input suppression,
+abort/reset and the opaque tunnel mask. Combat checks include practice kills in all three systems,
+a live five-ship patrol, shield hits, player destruction/respawn, planetary contact and 390-pixel
+layouts at 844/600-pixel heights. Browser console checks reported no warnings or errors. Unit tests cannot certify GPU behavior or native
 pointer-lock support. Pointer capture still needs wider manual hardware/browser testing if an
 embedded or automated browser rejects it.
 
-- Arcade flight and compressed distances; no gravity, collisions, damage, terrain or landing. Bodies
-  and beacons are visual references and can be flown through.
+- Arcade flight and compressed distances; no gravity, terrain or landing. Spherical colliders are
+  conservative around ship wings and asteroid edges. There is no contact torque, friction, mesh
+  damage or rigid-body debris. Dense pileups use a conservative bounded solver that may drop the
+  rest of a tick's travel. Moving projectiles/ships/moons use linear sweeps within a 120 Hz tick.
+- Rapier was evaluated for CCD and deterministic rigid-body support. This milestone extends the
+  existing double-precision movement model with an analytical sphere solver instead of adding a
+  second integrator and WASM dependency. See the architecture notes for the tradeoff.
+- Encounters are local, opt-in and reset on departure. AI uses simple steering and obstacle avoidance;
+  it has no tactical planning or pathfinding. Aim leading assumes constant target velocity.
 - Bundled procedural systems are prepared in memory; there is no network asset streaming or save-game
   persistence. Reloading starts in Solara. There is no touch/gamepad piloting.
 - Hyperdrive audio uses transformed CC0 preview recordings (about 1.1 MB of local PCM assets) and a
   synthesized fallback. It is an original film-inspired interpretation; source fidelity is limited by
-  the public MP3 previews. Broader environmental/normal-flight sound and post-processing remain future work.
+  the public MP3 previews. Broader environmental/engine sound and post-processing remain future work.
 - Rendering continues while paused. Pixel ratio is bounded; geometry, buffers, and scratch vectors
   are reused. Approximately 60 FPS is a target, not a guarantee across hardware. Wider profiling and
   adaptive quality/LOD remain future work.
@@ -260,7 +347,8 @@ embedded or automated browser rejects it.
 - [x] Milestone 2 — Inertial flight, boost/assistance, cameras, original spacecraft, HUD
 - [x] Milestone 3 — Three systems, procedural celestial bodies, orbital moons, navigation/maps,
   floating origin, cinematic hyperspace, safe transitions
-- [ ] Milestone 4 — **Space Combat & PvE**: targeting/combat rules, weapons, damage, first enemy encounters
+- [x] Milestone 4 — **Space Combat & PvE**: shared ships, swept collisions, lasers, damage, AI,
+  combat targeting, encounters, destruction/respawn, HUD and audio
 - [ ] Milestone 5 — Multiplayer PvP and authoritative synchronization
 - [ ] Later — Terrain/landings, wider hardware support, richer audio and quality settings
 

@@ -1,10 +1,10 @@
 # Event Horizon — agent instructions
 
-Event Horizon is a TypeScript/React browser-based space flight and exploration game. Milestone 3 has
-three handcrafted systems, procedural celestial bodies, local/galaxy navigation, floating-origin
-rendering and cinematic hyperspace, plus the single-player starfighter and cockpit/chase cameras.
-Space Combat & PvE is next, followed by multiplayer PvP. Combat, AI, networking, detailed terrain and
-landings remain future work; add them only when the current task requests them.
+Event Horizon is a TypeScript/React browser-based space flight, exploration and PvE combat game.
+Milestone 4 extends three handcrafted systems, procedural celestial bodies, maps, floating-origin
+rendering and cinematic hyperspace with shared ship simulation, continuous sphere collisions,
+lasers, shields/hull, targeting, small AI encounters and respawn. Multiplayer PvP, detailed terrain
+and landings remain future work; add them only when the current task requests them.
 
 ## Before changing code
 
@@ -21,6 +21,10 @@ landings remain future work; add them only when the current task requests them.
 - `src/engine/rendering`: renderer policy and common graphics infrastructure.
 - `src/engine/simulation`: browser/framework-independent flight math and bounded fixed-step clock.
   Three.js Vector3/Quaternion math is allowed here; rendering, React, DOM, and stores are not.
+- `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
+- `src/engine/combat`: shared command-driven ships, damage, weapons, AI and bounded entity lifetime;
+  no React, browser, renderer, stores or feature imports.
+- `src/features/combat`: encounter/world adaptation, HUD projections, effects and optional audio.
 - `src/engine/input`: keyboard and pointer-lock adapter, input snapshots, event lifecycle.
 - `src/engine/world`: serializable definitions, validation, analytical hierarchy/orbits, render origin.
 - `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
@@ -69,10 +73,16 @@ landings remain future work; add them only when the current task requests them.
 - Keep input collection, simulation integration, rendering, and HUD presentation separate.
 - Use metres, seconds, radians, local forward -Z and up +Y. `FlightController.step` consumes explicit
   input snapshots and fixed dt. `FixedStepLoop` runs at 120 Hz with a 0.1-second/12-tick catch-up cap.
-- Keep gameplay tuning in `features/flight/config.ts`; pass configuration into the engine.
-- `FlightSession` owns simulation and browser input; presentation consumes interpolated poses.
+- Keep flight tuning in `features/flight/config.ts` and combat/AI tuning in
+  `features/combat/config.ts`; pass configuration into the engine.
+- `FlightSession` composes exploration and combat, owns the player controller and browser input;
+  `CombatSimulation` steps that same controller and NPC controllers once per fixed tick. Presentation
+  consumes interpolated poses. Celestial colliders advance from explicit analytical time before each tick.
   Cameras must never mutate simulation state. Telemetry snapshots are scalar and read-only.
-- Publish HUD telemetry at 10 Hz, not at the simulation/render rate. Keep discrete state in Zustand.
+- Publish flight/combat HUD telemetry at 10 Hz, not at the simulation/render rate. Keep discrete state
+  in Zustand. Keep collision/gameplay coordinates independent of render-origin changes. Bound ships,
+  projectiles/effects and audio voices; clear encounters on departure/reset/disposal. Preserve player
+  damage across jumps, and clear held fire on every pause path.
 - Pause and clear held keys/mouse on Escape, focus loss, visibility loss, pointer-lock release, or
   renderer error. Remove active listeners when paused and all listeners on unmount. Handle async
   pointer-lock failures/grants without resuming disposed or paused sessions.
