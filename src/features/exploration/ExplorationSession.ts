@@ -60,6 +60,7 @@ export class ExplorationSession {
     orientation: Readonly<Quaternion> = this.lastOrientation,
   ) {
     this.disposed = false;
+    this.audio.prepare();
     this.lastPosition.copy(position);
     this.lastOrientation.copy(orientation);
     this.publish();

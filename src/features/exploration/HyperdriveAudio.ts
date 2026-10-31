@@ -4,9 +4,11 @@ import {
   type HyperspaceController,
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
+import { HyperdriveRecordings } from './audio/HyperdriveRecordings';
 
-/** Gesture-started, layered synthesis: charge, ignition, rushing corridor and exit release. */
+/** Gesture-started recorded machinery, with a quiet synthesized bed and an asset-failure fallback. */
 export class HyperdriveAudio {
+  private readonly recordings = new HyperdriveRecordings();
   private context: AudioContext | null = null;
   private readonly sources: AudioScheduledSourceNode[] = [];
   private readonly nodes: AudioNode[] = [];
@@ -23,6 +25,10 @@ export class HyperdriveAudio {
   private airBuffer: AudioBuffer | null = null;
   private ignited = false;
   private exited = false;
+
+  prepare() {
+    this.recordings.prepare();
+  }
 
   start() {
     if (typeof AudioContext === 'undefined') return;
@@ -104,6 +110,7 @@ export class HyperdriveAudio {
       );
       this.sources.push(this.hum, this.harmonic, sub, noise);
       for (const source of this.sources) source.start();
+      this.recordings.start(context, this.master);
     } catch {
       this.stop();
     }
@@ -115,20 +122,22 @@ export class HyperdriveAudio {
     const time = this.context.currentTime;
     this.master.gain.setTargetAtTime(suspended ? 0 : 0.75, time, 0.04);
     if (suspended) return;
+    this.recordings.update(jump);
+    const synthesized = this.recordings.ready ? 0.18 : 1;
     const charging =
       jump.phase === 'CHARGING' ||
       (jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart);
     const chargeProgress = jump.phase === 'CHARGING' ? jump.progress : 1;
     const exiting = jump.phase === 'EXITING';
     const release = exiting ? 1 - smoothRamp(HYPERSPACE_EXIT.revealStart, 0.65, jump.progress) : 1;
-    this.subGain?.gain.setTargetAtTime(0.022 * release, time, 0.04);
+    this.subGain?.gain.setTargetAtTime(0.022 * release * synthesized, time, 0.04);
     this.hum.frequency.setTargetAtTime(
       charging ? 48 + chargeProgress ** 2 * 130 : 54 + jump.intensity * 28,
       time,
       0.06,
     );
     this.humGain.gain.setTargetAtTime(
-      (charging ? 0.008 + chargeProgress * 0.016 : 0.018) * release,
+      (charging ? 0.008 + chargeProgress * 0.016 : 0.018) * release * synthesized,
       time,
       0.06,
     );
@@ -138,13 +147,13 @@ export class HyperdriveAudio {
       0.05,
     );
     this.motorGain?.gain.setTargetAtTime(
-      (charging ? 0.002 + chargeProgress * 0.006 : 0.001) * release,
+      (charging ? 0.002 + chargeProgress * 0.006 : 0.001) * release * synthesized,
       time,
       0.04,
     );
     const teeth = charging ? 0.65 + Math.sin(jump.elapsed * 38) ** 4 * 0.35 : 0.3;
     this.mechanicalGain?.gain.setTargetAtTime(
-      (charging ? chargeProgress ** 2 * 0.012 * teeth : 0.002) * release,
+      (charging ? chargeProgress ** 2 * 0.012 * teeth : 0.002) * release * synthesized,
       time,
       0.02,
     );
@@ -154,7 +163,7 @@ export class HyperdriveAudio {
       0.05,
     );
     this.rush.gain.setTargetAtTime(
-      (charging ? chargeProgress ** 3 * 0.012 : 0.065 * jump.intensity) * release,
+      (charging ? chargeProgress ** 3 * 0.012 : 0.065 * jump.intensity) * release * synthesized,
       time,
       0.04,
     );
@@ -175,6 +184,7 @@ export class HyperdriveAudio {
 
   private impact(exiting: boolean) {
     if (!this.context || !this.master) return;
+    if (this.recordings.impact(exiting)) return;
     const time = this.context.currentTime;
     const tone = this.context.createOscillator();
     const gain = this.context.createGain();
@@ -224,6 +234,7 @@ export class HyperdriveAudio {
   }
 
   stop() {
+    this.recordings.stop();
     for (const source of this.sources) {
       try {
         source.stop();
@@ -252,6 +263,7 @@ export class HyperdriveAudio {
 
   dispose() {
     this.stop();
+    this.recordings.dispose();
     if (this.context) void this.context.close().catch(() => {});
     this.context = null;
   }
