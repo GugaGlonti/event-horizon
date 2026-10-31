@@ -40,6 +40,7 @@ export function App() {
         />
         <FlightHud session={session} />
         <ExplorationOverlay session={session} />
+        <div aria-hidden="true" className="crt-overlay absolute inset-0 z-50" />
       </SceneErrorBoundary>
     </main>
   );

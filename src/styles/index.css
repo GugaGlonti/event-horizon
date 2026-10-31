@@ -1,12 +1,25 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "Share Tech Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/assets/fonts/ShareTechMono-Regular.ttf") format("truetype");
+}
+
 @theme {
-  --font-sans: "Inter", "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  --font-sans: "Share Tech Mono", "Courier New", monospace;
+  --font-mono: "Share Tech Mono", "Courier New", monospace;
   --color-space: #080b10;
-  --color-copy: #e9e6e0;
-  --color-subtle: #747e8a;
-  --color-focus: #b5c8d4;
+  --color-copy: #9cecb2;
+  --color-subtle: #6a9c7a;
+  --color-focus: #b9ffcc;
+  --color-phosphor: #71ff87;
+  --color-phosphor-dim: #8bbb94;
+  --color-instrument: #ffbd66;
+  --color-console: #07100c;
+  --color-line: #396947;
   --breakpoint-tablet: 47.5625rem;
   --breakpoint-wide: 100rem;
   --background-image-vignette: linear-gradient(
@@ -20,17 +33,64 @@
   --background-image-scene-message: radial-gradient(ellipse at center, #161c27, #080b10 70%);
 }
 
+@utility phosphor-glow {
+  text-shadow: 0 0 10px #73f59b35;
+}
+
+@utility instrument-glow {
+  filter: drop-shadow(0 0 4px #ffbd6633);
+}
+
+@utility crt-grid {
+  background-image:
+    linear-gradient(#73f59b0c 1px, transparent 1px),
+    linear-gradient(90deg, #73f59b0c 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+@utility instrument-hatch {
+  background-image: repeating-linear-gradient(
+    -55deg,
+    currentColor 0,
+    currentColor 2px,
+    transparent 2px,
+    transparent 6px
+  );
+}
+
+/* Static CRT texture: no flicker, movement, WebGL pass, or input interception. */
+.crt-overlay {
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    transparent 0,
+    transparent 2px,
+    #0000001c 2px,
+    #0000001c 3px
+  );
+  box-shadow: inset 0 0 100px #0003;
+}
+
 @custom-variant short-mobile (@media (width < 47.5625rem) and (height <= 43.75rem));
 @custom-variant short-desktop (@media (width >= 47.5625rem) and (height <= 38.75rem));
 
 @layer base {
   :root {
     @apply bg-space font-sans text-copy antialiased scheme-dark;
-    font-synthesis: none;
+    font-synthesis: weight;
     text-rendering: optimizeLegibility;
   }
 
   body {
     @apply min-w-80;
+  }
+
+  ::selection {
+    background: #73f59b;
+    color: #07100c;
+  }
+
+  * {
+    scrollbar-color: #30573d #07100c;
+    scrollbar-width: thin;
   }
 }
