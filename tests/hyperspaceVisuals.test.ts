@@ -4,7 +4,12 @@ import {
   HyperspaceController,
   type JumpPhase,
 } from '@/engine/navigation/HyperspaceController';
-import { jumpKick, jumpStretch } from '@/features/exploration/hyperspaceVisuals';
+import {
+  jumpExposure,
+  jumpKick,
+  jumpStarTravel,
+  jumpStretch,
+} from '@/features/exploration/hyperspaceVisuals';
 
 describe('hyperspace visual timing', () => {
   it('holds fully extended stars in clear space for a readable beat before revealing the tunnel', () => {
@@ -32,12 +37,57 @@ describe('hyperspace visual timing', () => {
     const jump = new HyperspaceController();
     jump.phase = before;
     jump.elapsed = before === 'IDLE' ? 0 : HYPERSPACE_TIMING[before];
-    const previous = [jumpStretch(jump), jumpKick(jump), jump.coverage, jump.intensity];
+    const previous = [
+      jumpStretch(jump),
+      jumpKick(jump),
+      jumpStarTravel(jump),
+      jumpExposure(jump),
+      jump.coverage,
+      jump.intensity,
+    ];
     jump.phase = after;
     jump.elapsed = 0;
-    const next = [jumpStretch(jump), jumpKick(jump), jump.coverage, jump.intensity];
+    const next = [
+      jumpStretch(jump),
+      jumpKick(jump),
+      jumpStarTravel(jump),
+      jumpExposure(jump),
+      jump.coverage,
+      jump.intensity,
+    ];
     next.forEach((value, index) => {
       expect(value).toBeCloseTo(previous[index] ?? Number.NaN, 10);
     });
+  });
+
+  it('anchors the stars through the stretch hold, then sweeps outward without recycling', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.55;
+    expect(jumpStarTravel(jump)).toBe(0);
+    let previous = 0;
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
+      const travel = jumpStarTravel(jump);
+      expect(travel).toBeGreaterThanOrEqual(previous);
+      expect(travel).toBeLessThanOrEqual(1);
+      previous = travel;
+    }
+    expect(previous).toBe(1);
+  });
+
+  it('dissolves the streaks in one bounded exposure crest and settles the exit sweep', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.6;
+    expect(jumpExposure(jump)).toBe(0);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.87;
+    expect(jumpExposure(jump)).toBeCloseTo(1);
+    jump.phase = 'HYPERSPACE';
+    expect(jumpExposure(jump)).toBe(0);
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.4;
+    expect(jumpStarTravel(jump)).toBe(0);
+    expect(jumpStretch(jump)).toBe(0);
   });
 });

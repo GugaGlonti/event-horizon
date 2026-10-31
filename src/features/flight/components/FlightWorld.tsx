@@ -53,11 +53,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
     <>
       <SystemScene key={systemId} session={session} />
       <group ref={sky}>
-        <Starfield
-          session={session}
-          radius={GAME_CONFIG.environment.starRadius}
-          seed={session.exploration.world.definition.environment.seed}
-        />
+        <Starfield session={session} radius={GAME_CONFIG.environment.starRadius} />
       </group>
       <Starfighter modelRef={ship} exhaustRef={exhaust} visible={cameraMode === 'chase'} />
       <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} />
