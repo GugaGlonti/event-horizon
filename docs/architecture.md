@@ -151,6 +151,14 @@ system. No queued callback may revive a disposed session.
 
 ## Input, overlays and accessibility
 
+The DOM interface uses phosphor/amber theme tokens and the bundled Share Tech Mono font. Shared
+`InstrumentButton` styles own button states, keyboard focus, and primary-action contrast.
+`SegmentReadout` renders local SVG digits with a text alternative. Flight instruments and the bearing
+scope consume the existing 10 Hz read models; they do not introduce a second telemetry loop. The
+wireframe ship is a static SVG illustration. A pointer-transparent CSS CRT texture is static, with
+no flicker, animation, filters on the WebGL scene, or additional renderer resources. Narrow layouts
+stack the navigation instrument below velocity/propulsion and allow briefing/map content to scroll.
+
 `FlightInputManager` installs movement, wheel and context-menu listeners only while piloting, cleans
 held state on pause, and rejects late pointer capture after pause/disposal. Keyboard fallback is
 preserved. `FlightSession.attach` owns a separate discrete navigation shortcut listener so M/L can

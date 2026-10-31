@@ -50,6 +50,9 @@ landings remain future work; add them only when the current task requests them.
   defaults, or effects that are clearer as custom CSS. Do not recreate utility styles with `@apply`
   component classes. Reuse components or static class strings for repeated utility combinations.
 - Respect reduced-motion preferences. Explicit user choices may override the default.
+- Keep interface styling consistent with the 1980s flight terminal: phosphor/amber theme tokens,
+  hard-edged panels, the bundled mono font, and shared `InstrumentButton` states. Keep essential
+  readouts legible and CRT texture static; do not add flicker or fake fuel, damage, or weapon telemetry.
 - Use local assets where possible. Keep client `VITE_` configuration public and explicitly typed;
   never place secrets in browser environment variables or commit `.env` files.
 

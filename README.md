@@ -24,8 +24,15 @@ throttle gradually from 0% to 100%; release W to ease back toward a stop. Hold S
 T selects the next contact, including the moon Lyra. L opens
 the local system map; M opens the galaxy map. Select Vesper and choose **Engage hyperdrive**.
 
-No API keys, downloaded models, textures, fonts, or services are required. **No dependencies were added
-for Milestone 3.** All celestial definitions, shaders, and synthesized audio are local.
+No API keys, external services, or separate asset downloads are required. **No dependencies were added
+for Milestone 3.** All celestial definitions, shaders, synthesized audio, and interface assets are local.
+
+The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
+and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
+The briefing, survey charts, and hyperdrive controls share hard-edged instrument panels and visible
+keyboard focus. A static CRT texture adds scanlines without flicker or animation. The bundled
+Share Tech Mono font is distributed under the SIL Open Font License; see
+[`public/assets/fonts/OFL-ShareTechMono.txt`](public/assets/fonts/OFL-ShareTechMono.txt).
 
 ## The charted reaches
 
