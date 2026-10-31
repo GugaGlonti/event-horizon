@@ -1,4 +1,5 @@
 import {
+  HYPERSPACE_ENTRY,
   type HyperspaceController,
   type JumpPhase,
   smoothRamp,
@@ -16,6 +17,7 @@ export class HyperdriveAudio {
   private rush: GainNode | null = null;
   private filter: BiquadFilterNode | null = null;
   private phase: JumpPhase = 'IDLE';
+  private ignited = false;
 
   start() {
     if (typeof AudioContext === 'undefined') return;
@@ -71,35 +73,39 @@ export class HyperdriveAudio {
     const time = this.context.currentTime;
     this.master.gain.setTargetAtTime(suspended ? 0 : 0.75, time, 0.04);
     if (suspended) return;
-    const charging = jump.phase === 'CHARGING';
+    const charging =
+      jump.phase === 'CHARGING' ||
+      (jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart);
+    const chargeProgress = jump.phase === 'CHARGING' ? jump.progress : 1;
     const exiting = jump.phase === 'EXITING';
     const release = exiting ? 1 - smoothRamp(0.1, 1, jump.progress) : 1;
     this.subGain?.gain.setTargetAtTime(0.022 * release, time, 0.04);
     this.hum.frequency.setTargetAtTime(
-      charging ? 48 + jump.progress ** 2 * 130 : 54 + jump.intensity * 28,
+      charging ? 48 + chargeProgress ** 2 * 130 : 54 + jump.intensity * 28,
       time,
       0.06,
     );
     this.humGain.gain.setTargetAtTime(
-      (charging ? 0.008 + jump.progress * 0.016 : 0.018) * release,
+      (charging ? 0.008 + chargeProgress * 0.016 : 0.018) * release,
       time,
       0.06,
     );
     this.rush.gain.setTargetAtTime(
-      (charging ? jump.progress ** 3 * 0.012 : 0.065 * jump.intensity) * release,
+      (charging ? chargeProgress ** 3 * 0.012 : 0.065 * jump.intensity) * release,
       time,
       0.04,
     );
     this.filter.frequency.setTargetAtTime(
-      charging ? 350 + jump.progress ** 3 * 1400 : exiting ? 1600 * release + 150 : 1100,
+      charging ? 350 + chargeProgress ** 3 * 1400 : exiting ? 1600 * release + 150 : 1100,
       time,
       0.06,
     );
-    if (jump.phase !== this.phase) {
-      if (jump.phase === 'ACCELERATING' || jump.phase === 'EXITING')
-        this.impact(jump.phase === 'EXITING');
-      this.phase = jump.phase;
+    if (jump.phase === 'ACCELERATING' && !charging && !this.ignited) {
+      this.impact(false);
+      this.ignited = true;
     }
+    if (jump.phase === 'EXITING' && this.phase !== 'EXITING') this.impact(true);
+    this.phase = jump.phase;
   }
 
   private impact(exiting: boolean) {
@@ -139,6 +145,7 @@ export class HyperdriveAudio {
     this.rush = null;
     this.filter = null;
     this.phase = 'IDLE';
+    this.ignited = false;
   }
 
   dispose() {

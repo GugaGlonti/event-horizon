@@ -1,6 +1,10 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { HYPERSPACE_TIMING, HyperspaceController } from '@/engine/navigation/HyperspaceController';
+import {
+  HYPERSPACE_ENTRY,
+  HYPERSPACE_TIMING,
+  HyperspaceController,
+} from '@/engine/navigation/HyperspaceController';
 import { travelDirection } from '@/engine/navigation/hyperspaceRoute';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/features/exploration/data/systems';
@@ -20,6 +24,22 @@ function setup() {
 }
 
 describe('continuous jump motion', () => {
+  it('holds position while the stars stretch, then surges along the aligned route', () => {
+    const { motion, jump, position, orientation } = setup();
+    const launch = position.clone();
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart;
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(launch)).toBeLessThan(1e-9);
+    jump.elapsed =
+      HYPERSPACE_TIMING.ACCELERATING *
+      (HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.6);
+    motion.sample(jump, position, orientation);
+    const travel = position.clone().sub(launch);
+    expect(travel.length()).toBeGreaterThan(300);
+    expect(travel.clone().normalize().dot(motion.direction)).toBeCloseTo(1);
+  });
+
   it('aligns before ignition, stays continuous at entry, and bounds departure distance', () => {
     const { motion, jump, position, orientation } = setup();
     const start = position.clone();

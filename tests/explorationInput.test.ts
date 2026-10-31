@@ -1,6 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import { HYPERSPACE_ENTRY, HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import { travelDirection } from '@/engine/navigation/hyperspaceRoute';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
@@ -132,7 +132,9 @@ describe('exploration input integration', () => {
     session.exploration.selectDestination('vesper');
     expect(session.exploration.beginJump()).toBe(true);
     const launch = session.position.clone();
-    advance(HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING * 0.6);
+    const movingProgress =
+      HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.6;
+    advance(HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING * movingProgress);
     const abortPosition = session.position.clone();
     expect(abortPosition.distanceTo(launch)).toBeGreaterThan(100);
     key('Escape');

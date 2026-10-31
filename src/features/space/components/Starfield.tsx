@@ -112,13 +112,13 @@ export function Starfield({
         depthWrite={false}
         toneMapped={false}
         vertexShader={`
-          uniform float uStretch, uCoverage, uTime;
+          uniform float uStretch, uCoverage, uTime, uMotion;
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed;
           attribute vec3 aTunnel;
           varying vec2 vCorner; varying float vBrightness;
           void main() {
-            float flow = smoothstep(0.65, 1.0, uStretch);
+            float flow = smoothstep(0.35, 1.0, uCoverage) * uMotion;
             vec4 view = mix(modelViewMatrix * vec4(position, 1.0), vec4(aTunnel, 1.0), flow);
             vec4 clip = projectionMatrix * view;
             vec2 ndc = clip.xy / max(clip.w, 0.001);
@@ -127,8 +127,12 @@ export function Starfield({
             ndc = uVanishing + radial * mix(1.0, exp((cycle - aSeed) * 2.5), flow);
             vec2 pixelDirection = normalize(radial * uViewport + vec2(0.001));
             vec2 normal = vec2(-pixelDirection.y, pixelDirection.x);
-            float trail = 0.7 + uStretch * (18.0 + min(length(radial), 2.0) * 170.0) * mix(1.0, 0.35, uCoverage);
-            vec2 offset = (pixelDirection * aCorner.x * trail + normal * aCorner.y * (0.6 + aSeed * 0.4)) * 2.0 / uViewport;
+            float trail = 0.7 + uStretch * (8.0 + pow(min(length(radial), 2.0), 1.15) * 510.0) * mix(1.0, 0.12, uCoverage);
+            // Long inward tails stop short of the vanishing point instead of crossing the axis.
+            float radialPixels = length((ndc - uVanishing) * uViewport) * 0.5;
+            float inward = min(trail, max(0.7, radialPixels * 0.85));
+            float along = aCorner.x < 0.0 ? aCorner.x * inward : aCorner.x * trail;
+            vec2 offset = (pixelDirection * along + normal * aCorner.y * (0.6 + aSeed * 0.4)) * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
             clip.z = mix(clip.z, clip.w * 0.998, uCoverage);
             gl_Position = view.z < -1.0 ? clip : vec4(2.0, 2.0, 2.0, 1.0);

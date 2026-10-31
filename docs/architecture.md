@@ -105,6 +105,13 @@ Web Audio. `HyperspaceFlight` samples an analytical quaternion alignment/bank, c
 and decelerating arrival coast. Its distance derivative matches the 100 m/s physics handoff. Paused
 normal physics never integrates hyperspeed. Abort adopts the currently displayed pose with zero speed.
 
+The 1.3-second entry gives stars a buildup and a clear hold: full extension by 48%, ignition at 55%,
+and tunnel reveal after 72%. The cubic forward surge and camera/audio impact share the ignition
+threshold, keeping the actual launch under 0.6 seconds. Star positions morph into the corridor only
+under tunnel coverage, so extending them does not replace the visible realspace star pattern early.
+Peripheral trails lengthen roughly 2–3 times; inward tails stop short of the travel axis. The mature
+corridor retains short trails, and exit timing stays sharp.
+
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
 `routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of
 possible moon displacement. On entry to EXITING the runtime swaps atomically. `FlightSession` changes
@@ -158,7 +165,7 @@ primitives and explicitly disposed on scene teardown. Fiber owns declarative per
 rings, sky, ship, cockpit, dust, beacons and tunnel buffers. There are no render targets, external
 textures, models or post-processing dependencies. Sky and hyperdrive components reuse geometry and
 uniform references between frames. The 2400-star billboard field uses each point's original position
-for its trail; at full stretch it morphs into a system-independent camera-space corridor layout.
+for its trail; under tunnel coverage it morphs into a system-independent camera-space corridor layout.
 Destination seed changes therefore stay invisible in transit. Trails contract into the actual new
 sky during exit. Buffers change only with system seed, never per frame.
 

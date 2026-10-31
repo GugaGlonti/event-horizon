@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import {
+  entrySurge,
   HYPERSPACE_TIMING,
   type HyperspaceController,
   smoothRamp,
@@ -68,7 +69,8 @@ export class HyperspaceFlight {
           4;
       position.copy(this.arrival).addScaledVector(this.direction, distance);
     } else {
-      const distance = JUMP_MOTION.departureDistance * (jump.phase === 'ACCELERATING' ? p ** 3 : 1);
+      const distance =
+        JUMP_MOTION.departureDistance * (jump.phase === 'ACCELERATING' ? entrySurge(p) ** 3 : 1);
       position.copy(this.departure).addScaledVector(this.direction, distance);
     }
   }

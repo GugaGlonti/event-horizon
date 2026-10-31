@@ -82,14 +82,14 @@ The galaxy map highlights your current system, shows destination details and its
 requires another system to be selected. Jumping to the current system, uncharted destinations,
 overlapping jumps, and jumping during cooldown are unavailable.
 
-| State        | Default duration | Behavior                                                                   |
-| ------------ | ---------------- | -------------------------------------------------------------------------- |
-| CHARGING     | 3.2 s            | Bank, align to the destination, level out and charge; compact HUD readout  |
-| ACCELERATING | 0.65 s           | Forward surge; existing stars stretch, engine impact and brief camera kick |
-| HYPERSPACE   | At least 3.4 s   | Flowing blue corridor masks preparation; ship/cockpit remain visible       |
-| EXITING      | 1.15 s           | Await the destination's first frame, collapse trails, coast and settle     |
-| COOLDOWN     | 4 s              | Keyboard flight resumes at 100 m/s; another jump remains unavailable       |
-| IDLE         | —                | Hyperdrive ready                                                           |
+| State        | Default duration | Behavior                                                                  |
+| ------------ | ---------------- | ------------------------------------------------------------------------- |
+| CHARGING     | 3.2 s            | Bank, align to the destination, level out and charge; compact HUD readout |
+| ACCELERATING | 1.3 s            | Long star trails build and hold, followed by a sharp forward surge        |
+| HYPERSPACE   | At least 3.4 s   | Flowing blue corridor masks preparation; ship/cockpit remain visible      |
+| EXITING      | 1.15 s           | Await the destination's first frame, collapse trails, coast and settle    |
+| COOLDOWN     | 4 s              | Keyboard flight resumes at 100 m/s; another jump remains unavailable      |
+| IDLE         | —                | Hyperdrive ready                                                          |
 
 Shared galactic coordinates determine departure and arrival headings. The ship approaches from the
 source-facing side of the destination's primary target, facing onward along the route. Swept clearance
@@ -99,8 +99,11 @@ exit coast and frame the primary world at a readable distance.
 
 Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` samples bounded local
 trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
-The same stars stretch on entry and contract into the destination sky on exit. Their fully developed
-corridor layout is shared across systems, hiding the seeded-sky replacement. The camera carries its
+The same stars stretch on entry and contract into the destination sky on exit. Entry holds fully
+extended trails for about 0.3 seconds before the tunnel reveal; peripheral trails are roughly 2–3 times
+longer, with shorter central streaks. Ignition, forward motion and the camera kick stay concentrated in
+the final 0.6 seconds. The fully developed corridor layout is shared across systems, hiding the
+seeded-sky replacement. The camera carries its
 relative pose across the system switch, with brief ignition/exit transients and a quiet cruise.
 
 The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief

@@ -8,13 +8,27 @@ export type JumpPhase =
 
 export const HYPERSPACE_TIMING = Object.freeze({
   CHARGING: 3.2,
-  ACCELERATING: 0.65,
+  ACCELERATING: 1.3,
   HYPERSPACE: 3.4,
   EXITING: 1.15,
   COOLDOWN: 4,
   preparationTimeout: 12,
   maxFrameTime: 0.1,
 });
+
+export const HYPERSPACE_ENTRY = Object.freeze({
+  stretchComplete: 0.48,
+  ignitionStart: 0.55,
+  tunnelStart: 0.72,
+});
+
+/** Keep the physical surge short while stars have time to stretch before ignition. */
+export function entrySurge(progress: number) {
+  return Math.max(
+    0,
+    Math.min(1, (progress - HYPERSPACE_ENTRY.ignitionStart) / (1 - HYPERSPACE_ENTRY.ignitionStart)),
+  );
+}
 
 export function smoothRamp(start: number, end: number, value: number) {
   const t = Math.max(0, Math.min(1, (value - start) / (end - start)));
@@ -39,13 +53,15 @@ export class HyperspaceController {
   }
   get intensity() {
     if (this.phase === 'CHARGING') return this.progress * 0.08;
-    if (this.phase === 'ACCELERATING') return 0.08 + smoothRamp(0, 0.85, this.progress) * 0.92;
+    if (this.phase === 'ACCELERATING')
+      return 0.08 + smoothRamp(0, 0.85, entrySurge(this.progress)) * 0.92;
     if (this.phase === 'HYPERSPACE') return 1;
     if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.4, this.progress);
     return 0;
   }
   get coverage() {
-    if (this.phase === 'ACCELERATING') return smoothRamp(0.45, 0.9, this.progress);
+    if (this.phase === 'ACCELERATING')
+      return smoothRamp(HYPERSPACE_ENTRY.tunnelStart, 1, this.progress);
     if (this.phase === 'HYPERSPACE') return 1;
     if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.3, this.progress);
     return 0;
