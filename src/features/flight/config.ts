@@ -26,6 +26,7 @@ export const GAME_CONFIG = {
   maxSteps: 12,
   telemetryInterval: 0.1,
   navigationKeys: { galaxy: 'KeyM', local: 'KeyL', nextTarget: 'KeyT', clearTarget: 'KeyX' },
+  planetMarkers: { range: 30_000, limit: 3 },
   input: { mouseSensitivity: 0.003, mouseReturnRate: 2.8 },
   hyperspace: { departureDistance: 5200, arrivalSpeed: 3200, exitSpeed: 100 },
   camera: {
