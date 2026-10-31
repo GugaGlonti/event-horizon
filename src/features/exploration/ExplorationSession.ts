@@ -204,21 +204,24 @@ export class ExplorationSession {
       this.jump.arrivalReady = true;
   };
 
+  advanceWorld(dt: number) {
+    this.clock += dt;
+    this.world.update(this.clock);
+  }
+
   advance(
     delta: number,
     position: Readonly<Vector3>,
     orientation: Readonly<Quaternion>,
     flying: boolean,
+    fixedWorld = false,
   ) {
     if (this.disposed) return;
     this.lastPosition.copy(position);
     this.lastOrientation.copy(orientation);
     const dt = Math.max(0, Math.min(Number.isFinite(delta) ? delta : 0, 0.1));
     if (this.suspended) return;
-    if (flying || this.jump.busy) {
-      this.clock += dt;
-      this.world.update(this.clock);
-    }
+    if ((flying && !fixedWorld) || this.jump.busy) this.advanceWorld(dt);
     const previous = this.jump.phase;
     this.jump.advance(dt);
     if (previous !== this.jump.phase) {

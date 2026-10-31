@@ -13,6 +13,7 @@ describe('flight input lifecycle', () => {
   const onMode = vi.fn();
   const onCamera = vi.fn();
   const onAssistance = vi.fn();
+  const onWeapon = vi.fn();
   const onError = vi.fn();
 
   function key(type: string, code: string, repeat = false) {
@@ -43,7 +44,7 @@ describe('flight input lifecycle', () => {
     vi.stubGlobal('document', doc);
     manager = new FlightInputManager(
       target,
-      { onMode, onCamera, onAssistance, onError },
+      { onMode, onCamera, onAssistance, onWeapon, onError },
       0.003,
       2.8,
     );
@@ -70,6 +71,34 @@ describe('flight input lifecycle', () => {
     expect(pausedWheel.defaultPrevented).toBe(false);
   });
 
+  it('selects weapons with number-row/numpad keys only while active, ignoring repeats/modifiers', () => {
+    key('keydown', 'Digit2');
+    expect(onWeapon).not.toHaveBeenCalled();
+    manager.startKeyboard();
+    for (const [code, slot] of [
+      ['Digit1', 1],
+      ['Digit2', 2],
+      ['Digit3', 3],
+      ['Digit4', 4],
+      ['Numpad1', 1],
+      ['Numpad2', 2],
+      ['Numpad3', 3],
+      ['Numpad4', 4],
+    ] as const) {
+      expect(key('keydown', code).defaultPrevented).toBe(true);
+      expect(onWeapon).toHaveBeenLastCalledWith(slot);
+    }
+    expect(onWeapon).toHaveBeenCalledTimes(8);
+    key('keydown', 'Digit3', true);
+    windowTarget.dispatchEvent(
+      Object.assign(new Event('keydown'), { code: 'Digit2', ctrlKey: true }),
+    );
+    expect(onWeapon).toHaveBeenCalledTimes(8);
+    manager.pause();
+    key('keydown', 'Digit1');
+    expect(onWeapon).toHaveBeenCalledTimes(8);
+  });
+
   it('maps S to braking and lower throttle, including while W and boost are held', () => {
     manager.startKeyboard();
     key('keydown', 'KeyS');
@@ -81,17 +110,31 @@ describe('flight input lifecycle', () => {
     expect(manager.sample(0.01)).toMatchObject({ throttle: 1, brake: false, boost: true });
   });
 
-  it('reserves Space without changing flight input or allowing active-flight scrolling', () => {
+  it('reads primary fire only while actively piloting and prevents active-flight scrolling', () => {
     expect(key('keydown', 'Space').defaultPrevented).toBe(false);
     manager.startKeyboard();
     key('keydown', 'KeyW');
     const before = { ...manager.sample(0.01) };
     expect(key('keydown', 'Space').defaultPrevented).toBe(true);
+    expect(manager.firing).toBe(true);
     expect(manager.sample(0.01)).toEqual(before);
     expect(key('keyup', 'Space').defaultPrevented).toBe(true);
+    expect(manager.firing).toBe(false);
     expect(manager.sample(0.01)).toEqual(before);
+    key('keydown', 'Space');
     manager.pause();
+    expect(manager.firing).toBe(false);
     expect(key('keydown', 'Space').defaultPrevented).toBe(false);
+  });
+
+  it('maps six-axis translation and clears it with fire on focus loss', () => {
+    manager.startKeyboard();
+    for (const code of ['KeyD', 'KeyR', 'KeyZ', 'Space']) key('keydown', code);
+    expect(manager.sample(0.01)).toMatchObject({ strafe: 1, lift: 1, reverse: true });
+    expect(manager.firing).toBe(true);
+    windowTarget.dispatchEvent(new Event('blur'));
+    expect(manager.sample(0.01)).toMatchObject({ strafe: 0, lift: 0, reverse: false });
+    expect(manager.firing).toBe(false);
   });
 
   it('handles simultaneous controls and does not repeat camera/assistance toggles', () => {

@@ -1,4 +1,5 @@
 import { MathUtils } from 'three';
+import type { WeaponSlot } from '@/engine/combat/combatTypes';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 
 export type InputMode = 'mouse' | 'keyboard';
@@ -7,16 +8,33 @@ interface InputCallbacks {
   onMode: (mode: InputMode | null) => void;
   onCamera: () => void;
   onAssistance: () => void;
+  onWeapon: (slot: WeaponSlot) => void;
   onError: (message: string) => void;
 }
 
+const WEAPON_KEYS = new Map<string, WeaponSlot>([
+  ['Digit1', 1],
+  ['Digit2', 2],
+  ['Digit3', 3],
+  ['Digit4', 4],
+  ['Numpad1', 1],
+  ['Numpad2', 2],
+  ['Numpad3', 3],
+  ['Numpad4', 4],
+]);
 const FLIGHT_KEYS = new Set([
+  ...WEAPON_KEYS.keys(),
   'KeyW',
   'KeyS',
   'KeyQ',
   'KeyE',
   'KeyC',
   'KeyF',
+  'KeyA',
+  'KeyD',
+  'KeyR',
+  'KeyV',
+  'KeyZ',
   'Space',
   'ShiftLeft',
   'ShiftRight',
@@ -148,6 +166,8 @@ export class FlightInputManager {
     if (event.code === 'Escape') this.pause();
     if (event.code === 'KeyC') this.callbacks.onCamera();
     if (event.code === 'KeyF') this.callbacks.onAssistance();
+    const weapon = WEAPON_KEYS.get(event.code);
+    if (weapon) this.callbacks.onWeapon(weapon);
   };
 
   private onKeyUp = (event: KeyboardEvent) => {
@@ -156,6 +176,10 @@ export class FlightInputManager {
       this.keys.delete(event.code);
     }
   };
+
+  get firing() {
+    return this.keys.has('Space');
+  }
 
   sample(dt: number) {
     const keys = this.keys;
@@ -173,6 +197,9 @@ export class FlightInputManager {
     this.input.throttle = Number(keys.has('KeyW') && !keys.has('KeyS'));
     this.input.boost = keys.has('ShiftLeft') || keys.has('ShiftRight');
     this.input.brake = keys.has('KeyS');
+    this.input.strafe = Number(keys.has('KeyD')) - Number(keys.has('KeyA'));
+    this.input.lift = Number(keys.has('KeyR')) - Number(keys.has('KeyV'));
+    this.input.reverse = keys.has('KeyZ');
     const decay = Math.exp(-this.returnRate * Math.max(0, Math.min(dt, 0.1)));
     this.stickX *= decay;
     this.stickY *= decay;

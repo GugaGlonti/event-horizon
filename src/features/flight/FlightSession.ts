@@ -5,6 +5,7 @@ import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { RenderOrigin } from '@/engine/world/RenderOrigin';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { CombatSession } from '@/features/combat/CombatSession';
 import { ExplorationSession } from '@/features/exploration/ExplorationSession';
 import { EngineAudio } from '@/features/flight/audio/EngineAudio';
 import {
@@ -13,6 +14,7 @@ import {
 } from '@/features/flight/audio/EngineSoundModel';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
+import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
@@ -28,6 +30,7 @@ export class FlightSession {
   readonly journey = new HyperspaceFlight();
   readonly engineAudio = new EngineAudio();
   private readonly engineSoundInput = createEngineSoundInput();
+  readonly combat: CombatSession;
   private readonly previousPosition = new Vector3();
   private readonly currentPosition = new Vector3();
   private readonly previousOrientation = new Quaternion();
@@ -42,10 +45,12 @@ export class FlightSession {
   private telemetryElapsed = 0;
 
   constructor() {
+    this.combat = new CombatSession(this.controller, this.input);
     this.exploration = new ExplorationSession({
       onPause: this.pause,
       onDepart: (direction) => {
         if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
+        this.combat.depart();
         this.journey.begin(this.position, this.orientation, direction);
       },
       onCommit: (system) => {
@@ -56,6 +61,7 @@ export class FlightSession {
         useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
       },
       onRestore: () => {
+        this.combat.setWorld(this.exploration.world);
         this.journey.finish(this.position, this.orientation);
         this.controller.relocate(this.position, this.orientation, JUMP_MOTION.exitSpeed);
         this.snapPose(false);
@@ -63,6 +69,7 @@ export class FlightSession {
         this.startKeyboard();
       },
       onError: (message) => {
+        this.combat.setWorld(this.exploration.world);
         if (this.journey.active) {
           this.journey.active = false;
           this.controller.relocate(this.position, this.orientation);
@@ -73,6 +80,7 @@ export class FlightSession {
       },
     });
     this.arrive(this.exploration.world);
+    this.combat.reset(this.exploration.world);
     this.exploration.syncPose(this.position, this.orientation);
   }
 
@@ -102,6 +110,7 @@ export class FlightSession {
     this.manager?.dispose();
     this.engineAudio.prepare();
     this.exploration.mount(this.position, this.orientation);
+    this.combat.setWorld(this.exploration.world);
     const store = useFlightStore.getState();
     store.publishTelemetry(this.controller.getTelemetry());
     const manager = new FlightInputManager(
@@ -109,6 +118,10 @@ export class FlightSession {
       {
         onMode: (mode) => {
           if (mode === null) this.engineAudio.stop();
+          if (mode === null) {
+            this.combat.audio.stop();
+            this.combat.cancelWeaponCharge();
+          }
           this.loop.reset();
           this.controller.copyTransform(this.currentPosition, this.currentOrientation);
           this.previousPosition.copy(this.currentPosition);
@@ -117,6 +130,7 @@ export class FlightSession {
         },
         onCamera: store.toggleCamera,
         onAssistance: store.toggleAssistance,
+        onWeapon: (slot) => this.combat.selectWeapon(slot),
         onError: store.setNotice,
       },
       GAME_CONFIG.input.mouseSensitivity,
@@ -137,6 +151,7 @@ export class FlightSession {
       manager.dispose();
       this.exploration.dispose();
       this.engineAudio.dispose();
+      this.combat.dispose();
       useFlightStore.getState().setRendererReady(false);
       if (this.manager === manager) this.manager = null;
     };
@@ -154,6 +169,22 @@ export class FlightSession {
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
+    if (['KeyB', 'KeyN'].includes(event.code)) {
+      if (
+        useFlightStore.getState().phase !== 'flying' ||
+        this.exploration.jump.busy ||
+        useExplorationStore.getState().overlay ||
+        this.combat.simulation.player.health.destroyed
+      )
+        return;
+      event.preventDefault();
+      if (event.code === 'KeyB') this.startEncounter();
+      else {
+        this.combat.simulation.cycleTarget();
+        this.combat.publish();
+      }
+      return;
+    }
     const keys = GAME_CONFIG.navigationKeys;
     const overlay = useExplorationStore.getState().overlay;
     if (event.code === 'Escape') {
@@ -173,7 +204,12 @@ export class FlightSession {
     )
       return;
     event.preventDefault();
-    if (!useFlightStore.getState().rendererReady || this.exploration.jump.busy) return;
+    if (
+      !useFlightStore.getState().rendererReady ||
+      this.exploration.jump.busy ||
+      this.combat.simulation.player.health.destroyed
+    )
+      return;
     if (event.code === keys.galaxy || event.code === keys.local) {
       const view = event.code === keys.galaxy ? 'galaxy' : 'local';
       if (overlay === view) this.exploration.closeMap();
@@ -191,19 +227,30 @@ export class FlightSession {
   };
 
   startMouse = () => {
-    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay) {
+    if (
+      !this.exploration.jump.busy &&
+      !useExplorationStore.getState().overlay &&
+      !this.combat.simulation.player.health.destroyed
+    ) {
+      this.unlockAudio();
       if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
       void this.manager?.requestMouse();
     }
   };
   startKeyboard = () => {
-    if (!this.exploration.jump.busy && !useExplorationStore.getState().overlay) {
+    if (
+      !this.exploration.jump.busy &&
+      !useExplorationStore.getState().overlay &&
+      !this.combat.simulation.player.health.destroyed
+    ) {
+      this.unlockAudio();
       if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
       this.manager?.startKeyboard();
     }
   };
   pause = () => {
     this.engineAudio.stop();
+    this.combat.audio.stop();
     this.manager?.pause();
     this.loop.reset();
     useFlightStore.getState().setInputMode(null);
@@ -215,9 +262,13 @@ export class FlightSession {
     this.controller.reset();
     this.controller.setAssistance(useFlightStore.getState().assistance);
     this.arrive(this.exploration.world);
+    this.combat.reset(this.exploration.world);
     this.exploration.syncPose(this.position, this.orientation);
     useFlightStore.setState({ notice: null, telemetry: this.controller.getTelemetry() });
   };
+  private unlockAudio() {
+    if (useCombatStore.getState().sound) this.combat.audio.unlock();
+  }
   toggleEngineSound = () => {
     const enabled = !useFlightStore.getState().engineSound;
     useFlightStore.setState({ engineSound: enabled });
@@ -241,6 +292,14 @@ export class FlightSession {
       state.engineSound && state.phase === 'flying' && !this.exploration.jump.busy,
     );
   }
+  startEncounter = (practice = false) => {
+    if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
+    this.combat.startEncounter(practice);
+  };
+  respawn = () => {
+    this.reset();
+    this.startKeyboard();
+  };
   markReady = () => {
     useFlightStore.getState().setRendererReady(true);
   };
@@ -251,10 +310,20 @@ export class FlightSession {
   };
 
   private step = (dt: number) => {
+    if (this.combat.simulation.player.health.destroyed) {
+      this.pause();
+      this.combat.publish();
+      return;
+    }
     this.previousPosition.copy(this.currentPosition);
     this.previousOrientation.copy(this.currentOrientation);
     this.controller.setAssistance(useFlightStore.getState().assistance);
-    this.controller.step(this.input, dt);
+    this.exploration.advanceWorld(dt);
+    this.combat.step(this.input, this.manager?.firing ?? false, dt);
+    if (this.combat.simulation.player.health.destroyed) {
+      this.pause();
+      this.combat.publish();
+    }
     this.controller.copyTransform(this.currentPosition, this.currentOrientation);
   };
 
@@ -264,15 +333,21 @@ export class FlightSession {
     if (flying) {
       this.input = this.manager?.sample(delta) ?? this.input;
       const alpha = this.loop.advance(delta, this.step);
+      this.combat.simulation.alpha = alpha;
       this.position.lerpVectors(this.previousPosition, this.currentPosition, alpha);
       this.orientation.slerpQuaternions(this.previousOrientation, this.currentOrientation, alpha);
       this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
         state.publishTelemetry(this.controller.getTelemetry());
+        this.combat.publish();
       }
     } else this.loop.reset();
-    this.exploration.advance(delta, this.position, this.orientation, flying);
+    this.exploration.advance(delta, this.position, this.orientation, flying, true);
+    this.combat.audio.update(
+      this.combat.simulation,
+      useCombatStore.getState().sound && useFlightStore.getState().phase === 'flying',
+    );
     if (this.journey.active && this.exploration.jump.busy)
       this.journey.sample(this.exploration.jump, this.position, this.orientation, reducedMotion);
     this.origin.update(this.position);
