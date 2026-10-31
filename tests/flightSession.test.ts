@@ -4,10 +4,14 @@ import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { FlightCamera } from '@/features/flight/camera/FlightCamera';
 import { GAME_CONFIG } from '@/features/flight/config';
 import { FlightSession } from '@/features/flight/FlightSession';
+import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
 describe('flight presentation boundaries', () => {
-  beforeEach(() => useFlightStore.setState(useFlightStore.getInitialState(), true));
+  beforeEach(() => {
+    useFlightStore.setState(useFlightStore.getInitialState(), true);
+    useExplorationStore.setState(useExplorationStore.getInitialState(), true);
+  });
 
   it('publishes telemetry at the configured cadence instead of every render frame', () => {
     const session = new FlightSession();
@@ -24,6 +28,8 @@ describe('flight presentation boundaries', () => {
 
   it('holds the pose on pause, ignores a long pause, and resets the session without a camera flight-back', () => {
     const session = new FlightSession();
+    const spawn = session.position.clone();
+    const version = session.resetVersion;
     session.controller.step({ ...createFlightInput(), throttle: 1 }, 0.1);
     const position = new Vector3();
     const orientation = new Quaternion();
@@ -33,9 +39,9 @@ describe('flight presentation boundaries', () => {
     session.controller.copyTransform(pausedPosition, orientation);
     expect(pausedPosition.equals(position)).toBe(true);
     session.reset();
-    expect(session.position.length()).toBe(0);
+    expect(session.position.equals(spawn)).toBe(true);
     expect(useFlightStore.getState().telemetry.speed).toBe(0);
-    expect(session.resetVersion).toBe(1);
+    expect(session.resetVersion).toBe(version + 1);
   });
 
   it('switches between chase and cockpit without changing the simulation pose', () => {
@@ -43,21 +49,46 @@ describe('flight presentation boundaries', () => {
     const rig = new FlightCamera();
     const camera = new PerspectiveCamera();
     rig.update(camera, session, 'chase', 1 / 60, false);
-    expect(camera.position.toArray()).toEqual([...GAME_CONFIG.camera.chaseOffset]);
+    expect(
+      camera.position
+        .clone()
+        .sub(session.renderPosition)
+        .distanceTo(new Vector3(...GAME_CONFIG.camera.chaseOffset)),
+    ).toBeLessThan(1e-10);
     rig.update(camera, session, 'cockpit', 1 / 60, false);
-    expect(camera.position.toArray()).toEqual([...GAME_CONFIG.camera.cockpitOffset]);
+    const cockpitOffset = camera.position.clone().sub(session.renderPosition);
+    expect(cockpitOffset.distanceTo(new Vector3(...GAME_CONFIG.camera.cockpitOffset))).toBeLessThan(
+      1e-10,
+    );
     const pose = new Vector3();
     session.controller.copyTransform(pose, new Quaternion());
-    expect(pose.length()).toBe(0);
+    expect(pose.equals(session.position)).toBe(true);
     expect(session.orientation.equals(new Quaternion())).toBe(true);
   });
 
   it('backs the chase camera away on narrow viewports without changing the ship pose', () => {
     const session = new FlightSession();
+    const pose = session.position.clone();
     const camera = new PerspectiveCamera(62, 0.5);
     new FlightCamera().update(camera, session, 'chase', 1 / 60, false);
-    expect(camera.position.z).toBeGreaterThan(GAME_CONFIG.camera.chaseOffset[2]);
-    expect(session.position.length()).toBe(0);
+    expect(camera.position.z - session.renderPosition.z).toBeGreaterThan(
+      GAME_CONFIG.camera.chaseOffset[2],
+    );
+    expect(session.position.equals(pose)).toBe(true);
+  });
+
+  it('rebases the chase camera without changing its logical position or introducing a follow jump', () => {
+    const session = new FlightSession();
+    const camera = new PerspectiveCamera();
+    const rig = new FlightCamera();
+    rig.update(camera, session, 'chase', 1 / 60, false);
+    const logicalCamera = camera.position.clone().add(session.origin.position);
+    session.origin.position.x += 1024;
+    session.origin.toRender(session.position, session.renderPosition);
+    rig.update(camera, session, 'chase', 1 / 60, false);
+    expect(
+      camera.position.clone().add(session.origin.position).distanceTo(logicalCamera),
+    ).toBeLessThan(1e-8);
   });
 
   it('uses a stable field of view for reduced motion', () => {

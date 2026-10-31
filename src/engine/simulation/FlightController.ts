@@ -73,6 +73,30 @@ export class FlightController {
     orientation.copy(this.orientation);
   }
 
+  /** System arrival: preserve engine reserve, assistance and trip distance; stop local momentum. */
+  relocate(position: Readonly<Vector3>, orientation: Readonly<Quaternion>) {
+    if (
+      ![
+        position.x,
+        position.y,
+        position.z,
+        orientation.x,
+        orientation.y,
+        orientation.z,
+        orientation.w,
+      ].every(Number.isFinite) ||
+      orientation.lengthSq() < 0.001
+    ) {
+      throw new RangeError('Arrival pose must be finite with a nonzero quaternion.');
+    }
+    this.position.copy(position);
+    this.orientation.copy(orientation).normalize();
+    this.velocity.set(0, 0, 0);
+    this.angularVelocity.set(0, 0, 0);
+    this.throttle = 0;
+    this.boosting = false;
+  }
+
   step(input: Readonly<FlightInput>, dt: number) {
     if (!Number.isFinite(dt) || dt < 0)
       throw new RangeError('Flight dt must be finite and nonnegative.');

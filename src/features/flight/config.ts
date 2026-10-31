@@ -25,6 +25,7 @@ export const GAME_CONFIG = {
   maxFrameTime: 0.1,
   maxSteps: 12,
   telemetryInterval: 0.1,
+  navigationKeys: { galaxy: 'KeyM', local: 'KeyL', nextTarget: 'KeyT', clearTarget: 'KeyX' },
   input: { mouseSensitivity: 0.003, mouseReturnRate: 2.8 },
   camera: {
     chaseOffset: [0, 3.2, 12] as const,
@@ -36,8 +37,10 @@ export const GAME_CONFIG = {
     chaseFov: 62,
     cockpitFov: 78,
     speedFov: 12,
+    hyperspaceFov: 28,
+    hyperspaceVibration: 0.035,
     near: 0.1,
-    far: 50000,
+    far: 65000,
   },
   environment: {
     planetPosition: [-750, 280, -2400] as const,
