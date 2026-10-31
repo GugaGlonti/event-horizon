@@ -77,7 +77,7 @@ src/
     space/components/              Scene composition, orbit camera, scene toolbar
   hooks/                           Motion preference and effective rotation subscriptions
   stores/                          Zustand scene settings and camera reset requests
-  styles/                          Tailwind entry point, theme, responsive overlay styles
+  styles/                          Tailwind theme, responsive variants, and global base defaults
   main.tsx                         React entry point
   vite-env.d.ts                    Client environment declarations
 tests/                             Rotation behavior and scene-state unit tests
@@ -147,6 +147,10 @@ loop, floating origin, LOD, atmosphere, shader pipeline, and post-processing are
 - Use feature-local components and colocate types with their owners; extract only when reused.
 - Use PascalCase for React components and camelCase for hooks, functions, and non-component modules.
 - Use the `@/` alias for source imports and explicit `import type` for type-only dependencies.
+- Prefer Tailwind utilities in components for UI styling, including responsive, focus, and motion
+  variants. Keep `src/styles/index.css` for shared theme tokens, custom variants, and global defaults;
+  use custom CSS only when it expresses an effect more clearly. Reuse components or static class
+  strings instead of rebuilding utility styles as CSS component classes.
 - Keep strict typing, two-space indentation, LF line endings, and a target line width of 100 characters.
 - Favor small modules, composition, named exports, and pure simulation functions. The lazy-loaded
   scene has a default export for `React.lazy`.

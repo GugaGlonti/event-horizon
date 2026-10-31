@@ -21,7 +21,7 @@ unless the current task asks for them.
 - Add `src/engine/input` when real input needs appear; keep input collection separate from simulation.
 - `src/components/ui`: reusable DOM UI with no feature or engine dependencies.
 - `src/stores`: low-frequency shared state. `src/hooks`: reusable subscriptions and UI hooks.
-- `src/styles`: Tailwind entry point and shared visual styles.
+- `src/styles`: Tailwind entry point, theme tokens, custom variants, and global base defaults.
 - `tests`: behavioral unit tests. `docs/architecture.md`: extension guidance and tradeoffs.
 - Engine code must not import features or app. Avoid circular imports and broad barrel files.
 - Feature-to-feature composition belongs at an explicit composition point such as `SpaceScene`.
@@ -35,6 +35,10 @@ unless the current task asks for them.
 - Use `@/` source aliases, two-space indentation, LF, and roughly 100-character lines.
 - Keep types near their owner; create shared type modules only when multiple modules need them.
 - Use semantic HTML, accessible names, keyboard-visible focus, and responsive layouts.
+- Prefer Tailwind utilities in components for layout, spacing, typography, colors, responsive styles,
+  interaction states, focus, and reduced motion. Keep CSS for theme tokens, shared variants, global
+  defaults, or effects that are clearer as custom CSS. Do not recreate utility styles with `@apply`
+  component classes. Reuse components or static class strings for repeated utility combinations.
 - Respect reduced-motion preferences. Explicit user choices may override the default.
 - Use local assets where possible. Keep client `VITE_` configuration public and explicitly typed;
   never place secrets in browser environment variables or commit `.env` files.
