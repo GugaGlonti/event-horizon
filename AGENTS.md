@@ -78,13 +78,20 @@ landings remain future work; add them only when the current task requests them.
   Rebase the camera's existing position before follow damping. Compute HUD distances in logical space.
   Cull/zero far celestial/beacon render transforms; camera-relative effects must remain bounded.
 - World definitions must stay JSON-serializable with stable system/body IDs, parent-relative positions
-  or explicit analytical orbits, normalized spawn quaternions, and safe arrival anchors. Validate at
-  the preparation boundary. Celestial time is explicit and pauses with flight/maps; no random or
+  or explicit analytical orbits, distinct finite galactic coordinates, normalized spawn quaternions,
+  and safe arrival anchors. Validate at the preparation boundary. Celestial time is explicit and
+  pauses with flight/maps; no random or
   frame-accumulated moon transforms. Parent axial spin must not drag children around.
 - Keep hyperspace timing independent of rendering, audio, promises and stores. ExplorationSession
   owns abort/generation tokens and atomically commits prepared systems under the opaque tunnel.
-  Late async results must not revive cancelled/disposed journeys. Before commit, failure retains the
-  source; after commit, abort holds a safe destination. Reset cancels before respawning.
+  Gate exit progress on the matching destination scene's first frame; stale source frames cannot
+  release the mask. Preserve camera-relative pose/FOV across handoff. Late async results must not
+  revive cancelled/disposed journeys. Before commit, failure retains the source; after commit, abort
+  holds a safe destination. Reset cancels before respawning.
+- Jump poses follow bounded analytical paths outside fixed-step physics. Derive headings from shared
+  galactic coordinates; check swept departure/arrival corridors including rings and moon motion. Match
+  exit velocity and throttle at the physics handoff. Keep foreground ship/cockpit/exhaust visible;
+  order the tunnel mask after celestial transparency and before star trails and exhaust.
 - Navigation shortcuts are separate discrete listeners owned by FlightSession, including while maps
   pause movement listeners. Maps release pointer lock and contain focus. Block maps/normal steering
   during jumps; hold journeys on blur/visibility and resume explicitly. Keyboard flight returns on

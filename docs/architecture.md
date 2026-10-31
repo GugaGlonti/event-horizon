@@ -7,7 +7,7 @@ is implemented.
 ## Dependencies and ownership
 
 ```text
-App → FlightSession → FlightInputManager + FixedStepLoop + FlightController
+App → FlightSession → FlightInputManager + FixedStepLoop + FlightController + HyperspaceFlight
                    → ExplorationSession → SystemRuntime + NavigationComputer + HyperspaceController
 App → FlightHud + ExplorationOverlay → detached store read models / session actions
 SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + HyperspaceTunnel
@@ -28,7 +28,7 @@ objects. Feature orchestration composes engine services and supplies browser ada
 | `FlightSession`                 | Input lifetime, interpolated logical pose, render origin/pose, arrival/flight handoff  |
 | `FlightCamera`                  | Presentation-only follow, rebase compensation, FOV and optional vibration              |
 | `SystemScene` / `CelestialBody` | Shared geometry, per-body shader uniforms, world-to-render transforms                  |
-| `HyperspaceTunnel`              | Full-screen procedural tunnel and camera-relative streak buffer                        |
+| `HyperspaceTunnel`              | Depth-tested corridor mask; the shared Starfield owns point-to-trail morphs            |
 | `stores`                        | Discrete state and detached scalar/tuple snapshots; never authoritative transforms     |
 
 ## Flight and timing
@@ -39,12 +39,14 @@ Up/Down are inverted pitch, Left/Right roll, and Q/E yaw; mouse motion remains p
 
 `FlightController.step(input, dt)` owns logical position, velocity, orientation, throttle, boost and
 assistance. It does not read clocks, stores or input devices. `copyTransform` copies into scratch
-objects; scalar telemetry is detached. `relocate` validates a finite pose and zeroes momentum/throttle
-while preserving reserve, assistance and trip distance. Full reset restores reserve separately.
+objects; scalar telemetry is detached. `relocate` validates a finite pose and optional bounded forward
+speed, setting matching throttle while preserving reserve, assistance and trip distance. Its default
+stops momentum; jump completion uses 100 m/s. Full reset restores reserve separately.
 
 `FlightSession` runs physics at 120 Hz, caps catch-up to 0.1 seconds/12 ticks, and discards suspension
-backlog. Previous/current endpoints interpolate the presented logical pose. Arrival/reset replace
-both endpoints and increment a revision so the camera snaps. Pause clears the accumulator. Navigation
+backlog. Previous/current endpoints interpolate the presented logical pose. Reset replaces both
+endpoints and increments a revision so the camera snaps. Jump handoffs replace the endpoints while
+preserving the camera revision and relative follow pose. Pause clears the accumulator. Navigation
 and flight telemetry publish at 10 Hz; discrete changes publish immediately. Paused idle navigation
 has no recurring store publications.
 
@@ -74,6 +76,7 @@ protocol or cross-platform determinism guarantee is implied.
 ## Definition preparation and safe arrivals
 
 `StarSystemDefinition` is a JSON-compatible object with stable ID, name/description, chart position,
+shared three-dimensional galactic position,
 environment, celestial bodies, spawn points, default target and arrival ID. Body IDs are unique within
 the system. Definitions support one star, rocky/gas planets and moons, parent links, positions or
 orbits, radius, axial spin/tilt, palette/pattern, atmosphere and rings. Rotation/orbit angles are radians;
@@ -96,19 +99,31 @@ an operation generation and abort its signal; late success/failure cannot affect
 → IDLE transitions. Exported timing is configurable. Its only inputs are a validated destination,
 preparation readiness and bounded dt. It never changes a world, ship, camera, audio node or store.
 
-`ExplorationSession.beginJump` validates once, clears/restricts flight input, starts preparation and
-optional gesture-started Web Audio. A prepared destination cannot commit until HYPERSPACE has run for
-its minimum duration. On entry to EXITING, the runtime swaps atomically and `FlightSession` relocates
-the craft to the destination arrival. The tunnel remains fully opaque for the first 20% of exit,
-covering the React scene commit and initial draw. No browser reload or incomplete asset state occurs.
-All current assets are synchronous procedural geometry/shaders.
+`ExplorationSession.beginJump` derives a shared travel axis from the source/destination galactic
+positions, checks the swept departure lane, clears/restricts input, starts preparation and optional
+Web Audio. `HyperspaceFlight` samples an analytical quaternion alignment/bank, cubic departure surge,
+and decelerating arrival coast. Its distance derivative matches the 100 m/s physics handoff. Paused
+normal physics never integrates hyperspeed. Abort adopts the currently displayed pose with zero speed.
+
+A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
+`routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of
+possible moon displacement. On entry to EXITING the runtime swaps atomically. `FlightSession` changes
+the logical frame while the camera compensates both origin and ship translation, preserving relative
+position, orientation and FOV. A reset still explicitly snaps the camera.
+
+EXITING stays at zero progress with full coverage until the matching destination SystemScene reports
+its first frame. Stale source frames cannot unlock it. Both CPU preparation and renderer readiness have
+bounded 12-second deadlines. The first 8% of exit remains opaque; coverage falls quickly over 8–30%,
+then the forward coast settles into normal flight. All current assets are synchronous procedural
+geometry/shaders. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
-Camera mode, assistance and engine reserve survive the trip. The arrival notice lasts five seconds.
-The old keyed SystemScene unmounts and releases owned resources. Camera FOV/shake and engine energy
-follow jump intensity without modifying physical flight velocity.
+Camera mode, assistance and engine reserve survive. The arrival notice lasts three seconds. Charge is
+a small HUD readout; transit has no central overlay or phase percentages. A held journey shows explicit
+resume/abort controls. Layered oscillators, filtered seeded noise and short impacts follow the same
+phase boundaries and mute on suspension; source nodes and context are disposed on teardown.
 
-Failure before commit keeps the source runtime/pose. HYPERSPACE readiness has a 12-second deadline.
+Failure before commit keeps the source runtime and current cinematic pose. HYPERSPACE readiness has a 12-second deadline.
 Cancel before commit retains the source; cancel after commit holds at the destination. Both paths
 release restrictions and require an explicit flight resume. Blur/visibility loss holds an active
 journey; **Resume journey** continues it. Bounded dt prevents hidden-tab catch-up. Renderer failure
@@ -142,7 +157,16 @@ Each mounted SystemScene owns one shared SphereGeometry, attached to bodies/atmo
 primitives and explicitly disposed on scene teardown. Fiber owns declarative per-body materials,
 rings, sky, ship, cockpit, dust, beacons and tunnel buffers. There are no render targets, external
 textures, models or post-processing dependencies. Sky and hyperdrive components reuse geometry and
-uniform references between frames; the star-streak buffer is created once.
+uniform references between frames. The 2400-star billboard field uses each point's original position
+for its trail; at full stretch it morphs into a system-independent camera-space corridor layout.
+Destination seed changes therefore stay invisible in transit. Trails contract into the actual new
+sky during exit. Buffers change only with system seed, never per frame.
+
+The tunnel shader uses nested ray/cylinder wall samples and periodic angular noise, avoiding the
+atan seam. Its transparent depth-tested mask draws after celestial transparency (order 10), preserving
+nearby opaque ship/cockpit depth. Star trails draw next (20), with bounded virtual depth during transit;
+foreground exhaust draws last (30). This hides rings/atmospheres as well as opaque planets without
+covering the spacecraft. These are ordered scene draws, with no render targets or post-processing.
 
 Fiber 9 copies shader uniform wrappers when applying props. Update per-frame scalar uniforms through
 the mounted ShaderMaterial ref; mutating the original props object's number does not update the GPU.
@@ -151,14 +175,15 @@ geometry or publish React state per frame. The flight frame callback has priorit
 origin and camera update before world/effect presentation. No positive-priority callback takes over
 rendering.
 
-Reduced motion disables dynamic FOV, vibration, tunnel animation and axial spin. The tunnel still
+Reduced motion disables dynamic FOV, vibration, tunnel animation, star trails, alignment bank and axial spin. The tunnel still
 masks a transition and progress remains legible. Device pixel ratio stays bounded. LOD/adaptive quality
 and broader hardware profiling are future improvements, not a promise of universal 60 FPS.
 
 ## Adding a system, planet or moon
 
 1. Add a JSON-compatible `StarSystemDefinition` to `features/exploration/data/systems.ts` with a new
-   stable system ID, chart position and environment palette. The catalogue validation runs on import.
+   stable system ID, chart position, distinct galactic position and environment palette. Galactic axes
+   share local +Y up and -Z chart north; do not infer routes from decorative chart coordinates. The catalogue validation runs on import.
 2. Give its central star a fixed position and unique body ID. Add three or more worlds as desired,
    with star-relative positions, radius, surface pattern/palette and rotation. Reuse the existing
    `star`/`planet` data helpers or write the typed objects directly.

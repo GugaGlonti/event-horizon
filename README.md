@@ -84,18 +84,33 @@ overlapping jumps, and jumping during cooldown are unavailable.
 
 | State        | Default duration | Behavior                                                                   |
 | ------------ | ---------------- | -------------------------------------------------------------------------- |
-| CHARGING     | 2.8 s            | Flight held, engine energy builds, optional synthesized audio cue          |
-| ACCELERATING | 1.8 s            | Stars lengthen, tunnel fades in, FOV expands, subtle vibration             |
-| HYPERSPACE   | At least 3.2 s   | Opaque procedural tunnel and 650 GPU star streaks mask preparation         |
-| EXITING      | 2 s              | Destination activates at a safe arrival, tunnel fades away, camera settles |
-| COOLDOWN     | 4 s              | Normal keyboard flight resumes; another jump remains unavailable           |
+| CHARGING     | 3.2 s            | Bank, align to the destination, level out and charge; compact HUD readout  |
+| ACCELERATING | 0.65 s           | Forward surge; existing stars stretch, engine impact and brief camera kick |
+| HYPERSPACE   | At least 3.4 s   | Flowing blue corridor masks preparation; ship/cockpit remain visible       |
+| EXITING      | 1.15 s           | Await the destination's first frame, collapse trails, coast and settle     |
+| COOLDOWN     | 4 s              | Keyboard flight resumes at 100 m/s; another jump remains unavailable       |
 | IDLE         | —                | Hyperdrive ready                                                           |
 
-Timing lives in `engine/navigation/HyperspaceController.ts`. Visual speed is a presentation effect;
-the ship is not accelerated to enormous logical velocities. Arrival stops momentum/throttle and
-preserves engine reserve, trip distance, assistance, and camera choice. Keyboard control returns
-without another click. Mouse users can pause and select **Resume with mouse** to recapture the pointer
-through a user gesture. Jump audio can be disabled in the galaxy map.
+Shared galactic coordinates determine departure and arrival headings. The ship approaches from the
+source-facing side of the destination's primary target, facing onward along the route. Swept clearance
+checks include body surfaces, atmospheres, rings and near-term moon movement. A blocked departure
+shows a reason in the galaxy chart; move clear before trying again. Arrival lanes leave room for the
+exit coast and frame the primary world at a readable distance.
+
+Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` samples bounded local
+trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
+The same stars stretch on entry and contract into the destination sky on exit. Their fully developed
+corridor layout is shared across systems, hiding the seeded-sky replacement. The camera carries its
+relative pose across the system switch, with brief ignition/exit transients and a quiet cruise.
+
+The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief
+arrival notice after exit. Normal flight instruments return with control. A central prompt appears
+only when a journey is held after losing focus. Optional layered synthesized audio provides charge,
+ignition, rushing tunnel and exit cues; disable it in the galaxy map.
+
+Arrival preserves engine reserve, trip distance, assistance and camera choice, handing back a
+controlled 100 m/s forward cruise with matching throttle. Keyboard control returns without another
+click. Mouse users can pause and select **Resume with mouse** to recapture through a user gesture.
 
 Escape or **Abort jump** cancels safely. Before arrival commit, you remain in the source system. After
 commit, you remain at the destination's safe arrival. Reset/unmount invalidate pending preparation,
@@ -104,7 +119,8 @@ the original system and offers normal flight again. Blur/hidden tabs hold an act
 **Resume journey** is clicked; a bounded delta prevents suspension from skipping the sequence.
 
 Reduced-motion preferences disable jump vibration, speed/jump FOV changes, tunnel animation, and
-visual axial spin. Essential steering, orbital positions, phase progress, and travel remain available.
+visual axial spin, alignment banking and animated star trails. Essential alignment, orbital positions,
+charge feedback, and travel remain available.
 
 ## Stack and commands
 
@@ -140,7 +156,7 @@ src/features/
   exploration/
     data/systems.ts       Handcrafted catalogue and cancellable bundled-definition loader
     ExplorationSession.ts Preparation, jump lifecycle, system commit, navigation publication
-    HyperdriveAudio.ts    Gesture-started synthesized cue and cleanup
+    HyperdriveAudio.ts    Gesture-started layered jump audio and cleanup
     components/           Galaxy/local maps, target HUD, journey status
     rendering/            System scene composition and GPU hyperspace effect
   flight/                 Input/session lifetime, interpolation, camera, HUD, tuning
@@ -155,7 +171,8 @@ angles in radians. Astronomy is compressed for playable travel times. Local forw
 **+Y**, right **+X**. A body's position is relative to its parent; moon orbits are evaluated from an
 explicit shared simulation time, independently of the order of definitions or frame history.
 
-`FlightController` retains the logical pose. A 1024-metre grid origin near the player converts it into
+`FlightController` retains the normal-flight logical pose; a bounded analytical journey supplies the
+presented pose during jumps. A 1024-metre grid origin near the player converts that pose into
 render space without moving simulation coordinates. The camera translates by each origin change
 before applying follow damping. Celestial transforms subtract the same origin; distant bodies are
 culled before large transforms reach the GPU. The sky and hyperdrive are camera-relative, and local
