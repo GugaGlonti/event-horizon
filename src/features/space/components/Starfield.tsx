@@ -108,7 +108,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
             float outward = (aCorner.x + 1.0) * 0.5;
             float width = aSize * (1.0 + uStretch * (0.5 + aSeed));
             float along = aCorner.x * aSize * 2.0 + outward * trail;
-            vec2 offset = (pixelDirection * along + normal * aCorner.y * width * 3.0) * 2.0 / uViewport;
+            vec2 offset = (pixelDirection * along + normal * aCorner.y * width * 5.0) * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
             clip.z = mix(clip.z, clip.w * 0.998, uCoverage);
             gl_Position = view.z < -1.0 ? clip : vec4(2.0, 2.0, 2.0, 1.0);
@@ -120,14 +120,17 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
           uniform float uStretch, uCoverage;
           varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize;
           void main() {
-            float head = exp(-pow(vAlong / vSize, 2.0) * 1.2);
+            float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
             float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(1.0, vTrailLength), vAlong));
             float shape = max(head, tail * uStretch);
-            float core = exp(-pow(vCorner.y * 3.0, 2.0) * 3.0);
-            float glow = exp(-pow(vCorner.y * 3.0, 2.0) * 0.6) * uStretch * 0.4;
-            vec3 color = vec3(0.84, 0.94, 1.0) * core + vec3(0.15, 0.5, 1.0) * glow;
+            float core = exp(-vCorner.y * vCorner.y * 55.0);
+            float shoulder = exp(-vCorner.y * vCorner.y * 14.0) * uStretch;
+            float glow = exp(-vCorner.y * vCorner.y * 4.5) * uStretch;
+            vec3 color = vec3(0.9, 0.96, 1.0) * core
+              + vec3(0.12, 0.38, 0.7) * shoulder * 0.35
+              + vec3(0.025, 0.16, 0.45) * glow * 0.28;
             float fade = 1.0 - smoothstep(0.25, 1.0, uCoverage);
-            gl_FragColor = vec4(color, shape * vBrightness * (1.0 + uStretch * 0.8) * fade);
+            gl_FragColor = vec4(color, shape * vBrightness * (1.0 + uStretch * 0.45) * fade);
           }
         `}
       />
