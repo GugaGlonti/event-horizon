@@ -1,5 +1,6 @@
 import { InstrumentButton } from '@/components/ui/InstrumentButton';
 import { SegmentReadout } from '@/components/ui/SegmentReadout';
+import { CombatHud } from '@/features/combat/components/CombatHud';
 import { HyperspaceStatus } from '@/features/exploration/components/HyperspaceStatus';
 import { NavigationHud, NavigationMarker } from '@/features/exploration/components/NavigationHud';
 import { NearbyPlanetMarkers } from '@/features/exploration/components/NearbyPlanetMarkers';
@@ -8,6 +9,7 @@ import { FlightMenu } from '@/features/flight/components/FlightMenu';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
@@ -55,6 +57,7 @@ const instrumentTitleClassName =
   "mb-3 flex items-center gap-2 text-[10px] tracking-[0.16em] text-phosphor-dim before:h-px before:w-4 before:bg-phosphor/50 before:content-['']";
 
 export function FlightHud({ session }: { session: FlightSession }) {
+  const dead = useCombatStore((state) => state.readout.dead);
   const telemetry = useFlightStore((state) => state.telemetry);
   const phase = useFlightStore((state) => state.phase);
   const cameraMode = useFlightStore((state) => state.cameraMode);
@@ -86,7 +89,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
           <div>
             <h1 className="text-sm tracking-[0.22em]">Event Horizon</h1>
             <p className="mt-1 text-[10px] tracking-[0.1em] text-phosphor-dim">
-              Kestrel flight systems / MK.III
+              Kestrel flight systems / MK.IV
             </p>
           </div>
         </div>
@@ -101,7 +104,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
           <InstrumentButton
             variant="hud"
             aria-label="Open local system map"
-            disabled={!ready || busy}
+            disabled={!ready || busy || dead}
             onClick={() => session.exploration.openMap('local')}
             className="min-w-0 flex-1 max-tablet:gap-1 max-tablet:px-1.5 max-tablet:text-[11px] tablet:flex-none"
           >
@@ -110,7 +113,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
           <InstrumentButton
             variant="hud"
             aria-label="Open galaxy map"
-            disabled={!ready || busy}
+            disabled={!ready || busy || dead}
             onClick={() => session.exploration.openMap('galaxy')}
             className="min-w-0 flex-1 max-tablet:gap-1 max-tablet:px-1.5 max-tablet:text-[11px] tablet:flex-none"
           >
@@ -131,7 +134,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
         <>
           <section
             aria-label="Orientation"
-            className="absolute top-32 left-1/2 w-52 -translate-x-1/2 text-center tablet:top-24 tablet:w-64"
+            className="absolute top-32 left-1/2 w-52 -translate-x-1/2 text-center tablet:top-24 tablet:w-64 [@media(max-height:650px)]:hidden"
           >
             <div
               aria-hidden="true"
@@ -176,22 +179,6 @@ export function FlightHud({ session }: { session: FlightSession }) {
               </span>
             </div>
           </section>
-          <div
-            aria-hidden="true"
-            className="absolute top-[46%] left-1/2 -translate-1/2 text-phosphor/50"
-          >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 160 90"
-              className="w-28 tablet:w-40"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="0.8"
-            >
-              <path d="M18 45h24l8 6h20m20 0h20l8-6h24M80 24v10m0 28v8M73 45h14m-7-7v14" />
-              <path d="M29 30h13m76 0h13M29 60h13m76 0h13" opacity="0.35" />
-            </svg>
-          </div>
           <div className="absolute inset-x-4 bottom-16 grid grid-cols-2 items-end gap-x-6 gap-y-5 tablet:inset-x-8 tablet:grid-cols-[1fr_1.1fr_0.8fr_1.3fr] tablet:gap-x-8">
             <section aria-label="Flight telemetry" className="min-w-0">
               <div className={instrumentTitleClassName}>
@@ -301,14 +288,18 @@ export function FlightHud({ session }: { session: FlightSession }) {
           </div>
         )}
       </footer>
+      <CombatHud session={session} />
       <HyperspaceStatus session={session} />
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
         Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
-        raise throttle; release to slow down. S applies stronger braking. Space is reserved for
-        future weapons. Use Shift with W for boost, C for camera, F for assistance, and Escape to
-        pause. M opens the galaxy map; L opens the local system map. T cycles navigation targets; X
-        clears the target. Maps pause flight. Controls are available in the flight briefing.
+        raise throttle; release to slow down. S applies stronger braking. Space fires the selected
+        weapon. 1 selects the gun, 2 homing missiles, 3 the railgun, and 4 the flak scattergun. Hold
+        Space to charge the railgun. A/D strafe, R/V move up/down, Z reverses. N cycles hostile
+        targets; B starts a patrol encounter. Use Shift with W for boost, C for camera, F for
+        assistance, and Escape to pause. M opens the galaxy map; L opens the local system map. T
+        cycles navigation targets; X clears the target. Maps pause flight. Controls are available in
+        the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

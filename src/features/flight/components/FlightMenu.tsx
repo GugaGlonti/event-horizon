@@ -2,6 +2,7 @@ import { InstrumentButton } from '@/components/ui/InstrumentButton';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
@@ -13,7 +14,11 @@ const controls = [
   ['Q / E', 'Yaw left / right'],
   ['MOUSE', 'Pitch & yaw'],
   ['SHIFT + W', 'Engine boost'],
-  ['SPACE', 'Reserved for weapons'],
+  ['SPACE', 'Fire selected weapon'],
+  ['1 / 2 / 3 / 4', 'Gun / missiles / railgun / flak'],
+  ['A / D', 'Strafe left / right'],
+  ['R / V / Z', 'Up / down / reverse'],
+  ['B / N', 'Start patrol / cycle hostile'],
   ['C / F', 'Camera / flight assistance'],
   ['M / L', 'Galaxy / local chart'],
   ['T / X', 'Cycle / clear contact'],
@@ -21,6 +26,9 @@ const controls = [
 ] as const;
 
 export function FlightMenu({ session }: { session: FlightSession }) {
+  const hostiles = useCombatStore((state) => state.readout.hostiles);
+  const dead = useCombatStore((state) => state.readout.dead);
+  const sound = useCombatStore((state) => state.sound);
   const phase = useFlightStore((state) => state.phase);
   const ready = useFlightStore((state) => state.rendererReady);
   const notice = useFlightStore((state) => state.notice);
@@ -30,7 +38,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
   const systemId = useExplorationStore((state) => state.systemId);
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
-  if (phase === 'flying' || overlay || (jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN'))
+  if (dead || phase === 'flying' || overlay || (jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN'))
     return null;
 
   return (
@@ -79,7 +87,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             <div aria-hidden="true" className="mt-auto hidden pt-8 tablet:block">
               <div className="instrument-hatch h-2 text-phosphor/45" />
               <p className="mt-3 text-[10px] tracking-[0.18em] text-phosphor-dim">
-                Exploration program / 03
+                Combat program / 04
               </p>
             </div>
           </aside>
@@ -122,7 +130,8 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </dl>
             <p className="order-2 mt-4 border-l-2 border-instrument/70 pl-3 text-[11px] leading-5 normal-case text-phosphor-dim tablet:order-none">
               Hold W to build throttle. Release W to slow down; S brakes harder. Mouse steering
-              recenters gently. Release Shift after boost depletion to rearm.
+              recenters gently. Release Shift after boost depletion to rearm. Hold Space to charge
+              the railgun; releasing early cancels.
             </p>
             {notice && (
               <p
@@ -138,6 +147,37 @@ export function FlightMenu({ session }: { session: FlightSession }) {
               </InstrumentButton>
               <InstrumentButton disabled={!ready} onClick={session.startMouse}>
                 {phase === 'ready' ? 'Fly with mouse' : 'Resume with mouse'}
+              </InstrumentButton>
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <InstrumentButton
+                disabled={!ready || hostiles > 0}
+                className="flex-1"
+                onClick={() => {
+                  session.startEncounter(true);
+                  session.startKeyboard();
+                }}
+              >
+                Practice target
+              </InstrumentButton>
+              <InstrumentButton
+                disabled={!ready || hostiles > 0}
+                className="flex-1"
+                onClick={() => {
+                  session.startEncounter();
+                  session.startKeyboard();
+                }}
+              >
+                Engage patrol / B
+              </InstrumentButton>
+              <InstrumentButton
+                aria-pressed={sound}
+                onClick={() => {
+                  useCombatStore.setState({ sound: !sound });
+                  if (sound) session.combat.audio.stop();
+                }}
+              >
+                Combat audio {sound ? 'on' : 'off'}
               </InstrumentButton>
             </div>
             <div className="mt-2 flex flex-wrap gap-2">
