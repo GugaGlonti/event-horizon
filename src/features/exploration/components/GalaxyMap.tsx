@@ -1,5 +1,5 @@
+import { InstrumentButton, instrumentButtonClassName } from '@/components/ui/InstrumentButton';
 import { SYSTEMS } from '@/features/exploration/data/systems';
-import { flightButtonClassName } from '@/features/flight/components/FlightMenu';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -31,13 +31,12 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
   const exploration = session.exploration;
   return (
     <div className="grid grid-cols-1 tablet:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
-      <div className="min-w-0 border-b border-white/5 p-5 tablet:border-r tablet:border-b-0 tablet:p-8">
-        <div className="flex justify-between gap-4 font-mono text-[9px] tracking-widest text-slate-500">
+      <div className="min-w-0 border-b border-line p-5 tablet:border-r tablet:border-b-0 tablet:p-8">
+        <div className="flex justify-between gap-4 font-mono text-[10px] tracking-widest text-phosphor-dim">
           <span>SECTOR 07 / OUTER REACHES</span>
           <span>{SYSTEMS.length.toString().padStart(2, '0')} SYSTEMS</span>
         </div>
-        <div className="relative mt-4 aspect-5/3 min-h-56 w-full overflow-hidden rounded-lg border border-cyan-100/8 bg-[#030a15]">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_55%_50%,#17405c50,transparent_65%)]" />
+        <div className="relative mt-4 aspect-5/3 min-h-56 w-full overflow-hidden border border-line crt-grid bg-[#030905]">
           <svg
             viewBox="0 0 1000 600"
             preserveAspectRatio="none"
@@ -49,8 +48,8 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
                 <path
                   d="M 100 0 L 0 0 0 100"
                   fill="none"
-                  stroke="#9ed9ed"
-                  strokeOpacity="0.045"
+                  stroke="#73f59b"
+                  strokeOpacity="0.14"
                   strokeWidth="1"
                 />
               </pattern>
@@ -62,8 +61,8 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
               rx="380"
               ry="200"
               fill="none"
-              stroke="#9ed9ed"
-              strokeOpacity="0.09"
+              stroke="#73f59b"
+              strokeOpacity="0.22"
               strokeDasharray="3 10"
             />
             {chartStars.map((star) => (
@@ -72,15 +71,15 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
                 cx={star.x}
                 cy={star.y}
                 r={star.r}
-                fill="#b8d7e8"
+                fill="#73f59b"
                 opacity="0.45"
               />
             ))}
             <path
               d={`M${SYSTEMS.map((system) => `${system.chartPosition[0] * 10} ${system.chartPosition[1] * 6}`).join('L')}`}
               fill="none"
-              stroke="#8de8ec"
-              strokeOpacity="0.12"
+              stroke="#73f59b"
+              strokeOpacity="0.3"
               strokeDasharray="4 8"
             />
             {selected && selected.id !== current && currentSystem && (
@@ -89,7 +88,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
                 y1={currentSystem.chartPosition[1] * 6}
                 x2={selected.chartPosition[0] * 10}
                 y2={selected.chartPosition[1] * 6}
-                stroke="#a0edff"
+                stroke="#ffbd66"
                 strokeOpacity="0.6"
                 strokeDasharray="5 6"
               />
@@ -105,24 +104,33 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
               style={{
                 left: `${system.chartPosition[0]}%`,
                 top: `${system.chartPosition[1]}%`,
-                color: system.environment.accent,
               }}
-              className="absolute grid size-14 -translate-1/2 cursor-pointer place-items-center rounded-full border border-current/20 bg-current/5 outline-none transition-colors hover:border-current/70 focus-visible:ring-2 focus-visible:ring-current motion-reduce:transition-none aria-pressed:border-current aria-pressed:bg-current/15"
+              className="absolute grid size-12 -translate-1/2 cursor-pointer place-items-center border border-phosphor/50 bg-console text-phosphor outline-none transition-colors hover:border-phosphor focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus motion-reduce:transition-none aria-pressed:border-instrument aria-pressed:text-instrument"
             >
-              <span className="size-2 rounded-full bg-current shadow-[0_0_22px_currentColor]" />
-              <span className="absolute top-full mt-2 whitespace-nowrap font-mono text-[10px] tracking-widest">
+              <svg
+                viewBox="0 0 40 40"
+                className="size-9"
+                fill="none"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <circle cx="20" cy="20" r="10" />
+                <ellipse cx="20" cy="20" rx="4" ry="10" />
+                <path d="M10 20h20M20 2v5m0 26v5M2 20h5m26 0h5" />
+              </svg>
+              <span className="absolute top-full mt-2 whitespace-nowrap font-mono text-[11px] tracking-widest">
                 {system.name}
               </span>
               {current === system.id && (
-                <span className="absolute bottom-full mb-2 whitespace-nowrap font-mono text-[7px] tracking-widest text-slate-400">
+                <span className="absolute bottom-full mb-2 whitespace-nowrap font-mono text-[10px] tracking-widest text-phosphor-dim">
                   YOU ARE HERE
                 </span>
               )}
             </button>
           ))}
         </div>
-        <p className="mt-4 text-[10px] leading-relaxed text-slate-500">
-          A few lights in a very large sky. Select a system to prepare the hyperdrive.
+        <p className="mt-4 text-[11px] leading-relaxed text-phosphor-dim">
+          Interstellar chart / Select a system to plot a course.
         </p>
         <div className="mt-5 grid gap-2">
           {SYSTEMS.map((system) => (
@@ -132,10 +140,10 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
               aria-label={`Select ${system.name}`}
               aria-pressed={selectedId === system.id}
               onClick={() => exploration.selectDestination(system.id)}
-              className="flex cursor-pointer items-center justify-between gap-4 rounded border border-white/8 px-4 py-3 text-left text-xs text-slate-400 transition-colors hover:border-cyan-100/25 focus-visible:outline-2 focus-visible:outline-cyan-100 aria-pressed:border-cyan-100/30 aria-pressed:bg-cyan-100/5 aria-pressed:text-cyan-100 motion-reduce:transition-none"
+              className="flex cursor-pointer items-center justify-between gap-4 border border-line px-4 py-3 text-left text-xs text-phosphor-dim transition-colors hover:border-phosphor/60 focus-visible:outline-2 focus-visible:outline-focus aria-pressed:border-phosphor aria-pressed:bg-phosphor/10 aria-pressed:text-phosphor motion-reduce:transition-none"
             >
               <span>{system.name}</span>
-              <span className="font-mono text-[8px] tracking-widest text-slate-500">
+              <span className="font-mono text-[11px] tracking-widest text-phosphor-dim">
                 {current === system.id ? 'CURRENT SYSTEM' : 'JUMP AVAILABLE'}
               </span>
             </button>
@@ -143,21 +151,21 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
         </div>
       </div>
       <aside className="flex min-w-0 flex-col p-5 tablet:p-8" aria-label="Destination information">
-        <p className="font-mono text-[9px] tracking-[0.2em] text-cyan-200/50">
+        <p className="font-mono text-[10px] tracking-[0.2em] text-phosphor-dim">
           DESTINATION / FLIGHT PLAN
         </p>
-        <h3 className="mt-5 text-4xl font-light tracking-tight">
-          {selected?.name ?? 'Beyond the familiar.'}
+        <h3 className="mt-5 text-4xl font-bold tracking-[0.06em]">
+          {selected?.name ?? 'No course set'}
         </h3>
-        <p className="mt-4 text-xs leading-6 text-slate-400">
+        <p className="mt-4 text-xs leading-6 normal-case text-phosphor-dim">
           {selected?.description ??
-            'Choose a destination on the chart. Your journey starts with a single point of light.'}
+            'Choose a system from the chart or catalogue to load destination data and prepare the hyperdrive.'}
         </p>
         {selected && (
-          <dl className="mt-6 grid grid-cols-2 gap-5 border-y border-white/8 py-5 text-xs">
+          <dl className="mt-6 grid grid-cols-2 gap-5 border-y border-line py-5 text-xs">
             <div>
-              <dt className="text-[9px] text-slate-500">WORLDS</dt>
-              <dd className="mt-2 text-lg text-stone-200">
+              <dt className="text-[10px] text-phosphor-dim">WORLDS</dt>
+              <dd className="mt-2 text-3xl text-instrument">
                 {
                   selected.bodies.filter((body) => body.kind !== 'star' && body.kind !== 'moon')
                     .length
@@ -165,14 +173,14 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
               </dd>
             </div>
             <div>
-              <dt className="text-[9px] text-slate-500">MOONS</dt>
-              <dd className="mt-2 text-lg text-stone-200">
+              <dt className="text-[10px] text-phosphor-dim">MOONS</dt>
+              <dd className="mt-2 text-3xl text-instrument">
                 {selected.bodies.filter((body) => body.kind === 'moon').length}
               </dd>
             </div>
             <div className="col-span-2">
-              <dt className="text-[9px] text-slate-500">ARRIVAL ANCHOR</dt>
-              <dd className="mt-2 text-stone-300">
+              <dt className="text-[10px] text-phosphor-dim">ARRIVAL ANCHOR</dt>
+              <dd className="mt-2 text-phosphor">
                 {
                   selected.bodies.find(
                     (body) =>
@@ -186,23 +194,23 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
           </dl>
         )}
         <div className="mt-8 tablet:mt-auto tablet:pt-8">
-          <button
-            type="button"
+          <InstrumentButton
+            primary
             disabled={Boolean(unavailable)}
             onClick={exploration.beginJump}
-            className="w-full cursor-pointer rounded border border-cyan-100/35 bg-cyan-100/10 px-5 py-3.5 text-xs text-cyan-50 transition-colors hover:bg-cyan-100/20 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-cyan-100 disabled:cursor-not-allowed disabled:border-white/10 disabled:bg-white/3 disabled:text-slate-500 motion-reduce:transition-none"
+            className="w-full py-3.5"
           >
             Engage hyperdrive{' '}
             <span aria-hidden="true" className="ml-3">
               ↗
             </span>
-          </button>
-          <p className="mt-3 min-h-8 text-[10px] leading-relaxed text-slate-500">
+          </InstrumentButton>
+          <p className="mt-3 min-h-8 text-[11px] leading-relaxed normal-case text-phosphor-dim">
             {unavailable ??
-              'Charge, accelerate, and cross the dark. You will arrive at a safe approach, with keyboard flight restored.'}
+              'Course available. Engage to align, charge, and jump. Keyboard flight returns on arrival.'}
           </p>
           {error && (
-            <p role="alert" className="mt-3 text-xs text-amber-200">
+            <p role="alert" className="mt-3 text-xs text-instrument">
               {error}
             </p>
           )}
@@ -210,7 +218,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
             type="button"
             onClick={exploration.toggleSound}
             aria-pressed={sound}
-            className={`${flightButtonClassName} mt-4 w-full`}
+            className={`${instrumentButtonClassName} mt-4 w-full`}
           >
             Jump audio {sound ? 'on' : 'off'}
           </button>

@@ -1,6 +1,6 @@
+import { instrumentButtonClassName } from '@/components/ui/InstrumentButton';
 import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import { SYSTEMS } from '@/features/exploration/data/systems';
-import { flightButtonClassName } from '@/features/flight/components/FlightMenu';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
 
@@ -13,26 +13,26 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
     return (
       <section
         aria-label="Journey on hold"
-        className="pointer-events-auto absolute top-1/2 left-1/2 z-30 w-[min(88%,340px)] -translate-1/2 rounded-lg border border-cyan-100/15 bg-[#07131cf2] p-6 text-center shadow-xl"
+        className="pointer-events-auto absolute top-1/2 left-1/2 z-30 w-[min(92%,400px)] -translate-1/2 border border-instrument/65 bg-console p-6 text-center"
       >
-        <h2 role="status" className="text-xl font-light text-white">
+        <h2 role="status" className="text-xl font-bold text-phosphor">
           Journey on hold.
         </h2>
-        <p className="mt-3 text-xs leading-relaxed text-slate-400">
+        <p className="mt-3 text-xs leading-relaxed text-phosphor-dim">
           Resume when you return to the flight deck.
         </p>
         <div className="mt-5 flex justify-center gap-2">
           <button
             type="button"
             onClick={session.exploration.resumeJourney}
-            className={flightButtonClassName}
+            className={instrumentButtonClassName}
           >
             Resume journey
           </button>
           <button
             type="button"
             onClick={() => session.exploration.cancelJump()}
-            className={flightButtonClassName}
+            className={instrumentButtonClassName}
           >
             Abort jump
           </button>
@@ -55,12 +55,12 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
       {jump.phase === 'CHARGING' && (
         <section
           aria-label="Hyperdrive status"
-          className="absolute top-44 left-5 w-56 border-l border-cyan-100/30 bg-gradient-to-r from-[#07131cb3] to-transparent py-2 pl-3 tablet:top-28 tablet:left-10"
+          className="absolute top-40 left-3 w-64 border border-instrument/60 bg-console/95 p-4 tablet:top-28 tablet:left-6"
         >
-          <p className="font-mono text-[8px] tracking-[0.2em] text-cyan-100/55">
+          <p className="font-mono text-[11px] tracking-[0.2em] text-phosphor-dim">
             COURSE / {destination?.name.toUpperCase()}
           </p>
-          <p className="mt-2 text-xs font-light text-cyan-50">
+          <p className="mt-2 text-xs font-bold text-instrument">
             {jump.progress < 0.88 ? 'Aligning · hyperdrive charging' : 'Course locked · stand by'}
           </p>
           <progress
@@ -69,9 +69,12 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
             max={1}
             className="sr-only"
           />
-          <div aria-hidden="true" className="mt-3 h-px w-36 bg-cyan-100/10">
+          <div
+            aria-hidden="true"
+            className="mt-3 h-3 border border-instrument/50 p-0.5 text-instrument"
+          >
             <div
-              className="h-full origin-left bg-cyan-100/60"
+              className="instrument-hatch h-full origin-left"
               style={{ transform: `scaleX(${jump.progress})` }}
             />
           </div>
@@ -80,13 +83,13 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
       {arrival && (
         <p
           role="status"
-          className="absolute bottom-48 left-1/2 w-max max-w-[80%] -translate-x-1/2 rounded border border-cyan-100/10 bg-[#07141bd9] px-3 py-2 text-center font-mono text-[9px] text-cyan-100 tablet:bottom-28"
+          className="absolute bottom-80 left-1/2 w-max max-w-[90%] -translate-x-1/2 border border-phosphor/60 bg-console/95 px-3 py-2 text-center font-mono text-[11px] text-phosphor tablet:bottom-56"
         >
           {arrival}
         </p>
       )}
       {jump.phase === 'COOLDOWN' && !arrival && (
-        <p className="absolute bottom-48 left-1/2 -translate-x-1/2 font-mono text-[8px] text-cyan-100/40 tablet:bottom-24">
+        <p className="absolute bottom-80 left-1/2 -translate-x-1/2 bg-console/85 px-3 py-2 font-mono text-[11px] text-phosphor-dim tablet:bottom-56">
           HYPERDRIVE / {Math.ceil((1 - jump.progress) * HYPERSPACE_TIMING.COOLDOWN)}s
         </p>
       )}
