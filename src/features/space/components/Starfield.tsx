@@ -116,7 +116,7 @@ export function Starfield({
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed;
           attribute vec3 aTunnel;
-          varying vec2 vCorner; varying float vBrightness;
+          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength;
           void main() {
             float flow = smoothstep(0.35, 1.0, uCoverage) * uMotion;
             vec4 view = mix(modelViewMatrix * vec4(position, 1.0), vec4(aTunnel, 1.0), flow);
@@ -127,23 +127,25 @@ export function Starfield({
             ndc = uVanishing + radial * mix(1.0, exp((cycle - aSeed) * 2.5), flow);
             vec2 pixelDirection = normalize(radial * uViewport + vec2(0.001));
             vec2 normal = vec2(-pixelDirection.y, pixelDirection.x);
-            float trail = 0.7 + uStretch * (8.0 + pow(min(length(radial), 2.0), 1.15) * 510.0) * mix(1.0, 0.12, uCoverage);
-            // Long inward tails stop short of the vanishing point instead of crossing the axis.
-            float radialPixels = length((ndc - uVanishing) * uViewport) * 0.5;
-            float inward = min(trail, max(0.7, radialPixels * 0.85));
-            float along = aCorner.x < 0.0 ? aCorner.x * inward : aCorner.x * trail;
+            float trail = uStretch * (16.0 + pow(min(length(radial), 2.0), 1.15) * 1020.0) * mix(1.0, 0.12, uCoverage);
+            // Keep the original point footprint fixed; extend only its outward endpoint.
+            float outward = (aCorner.x + 1.0) * 0.5;
+            float along = aCorner.x * 0.7 + outward * trail;
             vec2 offset = (pixelDirection * along + normal * aCorner.y * (0.6 + aSeed * 0.4)) * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
             clip.z = mix(clip.z, clip.w * 0.998, uCoverage);
             gl_Position = view.z < -1.0 ? clip : vec4(2.0, 2.0, 2.0, 1.0);
             vCorner = aCorner; vBrightness = 0.35 + aSeed * 0.65;
+            vAlong = along; vTrailLength = trail;
           }
         `}
         fragmentShader={`
           uniform float uStretch, uCoverage, uMotion;
-          varying vec2 vCorner; varying float vBrightness;
+          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength;
           void main() {
-            float shape = pow(max(0.0, 1.0 - abs(vCorner.y)), 1.3) * (1.0 - smoothstep(0.25, 1.0, abs(vCorner.x)));
+            float head = 1.0 - smoothstep(0.175, 0.7, abs(vAlong));
+            float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(0.7, vTrailLength), max(0.0, vAlong)));
+            float shape = pow(max(0.0, 1.0 - abs(vCorner.y)), 1.3) * max(head, tail * 0.85);
             vec3 color = mix(vec3(0.72, 0.81, 0.95), vec3(0.78, 0.93, 1.0), uStretch);
             gl_FragColor = vec4(color, shape * vBrightness * mix(0.85, 0.3, uCoverage) * (1.0 - uCoverage * (1.0 - uMotion)));
           }

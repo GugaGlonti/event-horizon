@@ -109,8 +109,9 @@ The 1.3-second entry gives stars a buildup and a clear hold: full extension by 4
 and tunnel reveal after 72%. The cubic forward surge and camera/audio impact share the ignition
 threshold, keeping the actual launch under 0.6 seconds. Star positions morph into the corridor only
 under tunnel coverage, so extending them does not replace the visible realspace star pattern early.
-Peripheral trails lengthen roughly 2–3 times; inward tails stop short of the travel axis. The mature
-corridor retains short trails, and exit timing stays sharp.
+Peripheral trails lengthen roughly 2–3 times. Each trail keeps its bright head at the original star and
+extends only outward, fading toward the screen edge. At zero stretch its original point footprint is
+preserved. The mature corridor retains short trails, and exit timing stays sharp.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
 `routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of

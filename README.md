@@ -101,7 +101,8 @@ Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` 
 trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
 The same stars stretch on entry and contract into the destination sky on exit. Entry holds fully
 extended trails for about 0.3 seconds before the tunnel reveal; peripheral trails are roughly 2–3 times
-longer, with shorter central streaks. Ignition, forward motion and the camera kick stay concentrated in
+longer, with shorter central streaks. Each bright star anchors a trail that extends and fades outward
+toward the screen edge. Ignition, forward motion and the camera kick stay concentrated in
 the final 0.6 seconds. The fully developed corridor layout is shared across systems, hiding the
 seeded-sky replacement. The camera carries its
 relative pose across the system switch, with brief ignition/exit transients and a quiet cruise.
