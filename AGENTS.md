@@ -1,8 +1,10 @@
 # Event Horizon — agent instructions
 
-Event Horizon is a TypeScript/React browser-based space flight and exploration game. Milestone 2 has
-a playable single-player starfighter with cockpit/chase cameras. Combat, networking, AI, planetary
-landings, and hyperspace are future work; add them only when the current task requests them.
+Event Horizon is a TypeScript/React browser-based space flight and exploration game. Milestone 3 has
+three handcrafted systems, procedural celestial bodies, local/galaxy navigation, floating-origin
+rendering and cinematic hyperspace, plus the single-player starfighter and cockpit/chase cameras.
+Space Combat & PvE is next, followed by multiplayer PvP. Combat, AI, networking, detailed terrain and
+landings remain future work; add them only when the current task requests them.
 
 ## Before changing code
 
@@ -20,7 +22,12 @@ landings, and hyperspace are future work; add them only when the current task re
 - `src/engine/simulation`: browser/framework-independent flight math and bounded fixed-step clock.
   Three.js Vector3/Quaternion math is allowed here; rendering, React, DOM, and stores are not.
 - `src/engine/input`: keyboard and pointer-lock adapter, input snapshots, event lifecycle.
+- `src/engine/world`: serializable definitions, validation, analytical hierarchy/orbits, render origin.
+- `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
 - `src/features/flight`: session orchestration, configuration, interpolated presentation, cameras, HUD.
+- `src/features/exploration`: handcrafted catalogue, cancellable system preparation, journey orchestration,
+  maps/navigation read models, hyperdrive presentation and synthesized audio adapter.
+- `src/features/planets`: shared procedural surface, atmosphere and ring rendering.
 - `src/features/spacecraft`: replaceable procedural model and engine visuals; no simulation imports.
 - `src/components/ui`: reusable DOM UI with no feature or engine dependencies.
 - `src/stores`: low-frequency shared state. `src/hooks`: reusable subscriptions and UI hooks.
@@ -51,6 +58,8 @@ landings, and hyperspace are future work; add them only when the current task re
 - Zustand owns discrete settings and UI state. Subscribe to individual fields with selectors.
 - Never update React state every animation frame. Do not store per-frame transforms in Zustand.
 - Write animated transforms to Three.js refs in `useFrame`; reuse vectors and scratch objects.
+- Update frame-rate scalar shader uniforms through the mounted ShaderMaterial ref. Fiber copies
+  uniform wrappers from props; updating the original numeric prop wrapper does not update the GPU.
 - Keep simulation independent of React, DOM events, stores, and the renderer. Use Three.js math for
   flight vectors/quaternions; do not introduce Euler-based orientation integration.
 - Keep input collection, simulation integration, rendering, and HUD presentation separate.
@@ -65,7 +74,22 @@ landings, and hyperspace are future work; add them only when the current task re
   pointer-lock failures/grants without resuming disposed or paused sessions.
 - Preserve keyboard-only piloting when pointer lock is unavailable. Never require mouse capture to
   read controls or exit the game. Reset flight must also reset interpolation and snap the camera.
-- Plan coordinate boundaries for a future floating origin without implementing one prematurely.
+- Keep logical double-precision system coordinates independent of the 1024 m render-origin grid.
+  Rebase the camera's existing position before follow damping. Compute HUD distances in logical space.
+  Cull/zero far celestial/beacon render transforms; camera-relative effects must remain bounded.
+- World definitions must stay JSON-serializable with stable system/body IDs, parent-relative positions
+  or explicit analytical orbits, normalized spawn quaternions, and safe arrival anchors. Validate at
+  the preparation boundary. Celestial time is explicit and pauses with flight/maps; no random or
+  frame-accumulated moon transforms. Parent axial spin must not drag children around.
+- Keep hyperspace timing independent of rendering, audio, promises and stores. ExplorationSession
+  owns abort/generation tokens and atomically commits prepared systems under the opaque tunnel.
+  Late async results must not revive cancelled/disposed journeys. Before commit, failure retains the
+  source; after commit, abort holds a safe destination. Reset cancels before respawning.
+- Navigation shortcuts are separate discrete listeners owned by FlightSession, including while maps
+  pause movement listeners. Maps release pointer lock and contain focus. Block maps/normal steering
+  during jumps; hold journeys on blur/visibility and resume explicitly. Keyboard flight returns on
+  arrival; mouse recapture requires a user gesture. Preserve the inverted pitch and arrow-roll/QE-yaw
+  mapping unless requested otherwise.
 
 ## Performance and resource lifetime
 
@@ -74,9 +98,12 @@ landings, and hyperspace are future work; add them only when the current task re
 - Clean up event listeners and effects. Verify lifecycle logic against React Strict Mode.
 - Fiber owns declaratively mounted ship/environment geometry and materials. Do not double-dispose
   shared resources or recreate geometry in the frame loop.
+- Each SystemScene explicitly owns/disposes its shared sphere geometry; primitive geometry attachments
+  are external resources. Fiber disposes body materials/rings and per-scene declarative resources.
+  Dispose synthesized audio nodes/context on teardown. Keep effects reusable across jumps.
 - Avoid per-frame allocations, unnecessary rerenders, and expensive graphics features without profiling.
-- Keep device pixel ratio bounded. Add LOD, procedural planets, shaders, and post-processing as focused
-  future work, backed by measurements and an actual feature requirement.
+- Keep device pixel ratio bounded. Add LOD, richer terrain, adaptive quality or post-processing as
+  focused future work, backed by measurements and an actual feature requirement.
 
 ## Tests and verification
 
@@ -88,6 +115,8 @@ landings, and hyperspace are future work; add them only when the current task re
   runs lint, tests, and a type-checked build. Keep all scripts working.
 - For visual/input changes, verify the running app, controls, narrow viewport, and browser console.
   Unit tests and successful compilation do not prove WebGL rendering works.
+- For exploration changes, exercise target selection and the Solara → Vesper → Aether → Solara
+  journey, both cameras, map suppression/focus, abort/reset, and the fully masked system handoff.
 - Report checks actually executed and any verification limits. Never claim unexecuted checks passed.
 
 ## Dependencies and documentation
