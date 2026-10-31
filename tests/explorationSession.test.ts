@@ -1,0 +1,189 @@
+import { Quaternion, Vector3 } from 'three';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { StarSystemDefinition } from '@/engine/world/worldTypes';
+import { SYSTEMS } from '@/features/exploration/data/systems';
+import { ExplorationSession } from '@/features/exploration/ExplorationSession';
+import { useExplorationStore } from '@/stores/explorationStore';
+
+const callbacks = () => ({
+  onPause: vi.fn(),
+  onCommit: vi.fn(),
+  onRestore: vi.fn(),
+  onError: vi.fn(),
+});
+function definition(id: string) {
+  const system = SYSTEMS.find((candidate) => candidate.id === id);
+  if (!system) throw new Error('Missing fixture.');
+  return system;
+}
+function tick(session: ExplorationSession, seconds: number) {
+  const pose = new Vector3().fromArray(session.world.arrival().position);
+  for (let frame = 0; frame < Math.ceil(seconds * 60); frame += 1)
+    session.advance(1 / 60, pose, new Quaternion(), false);
+}
+const sessions: ExplorationSession[] = [];
+function create(loader?: (id: string, signal: AbortSignal) => Promise<StarSystemDefinition>) {
+  const events = callbacks();
+  const session = new ExplorationSession(events, loader);
+  sessions.push(session);
+  session.mount();
+  return { session, events };
+}
+beforeEach(() => {
+  useExplorationStore.setState(useExplorationStore.getInitialState(), true);
+  useExplorationStore.setState({ soundEnabled: false });
+});
+afterEach(() => {
+  for (const session of sessions) session.dispose();
+  sessions.length = 0;
+});
+
+describe('exploration transactions', () => {
+  it('travels Solara → Vesper → Aether → Solara, commits once per journey and restores flight', async () => {
+    const { session, events } = create();
+    for (const destination of ['vesper', 'aether', 'solara']) {
+      session.selectDestination(destination);
+      expect(session.beginJump()).toBe(true);
+      await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+      tick(session, 15);
+      expect(session.world.definition.id).toBe(destination);
+      expect(session.navigation.targetId).toBe(definition(destination).defaultTargetId);
+      expect(session.jump.phase).toBe('IDLE');
+    }
+    expect(events.onCommit).toHaveBeenCalledTimes(3);
+    expect(events.onRestore).toHaveBeenCalledTimes(3);
+  });
+
+  it('leaves the source system intact when preparation rejects, then permits a retry', async () => {
+    let failing = true;
+    const { session, events } = create(async (id) => {
+      if (failing) throw new Error('Preparation failed.');
+      return definition(id);
+    });
+    const source = session.world;
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(session.jump.phase).toBe('IDLE'));
+    expect(session.world).toBe(source);
+    expect(events.onCommit).not.toHaveBeenCalled();
+    expect(useExplorationStore.getState().error).toBe('Preparation failed.');
+    failing = false;
+    expect(session.beginJump()).toBe(true);
+    await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+    tick(session, 10);
+    expect(session.world.definition.id).toBe('vesper');
+  });
+
+  it.each(['identity', 'configuration'])('recovers from invalid destination %s', async (fault) => {
+    const { session } = create(async () =>
+      fault === 'identity'
+        ? definition('aether')
+        : {
+            ...definition('vesper'),
+            spawns: [
+              { id: 'unsafe', bodyId: 'nacre', offset: [0, 0, 0], orientation: [0, 0, 0, 1] },
+            ],
+            arrivalId: 'unsafe',
+          },
+    );
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(session.jump.phase).toBe('IDLE'));
+    expect(session.world.definition.id).toBe('solara');
+    expect(useExplorationStore.getState().error).toBeTruthy();
+  });
+
+  it.each(['cancel', 'dispose'])('ignores late preparation results after %s', async (action) => {
+    let finish = (_definition: StarSystemDefinition) => {};
+    const loader = vi.fn(
+      () =>
+        new Promise<StarSystemDefinition>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { session, events } = create(loader);
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(loader).toHaveBeenCalledOnce());
+    if (action === 'dispose') session.dispose();
+    else session.cancelJump();
+    finish(definition('vesper'));
+    await Promise.resolve();
+    await Promise.resolve();
+    tick(session, 15);
+    expect(session.world.definition.id).toBe('solara');
+    expect(session.jump.phase).toBe('IDLE');
+    expect(events.onCommit).not.toHaveBeenCalled();
+    expect(events.onRestore).not.toHaveBeenCalled();
+  });
+
+  it('recovers from a loader throwing synchronously before returning a promise', async () => {
+    const { session } = create(() => {
+      throw new Error('Synchronous preparation failure.');
+    });
+    session.selectDestination('vesper');
+    expect(session.beginJump()).toBe(true);
+    await vi.waitFor(() => expect(session.jump.phase).toBe('IDLE'));
+    expect(session.world.definition.id).toBe('solara');
+    expect(useExplorationStore.getState().error).toMatch(/Synchronous/);
+  });
+
+  it('invalidates a timed-out preparation so a late resolution cannot commit', async () => {
+    let finish = (_definition: StarSystemDefinition) => {};
+    const loader = vi.fn(
+      () =>
+        new Promise<StarSystemDefinition>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const { session, events } = create(loader);
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(loader).toHaveBeenCalledOnce());
+    tick(session, 20);
+    expect(session.jump.phase).toBe('IDLE');
+    expect(useExplorationStore.getState().error).toMatch(/timed out/);
+    finish(definition('vesper'));
+    await Promise.resolve();
+    await Promise.resolve();
+    tick(session, 10);
+    expect(session.world.definition.id).toBe('solara');
+    expect(events.onCommit).not.toHaveBeenCalled();
+  });
+
+  it('holds a journey on focus loss and resumes explicitly without skipping phases', async () => {
+    const { session } = create();
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+    tick(session, 1);
+    const elapsed = session.jump.elapsed;
+    session.suspend();
+    tick(session, 100);
+    expect(session.jump.elapsed).toBe(elapsed);
+    expect(session.jump.phase).toBe('CHARGING');
+    session.resumeJourney();
+    tick(session, 10);
+    expect(session.world.definition.id).toBe('vesper');
+    expect(session.jump.busy).toBe(false);
+  });
+
+  it('blocks menus and overlapping jumps, and cancellation after arrival retains a safe destination', async () => {
+    const { session, events } = create();
+    session.openMap('galaxy');
+    session.selectDestination('vesper');
+    session.beginJump();
+    expect(useExplorationStore.getState().overlay).toBeNull();
+    expect(session.openMap('local')).toBe(false);
+    expect(session.beginJump()).toBe(false);
+    await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+    tick(session, 8);
+    expect(session.jump.phase).toBe('EXITING');
+    session.cancelJump();
+    tick(session, 10);
+    expect(session.world.definition.id).toBe('vesper');
+    expect(session.jump.phase).toBe('IDLE');
+    expect(events.onCommit).toHaveBeenCalledOnce();
+    expect(events.onRestore).not.toHaveBeenCalled();
+  });
+});
