@@ -25,7 +25,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
 
   useFrame((_, delta) => {
-    session.advance(delta);
+    session.advance(delta, reducedMotion);
     if (ship.current) {
       ship.current.position.copy(session.renderPosition);
       ship.current.quaternion.copy(session.orientation);

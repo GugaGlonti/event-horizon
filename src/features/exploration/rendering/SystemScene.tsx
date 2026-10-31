@@ -15,6 +15,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
   // Primitive geometry attachments are shared external resources. This component owns disposal.
   useEffect(() => () => geometry.dispose(), [geometry]);
   useFrame(() => {
+    session.exploration.markArrivalReady(world.definition.id);
     if (!light.current || !star) return;
     direction
       .copy(world.positions.get(star.id) ?? direction)

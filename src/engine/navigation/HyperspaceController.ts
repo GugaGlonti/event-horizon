@@ -7,14 +7,19 @@ export type JumpPhase =
   | 'COOLDOWN';
 
 export const HYPERSPACE_TIMING = Object.freeze({
-  CHARGING: 2.8,
-  ACCELERATING: 1.8,
-  HYPERSPACE: 3.2,
-  EXITING: 2,
+  CHARGING: 3.2,
+  ACCELERATING: 0.65,
+  HYPERSPACE: 3.4,
+  EXITING: 1.15,
   COOLDOWN: 4,
   preparationTimeout: 12,
   maxFrameTime: 0.1,
 });
+
+export function smoothRamp(start: number, end: number, value: number) {
+  const t = Math.max(0, Math.min(1, (value - start) / (end - start)));
+  return t * t * (3 - 2 * t);
+}
 
 /** Gameplay timing only. No clocks, promises, UI, audio, renderer, or simulation mutation. */
 export class HyperspaceController {
@@ -22,6 +27,8 @@ export class HyperspaceController {
   destinationId: string | null = null;
   elapsed = 0;
   prepared = false;
+  arrivalReady = false;
+  private arrivalWait = 0;
   error: string | null = null;
 
   get busy() {
@@ -31,16 +38,16 @@ export class HyperspaceController {
     return this.phase === 'IDLE' ? 0 : Math.min(1, this.elapsed / HYPERSPACE_TIMING[this.phase]);
   }
   get intensity() {
-    if (this.phase === 'CHARGING') return this.progress * 0.15;
-    if (this.phase === 'ACCELERATING') return 0.15 + this.progress * 0.85;
+    if (this.phase === 'CHARGING') return this.progress * 0.08;
+    if (this.phase === 'ACCELERATING') return 0.08 + smoothRamp(0, 0.85, this.progress) * 0.92;
     if (this.phase === 'HYPERSPACE') return 1;
-    if (this.phase === 'EXITING') return 1 - this.progress;
+    if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.4, this.progress);
     return 0;
   }
   get coverage() {
-    if (this.phase === 'ACCELERATING') return this.progress;
+    if (this.phase === 'ACCELERATING') return smoothRamp(0.45, 0.9, this.progress);
     if (this.phase === 'HYPERSPACE') return 1;
-    if (this.phase === 'EXITING') return Math.max(0, 1 - Math.max(0, this.progress - 0.2) / 0.8);
+    if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.3, this.progress);
     return 0;
   }
 
@@ -58,6 +65,8 @@ export class HyperspaceController {
     this.destinationId = destination;
     this.elapsed = 0;
     this.prepared = false;
+    this.arrivalReady = false;
+    this.arrivalWait = 0;
     this.error = null;
     return true;
   }
@@ -71,6 +80,8 @@ export class HyperspaceController {
     this.elapsed = 0;
     this.destinationId = null;
     this.prepared = false;
+    this.arrivalReady = false;
+    this.arrivalWait = 0;
     this.error = null;
   }
 
@@ -78,6 +89,12 @@ export class HyperspaceController {
     if (!Number.isFinite(delta) || delta < 0)
       throw new RangeError('Jump delta must be finite and nonnegative.');
     if (this.phase === 'IDLE') return;
+    if (this.phase === 'EXITING' && !this.arrivalReady) {
+      this.arrivalWait += Math.min(delta, HYPERSPACE_TIMING.maxFrameTime);
+      if (this.arrivalWait >= HYPERSPACE_TIMING.preparationTimeout)
+        this.fail('Arrival rendering timed out. Holding safely in the destination system.');
+      return;
+    }
     // Tab suspension never skips a cinematic or arrival transaction.
     this.elapsed += Math.min(delta, HYPERSPACE_TIMING.maxFrameTime);
     if (

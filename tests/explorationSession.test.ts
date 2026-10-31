@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import type { StarSystemDefinition } from '@/engine/world/worldTypes';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { ExplorationSession } from '@/features/exploration/ExplorationSession';
@@ -7,6 +8,7 @@ import { useExplorationStore } from '@/stores/explorationStore';
 
 const callbacks = () => ({
   onPause: vi.fn(),
+  onDepart: vi.fn(),
   onCommit: vi.fn(),
   onRestore: vi.fn(),
   onError: vi.fn(),
@@ -18,15 +20,17 @@ function definition(id: string) {
 }
 function tick(session: ExplorationSession, seconds: number) {
   const pose = new Vector3().fromArray(session.world.arrival().position);
-  for (let frame = 0; frame < Math.ceil(seconds * 60); frame += 1)
+  for (let frame = 0; frame < Math.ceil(seconds * 60); frame += 1) {
+    session.markArrivalReady(session.world.definition.id);
     session.advance(1 / 60, pose, new Quaternion(), false);
+  }
 }
 const sessions: ExplorationSession[] = [];
 function create(loader?: (id: string, signal: AbortSignal) => Promise<StarSystemDefinition>) {
   const events = callbacks();
   const session = new ExplorationSession(events, loader);
   sessions.push(session);
-  session.mount();
+  session.mount(new Vector3().fromArray(session.world.arrival().position));
   return { session, events };
 }
 beforeEach(() => {
@@ -177,7 +181,13 @@ describe('exploration transactions', () => {
     expect(session.openMap('local')).toBe(false);
     expect(session.beginJump()).toBe(false);
     await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
-    tick(session, 8);
+    tick(
+      session,
+      HYPERSPACE_TIMING.CHARGING +
+        HYPERSPACE_TIMING.ACCELERATING +
+        HYPERSPACE_TIMING.HYPERSPACE +
+        0.1,
+    );
     expect(session.jump.phase).toBe('EXITING');
     session.cancelJump();
     tick(session, 10);

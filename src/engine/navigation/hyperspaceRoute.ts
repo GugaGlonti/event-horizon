@@ -18,7 +18,7 @@ export function routeOrientation(direction: Readonly<Vector3>, out = new Quatern
   return out.setFromRotationMatrix(new Matrix4().lookAt(new Vector3(), direction, up));
 }
 
-/** Conservative swept corridor, including rings, atmosphere and the entire moving-moon orbit. */
+/** Swept corridor including rings, atmosphere and six seconds of possible moon displacement. */
 export function departureObstruction(
   world: SystemRuntime,
   start: Readonly<Vector3>,
@@ -28,10 +28,13 @@ export function departureObstruction(
   const offset = new Vector3();
   const closest = new Vector3();
   for (const body of world.definition.bodies) {
-    const center = world.positions.get(body.orbit ? (body.parentId ?? body.id) : body.id);
+    const center = world.positions.get(body.id);
     if (!center) continue;
     const extent = body.radius * Math.max(body.rings?.outer ?? 1, body.atmosphere?.scale ?? 1);
-    const radius = extent + (body.orbit?.radius ?? 0) + 180;
+    const orbitalTravel = body.orbit
+      ? (Math.PI * 2 * body.orbit.radius * 6) / body.orbit.period
+      : 0;
+    const radius = extent + orbitalTravel + 180;
     offset.copy(center).sub(start);
     const along = Math.max(0, Math.min(distance, offset.dot(direction)));
     closest.copy(start).addScaledVector(direction, along);

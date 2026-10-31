@@ -1,7 +1,10 @@
 import { Quaternion, Vector3 } from 'three';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import { travelDirection } from '@/engine/navigation/hyperspaceRoute';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
+import { SYSTEMS } from '@/features/exploration/data/systems';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -21,7 +24,10 @@ function key(code: string, repeat = false) {
   );
 }
 function advance(seconds: number) {
-  for (let frame = 0; frame < seconds * 120; frame += 1) session.advance(1 / 120);
+  for (let frame = 0; frame < seconds * 120; frame += 1) {
+    session.exploration.markArrivalReady(session.exploration.world.definition.id);
+    session.advance(1 / 120);
+  }
 }
 
 beforeEach(() => {
@@ -122,6 +128,22 @@ describe('exploration input integration', () => {
     expect(useFlightStore.getState().telemetry.speed).toBe(0);
   });
 
+  it('aborts a moving departure at its displayed pose without returning to the launch point', () => {
+    session.exploration.selectDestination('vesper');
+    expect(session.exploration.beginJump()).toBe(true);
+    const launch = session.position.clone();
+    advance(HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING * 0.6);
+    const abortPosition = session.position.clone();
+    expect(abortPosition.distanceTo(launch)).toBeGreaterThan(100);
+    key('Escape');
+    advance(1);
+    const physics = new Vector3();
+    session.controller.copyTransform(physics, new Quaternion());
+    expect(session.position.distanceTo(abortPosition)).toBeLessThan(1e-9);
+    expect(physics.distanceTo(abortPosition)).toBeLessThan(1e-9);
+    expect(session.controller.speed).toBe(0);
+  });
+
   it('hands off arrival at a safe pose, preserves camera preference and restores keyboard controls', async () => {
     useFlightStore.getState().toggleCamera();
     session.exploration.selectDestination('vesper');
@@ -129,7 +151,13 @@ describe('exploration input integration', () => {
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
     advance(10);
     expect(session.exploration.world.definition.id).toBe('vesper');
-    expect(session.position.toArray()).toEqual([...session.exploration.world.arrival().position]);
+    const source = SYSTEMS.find((system) => system.id === 'solara');
+    if (!source) throw new Error('Missing fixture.');
+    const direction = travelDirection(source, session.exploration.world.definition);
+    expect(new Vector3(0, 0, -1).applyQuaternion(session.orientation).dot(direction)).toBeCloseTo(
+      1,
+    );
+    expect(session.controller.speed).toBeCloseTo(100);
     expect(useFlightStore.getState().cameraMode).toBe('cockpit');
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(useExplorationStore.getState().arrival).toMatch(/Welcome to Vesper/);

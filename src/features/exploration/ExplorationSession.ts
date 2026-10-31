@@ -1,14 +1,21 @@
 import { Quaternion, Vector3 } from 'three';
 import { HyperspaceController } from '@/engine/navigation/HyperspaceController';
+import {
+  departureObstruction,
+  routeArrival,
+  travelDirection,
+} from '@/engine/navigation/hyperspaceRoute';
 import { NavigationComputer } from '@/engine/navigation/NavigationComputer';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { StarSystemDefinition } from '@/engine/world/worldTypes';
 import { loadSystem, SYSTEMS } from '@/features/exploration/data/systems';
 import { HyperdriveAudio } from '@/features/exploration/HyperdriveAudio';
+import { EXIT_COAST_DISTANCE, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { type MapView, useExplorationStore } from '@/stores/explorationStore';
 
 interface Callbacks {
   onPause: () => void;
+  onDepart: (direction: Readonly<Vector3>) => void;
   onCommit: (system: SystemRuntime) => void;
   onRestore: () => void;
   onError: (message: string) => void;
@@ -25,6 +32,7 @@ export class ExplorationSession {
   private readonly loader: SystemLoader;
   private readonly lastPosition = new Vector3();
   private readonly lastOrientation = new Quaternion();
+  private readonly direction = new Vector3();
   private prepared: SystemRuntime | null = null;
   private preparation: AbortController | null = null;
   private generation = 0;
@@ -105,6 +113,22 @@ export class ExplorationSession {
     }
     this.callbacks.onPause();
     this.closeMap();
+    const target = SYSTEMS.find((system) => system.id === this.jump.destinationId);
+    if (!target) return false;
+    travelDirection(this.world.definition, target, this.direction);
+    const obstruction = departureObstruction(
+      this.world,
+      this.lastPosition,
+      this.direction,
+      JUMP_MOTION.departureDistance,
+    );
+    if (obstruction) {
+      this.fail(
+        `Departure lane blocked by ${obstruction.name}. Move clear before engaging hyperdrive.`,
+      );
+      return false;
+    }
+    this.callbacks.onDepart(this.direction);
     this.suspended = false;
     useExplorationStore.setState({ error: null, arrival: null });
     if (state.soundEnabled) this.audio.start();
@@ -125,6 +149,7 @@ export class ExplorationSession {
             throw new Error('Destination identity does not match the flight plan.');
           this.prepared = new SystemRuntime(definition, this.clock);
           this.prepared.arrival();
+          routeArrival(this.prepared, this.direction, EXIT_COAST_DISTANCE);
           this.jump.prepared = true;
         })
         .catch((error: unknown) => {
@@ -173,6 +198,10 @@ export class ExplorationSession {
     this.suspended = false;
     this.publish();
   };
+  markArrivalReady = (systemId: string) => {
+    if (this.jump.phase === 'EXITING' && this.world.definition.id === systemId)
+      this.jump.arrivalReady = true;
+  };
 
   advance(
     delta: number,
@@ -197,18 +226,25 @@ export class ExplorationSession {
           this.fail('Destination is unavailable. Your previous system is intact.');
           return;
         }
+        this.prepared.update(this.clock);
+        try {
+          routeArrival(this.prepared, this.direction, EXIT_COAST_DISTANCE);
+        } catch (error) {
+          this.fail(error instanceof Error ? error.message : 'Arrival corridor unavailable.');
+          return;
+        }
         this.world = this.prepared;
         this.prepared = null;
         this.world.update(this.clock);
         this.navigation.select(this.world.definition.defaultTargetId, this.world);
         this.callbacks.onCommit(this.world);
-        const arrival = this.world.arrival();
-        this.lastPosition.fromArray(arrival.position);
-        this.lastOrientation.fromArray(arrival.orientation);
+        const arrival = routeArrival(this.world, this.direction, EXIT_COAST_DISTANCE);
+        this.lastPosition.copy(arrival.position);
+        this.lastOrientation.copy(arrival.orientation);
       }
       if (this.jump.phase === 'COOLDOWN') {
         this.audio.stop();
-        this.arrivalElapsed = 5;
+        this.arrivalElapsed = 3;
         useExplorationStore.setState({
           arrival: `Welcome to ${this.world.definition.name}. Keyboard flight restored.`,
         });

@@ -7,6 +7,7 @@ import { RenderOrigin } from '@/engine/world/RenderOrigin';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { ExplorationSession } from '@/features/exploration/ExplorationSession';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
+import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
@@ -19,6 +20,7 @@ export class FlightSession {
   readonly origin = new RenderOrigin();
   readonly orientation = new Quaternion();
   readonly exploration: ExplorationSession;
+  readonly journey = new HyperspaceFlight();
   private readonly previousPosition = new Vector3();
   private readonly currentPosition = new Vector3();
   private readonly previousOrientation = new Quaternion();
@@ -35,14 +37,33 @@ export class FlightSession {
   constructor() {
     this.exploration = new ExplorationSession({
       onPause: this.pause,
+      onDepart: (direction) => this.journey.begin(this.position, this.orientation, direction),
       onCommit: (system) => {
-        this.arrive(system);
+        this.journey.arrive(system);
+        this.journey.sample(this.exploration.jump, this.position, this.orientation);
+        this.controller.relocate(this.position, this.orientation);
+        this.snapPose();
         useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
       },
-      onRestore: () => this.startKeyboard(),
-      onError: (message) => useFlightStore.getState().setNotice(message),
+      onRestore: () => {
+        this.journey.finish(this.position, this.orientation);
+        this.controller.relocate(this.position, this.orientation, JUMP_MOTION.exitSpeed);
+        this.snapPose(false);
+        useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
+        this.startKeyboard();
+      },
+      onError: (message) => {
+        if (this.journey.active) {
+          this.journey.active = false;
+          this.controller.relocate(this.position, this.orientation);
+          this.snapPose(false);
+          useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
+        }
+        useFlightStore.getState().setNotice(message);
+      },
     });
     this.arrive(this.exploration.world);
+    this.exploration.syncPose(this.position, this.orientation);
   }
 
   private arrive(system: SystemRuntime) {
@@ -53,7 +74,7 @@ export class FlightSession {
     this.snapPose();
   }
 
-  private snapPose() {
+  private snapPose(resetCamera = true) {
     this.controller.copyTransform(this.currentPosition, this.currentOrientation);
     this.previousPosition.copy(this.currentPosition);
     this.previousOrientation.copy(this.currentOrientation);
@@ -64,7 +85,7 @@ export class FlightSession {
     this.loop.reset();
     this.input = createFlightInput();
     this.telemetryElapsed = 0;
-    this.resetVersion += 1;
+    if (resetCamera) this.resetVersion += 1;
   }
 
   attach(target: HTMLElement) {
@@ -196,7 +217,7 @@ export class FlightSession {
     this.controller.copyTransform(this.currentPosition, this.currentOrientation);
   };
 
-  advance(delta: number) {
+  advance(delta: number, reducedMotion = false) {
     const state = useFlightStore.getState();
     const flying = state.phase === 'flying' && !this.exploration.jump.busy;
     if (flying) {
@@ -211,6 +232,8 @@ export class FlightSession {
       }
     } else this.loop.reset();
     this.exploration.advance(delta, this.position, this.orientation, flying);
+    if (this.journey.active && this.exploration.jump.busy)
+      this.journey.sample(this.exploration.jump, this.position, this.orientation, reducedMotion);
     this.origin.update(this.position);
     this.origin.toRender(this.position, this.renderPosition);
   }

@@ -30,6 +30,7 @@ describe('hyperspace state machine', () => {
     jump.prepared = true;
     jump.advance(1 / 120);
     expect(jump.phase).toBe('EXITING');
+    jump.arrivalReady = true;
     advance(jump, HYPERSPACE_TIMING.EXITING);
     expect(jump.phase).toBe('COOLDOWN');
     expect(jump.busy).toBe(false);
@@ -72,5 +73,22 @@ describe('hyperspace state machine', () => {
     expect(jump.elapsed).toBe(0.1);
     expect(() => jump.advance(Number.NaN)).toThrow();
     expect(() => jump.advance(-1)).toThrow();
+  });
+
+  it('keeps the destination fully masked until its first rendered frame and times out safely', () => {
+    const jump = new HyperspaceController();
+    jump.request('solara', 'vesper', ['solara', 'vesper']);
+    jump.prepared = true;
+    advance(
+      jump,
+      HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING + HYPERSPACE_TIMING.HYPERSPACE,
+    );
+    expect(jump.phase).toBe('EXITING');
+    advance(jump, 2);
+    expect(jump.progress).toBe(0);
+    expect(jump.coverage).toBe(1);
+    advance(jump, 11);
+    expect(jump.phase).toBe('IDLE');
+    expect(jump.error).toMatch(/Arrival rendering timed out/);
   });
 });

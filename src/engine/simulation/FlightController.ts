@@ -73,8 +73,8 @@ export class FlightController {
     orientation.copy(this.orientation);
   }
 
-  /** System arrival: preserve engine reserve, assistance and trip distance; stop local momentum. */
-  relocate(position: Readonly<Vector3>, orientation: Readonly<Quaternion>) {
+  /** Safe handoff: preserve reserve/assist/distance, optionally retaining bounded forward cruise. */
+  relocate(position: Readonly<Vector3>, orientation: Readonly<Quaternion>, forwardSpeed = 0) {
     if (
       ![
         position.x,
@@ -85,15 +85,18 @@ export class FlightController {
         orientation.z,
         orientation.w,
       ].every(Number.isFinite) ||
-      orientation.lengthSq() < 0.001
+      orientation.lengthSq() < 0.001 ||
+      !Number.isFinite(forwardSpeed) ||
+      forwardSpeed < 0 ||
+      forwardSpeed > this.config.maxSpeed
     ) {
       throw new RangeError('Arrival pose must be finite with a nonzero quaternion.');
     }
     this.position.copy(position);
     this.orientation.copy(orientation).normalize();
-    this.velocity.set(0, 0, 0);
+    this.velocity.set(0, 0, -forwardSpeed).applyQuaternion(this.orientation);
     this.angularVelocity.set(0, 0, 0);
-    this.throttle = 0;
+    this.throttle = forwardSpeed / this.config.maxSpeed;
     this.boosting = false;
   }
 
