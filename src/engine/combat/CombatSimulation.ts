@@ -13,6 +13,7 @@ import {
   CombatShip,
   type Obstacle,
   type Projectile,
+  type RailgunTrace,
   type ShipCommand,
   type ShipConfig,
 } from './combatTypes';
@@ -26,6 +27,7 @@ export class CombatSimulation {
   readonly ships = new Map<string, CombatShip>();
   readonly projectiles: Projectile[] = [];
   readonly effects: CombatEffect[] = [];
+  readonly tracers: RailgunTrace[] = [];
   readonly obstacles: Obstacle[] = [];
   readonly player: CombatShip;
   targetId: string | null = null;
@@ -78,10 +80,12 @@ export class CombatSimulation {
     this.bodies.length = 0;
     this.projectiles.length = 0;
     this.effects.length = 0;
+    this.tracers.length = 0;
     this.obstacles.length = 0;
     this.targetId = null;
     this.impact = 0;
     this.kills = 0;
+    this.player.railgunCharge = 0;
   }
 
   respawn() {
@@ -122,7 +126,13 @@ export class CombatSimulation {
       team,
       age: 0,
       lifetime:
-        kind === 'explosion' ? 1.5 : kind === 'detonation' ? 0.7 : kind === 'shot' ? 0.07 : 0.35,
+        kind === 'explosion'
+          ? 1.5
+          : kind === 'detonation'
+            ? 0.7
+            : kind === 'shot' || kind === 'railgun-shot'
+              ? 0.07
+              : 0.35,
     });
   }
 
@@ -130,6 +140,7 @@ export class CombatSimulation {
     const shield = ship.health.shields > 0;
     if (!ship.health.damage(amount)) return;
     ship.hitFlash = 0.3;
+    if (ship.health.destroyed) ship.railgunCharge = 0;
     if (ship === this.player) this.impact = Math.min(1, this.impact + amount / 50);
     this.effect(
       ship.health.destroyed ? 'explosion' : shield ? 'shield' : 'impact',
@@ -152,7 +163,7 @@ export class CombatSimulation {
 
   private fire(ship: CombatShip) {
     if (ship.cooldown > 1e-9 || ship.health.destroyed) return;
-    if (this.projectiles.length >= 192) return;
+    if (ship.weapon !== 3 && this.projectiles.length >= 192) return;
     this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
     this.point
       .set(ship.weapon === 1 ? ship.barrel * 2.65 : 0, ship.weapon === 2 ? -0.4 : 0, -6)
@@ -165,6 +176,28 @@ export class CombatSimulation {
         : ship.team === 'hostile'
           ? this.player
           : undefined;
+    if (ship.weapon === 3) {
+      const railgun = ship.config.railgun;
+      ship.cooldown = railgun.interval;
+      ship.railgunCharge = 0;
+      this.end.copy(this.point).addScaledVector(this.direction, railgun.range);
+      this.trace(this.point, this.end, ship.id, ship.team, railgun.radius, 0);
+      this.end.lerpVectors(this.point, this.end, this.hitFraction);
+      if (this.tracers.length >= 32) this.tracers.shift();
+      this.tracers.push({
+        id: ++this.sequence,
+        owner: ship.id,
+        start: this.point.clone(),
+        end: this.end.clone(),
+        team: ship.team,
+        age: 0,
+        lifetime: railgun.duration,
+      });
+      if (this.hitShip) this.damage(this.hitShip, railgun.damage);
+      if (this.hitDetected) this.effect('impact', this.end, ship.team);
+      this.effect('railgun-shot', this.point, ship.team);
+      return;
+    }
     const config = ship.weapon === 2 ? ship.config.missile : ship.config.laser;
     ship.cooldown = config.interval;
     if (ship.weapon === 1 && target && !target.health.destroyed && config.aimAssistAngle > 0) {
@@ -200,7 +233,7 @@ export class CombatSimulation {
     this.effect(ship.weapon === 2 ? 'missile-launch' : 'shot', this.point, ship.team);
   }
 
-  /** Shared nearest-hit query. A zero motion fraction traces current collider positions. */
+  /** Shared nearest-hit query. A zero motion fraction traces an instantaneous rail shot. */
   private trace(
     start: Readonly<Vector3>,
     end: Readonly<Vector3>,
@@ -307,6 +340,7 @@ export class CombatSimulation {
   step(command: ShipCommand, dt: number) {
     if (!Number.isFinite(dt) || dt <= 0 || dt > 0.1) throw new RangeError('Invalid combat tick.');
     if (command.weapon && command.weapon !== this.player.weapon) {
+      this.player.railgunCharge = 0;
       this.player.weapon = command.weapon;
     }
     this.time += dt;
@@ -316,6 +350,13 @@ export class CombatSimulation {
       if (effect) {
         effect.age += dt;
         if (effect.age >= effect.lifetime) this.effects.splice(index, 1);
+      }
+    }
+    for (let index = this.tracers.length - 1; index >= 0; index--) {
+      const tracer = this.tracers[index];
+      if (tracer) {
+        tracer.age += dt;
+        if (tracer.age >= tracer.lifetime) this.tracers.splice(index, 1);
       }
     }
     this.bodies.length = 0;
@@ -344,7 +385,17 @@ export class CombatSimulation {
     // New projectiles start at the end of the tick, avoiding a one-tick target motion error.
     for (const ship of this.ships.values()) {
       const firing = ship === this.player ? command.fire : ship.command.fire;
-      if (firing) this.fire(ship);
+      if (ship.weapon === 3) {
+        if (!firing || ship.health.destroyed || ship.cooldown > 1e-9) ship.railgunCharge = 0;
+        else {
+          const chargeTime = ship.config.railgun.chargeTime;
+          ship.railgunCharge = Math.min(chargeTime, ship.railgunCharge + dt);
+          if (ship.railgunCharge + 1e-9 >= chargeTime) this.fire(ship);
+        }
+      } else {
+        ship.railgunCharge = 0;
+        if (firing) this.fire(ship);
+      }
     }
     if (
       this.targetId &&

@@ -17,6 +17,14 @@ export const PLAYER_SHIP: ShipConfig = {
     lockRange: 2200,
     lockAngle: Math.PI / 3,
   },
+  railgun: {
+    chargeTime: 0.8,
+    interval: 1.6,
+    damage: 120,
+    range: 3500,
+    radius: 0.25,
+    duration: 0.25,
+  },
   laser: {
     interval: 0.14,
     damage: 16,
@@ -28,6 +36,7 @@ export const PLAYER_SHIP: ShipConfig = {
 };
 export const ENEMY_SHIP: ShipConfig = {
   missile: PLAYER_SHIP.missile,
+  railgun: PLAYER_SHIP.railgun,
   mass: 10,
   radius: 5,
   flight: { ...FLIGHT_CONFIG, maxSpeed: 135, acceleration: 36, maxAngularSpeed: [0.75, 0.7, 1.2] },
@@ -52,4 +61,5 @@ export const ENCOUNTER_CONFIG = { enemies: 5, maximumEnemies: 10, asteroids: 8 }
 export const WEAPON_CHOICES = [
   { slot: 1, label: 'Gun' },
   { slot: 2, label: 'Missiles' },
+  { slot: 3, label: 'Railgun' },
 ] as const;

@@ -16,11 +16,19 @@ export interface LaserConfig {
   readonly radius: number;
   readonly aimAssistAngle: number;
 }
-export type WeaponSlot = 1 | 2;
+export type WeaponSlot = 1 | 2 | 3;
 export interface MissileConfig extends LaserConfig {
   readonly turnRate: number;
   readonly lockRange: number;
   readonly lockAngle: number;
+}
+export interface RailgunConfig {
+  readonly chargeTime: number;
+  readonly interval: number;
+  readonly damage: number;
+  readonly range: number;
+  readonly radius: number;
+  readonly duration: number;
 }
 export interface ShipConfig {
   readonly mass: number;
@@ -29,6 +37,7 @@ export interface ShipConfig {
   readonly defense: DefenseConfig;
   readonly laser: LaserConfig;
   readonly missile: MissileConfig;
+  readonly railgun: RailgunConfig;
 }
 export interface AiConfig {
   readonly detectionRange: number;
@@ -65,6 +74,7 @@ export class CombatShip {
   aiState: AiState = 'patrol';
   aiElapsed = 0;
   cooldown = 0;
+  railgunCharge = 0;
   weapon: WeaponSlot = 1;
   barrel = 1;
   hitFlash = 0;
@@ -134,9 +144,25 @@ export type Projectile = ProjectileState &
         readonly turnRate: number;
       }
   );
+export interface RailgunTrace {
+  readonly id: number;
+  readonly owner: string;
+  readonly start: Vector3;
+  readonly end: Vector3;
+  readonly team: CombatShip['team'];
+  age: number;
+  readonly lifetime: number;
+}
 export interface CombatEffect {
   readonly id: number;
-  readonly kind: 'shield' | 'impact' | 'explosion' | 'shot' | 'missile-launch' | 'detonation';
+  readonly kind:
+    | 'shield'
+    | 'impact'
+    | 'explosion'
+    | 'shot'
+    | 'missile-launch'
+    | 'detonation'
+    | 'railgun-shot';
   readonly position: Vector3;
   readonly team: CombatShip['team'];
   age: number;
