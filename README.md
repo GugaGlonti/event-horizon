@@ -86,7 +86,7 @@ overlapping jumps, and jumping during cooldown are unavailable.
 | State        | Default duration | Behavior                                                                  |
 | ------------ | ---------------- | ------------------------------------------------------------------------- |
 | CHARGING     | 3.2 s            | Bank, align to the destination, level out and charge; compact HUD readout |
-| ACCELERATING | 1.3 s            | Long star trails build and hold, followed by a sharp forward surge        |
+| ACCELERATING | 1.3 s            | Long star trails keep moving through buildup, followed by a sharp surge   |
 | HYPERSPACE   | At least 3.4 s   | Flowing blue corridor masks preparation; ship/cockpit remain visible      |
 | EXITING      | 1.15 s           | Await the destination's first frame, collapse trails, coast and settle    |
 | COOLDOWN     | 4 s              | Keyboard flight resumes at 100 m/s; another jump remains unavailable      |
@@ -100,20 +100,26 @@ exit coast and frame the primary world at a readable distance.
 
 Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` samples bounded local
 trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
-A persistent 12,000-star sky supplies every entry streak. Entry holds fully extended trails for about
-0.3 seconds before the tunnel reveal. Varied lengths, widths, white cores and soft blue edges give the
-outward trails density without filling the center with crossing lines. Bright points stay anchored
-through the stretch hold, then sweep outward once at ignition. There is no replacement particle field
-or recycled stream of new streaks. The stars dissolve through a brief exposure crest into a soft blue
-cloud corridor; camera-side light catches the ship and cockpit through the transition. Exit contracts
-the same sky back into points. Ignition, forward motion and the camera kick stay concentrated in the
-final 0.6 seconds. The camera carries its relative pose across the masked system switch, with brief
-ignition/exit transients and a quiet cruise.
+A persistent 12,000-star sky supplies every entry streak. Stars have varied virtual depths: projecting
+a forward exposure gives nearby stars broader, faster trails and distant stars shorter streaks. White
+cores have soft cyan shoulders and blue halos. Long trails remain readable for about 0.3 seconds before
+the tunnel reveal while continuing to move outward; most travel stays concentrated at ignition.
+There is no replacement particle field or recycled stream of new streaks. A brief exposure crest
+merges the stars into three layers of irregular blue clouds, bright wisps and dark channels flowing
+past the craft. Passing blue light catches the Kestrel's canopy, instruments and subtle glass glints.
+
+The bounded 5.2 km departure moves nearby worlds decisively at ignition, after checking the entire
+corridor for clearance. Arrival waits for the matching destination's first frame, holds the first 14%
+of exit opaque, then reveals the scene over about 0.1 seconds as the stars contract. Most deceleration
+happens under cover; the remaining coast settles into 100 m/s flight. The camera preserves its relative
+pose across the system switch. Short damped recoil and chassis rattle give ignition/exit weight, with
+restrained FOV changes and a quiet cruise; the cockpit stays attached to the craft during the impulse.
 
 The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief
 arrival notice after exit. Normal flight instruments return with control. A central prompt appears
-only when a journey is held after losing focus. Optional layered synthesized audio provides charge,
-ignition, rushing tunnel and exit cues; disable it in the galaxy map.
+only when a journey is held after losing focus. Optional synthesized audio layers motor harmonics,
+mechanical charge chatter, stereo rushing air, bass impacts and short latch transients. The exit cue
+follows the visual reveal, and a compressor controls peaks. Disable audio in the galaxy map.
 
 Arrival preserves engine reserve, trip distance, assistance and camera choice, handing back a
 controlled 100 m/s forward cruise with matching throttle. Keyboard control returns without another
@@ -125,9 +131,9 @@ so late results cannot activate a system. A rejected/invalid destination or prep
 the original system and offers normal flight again. Blur/hidden tabs hold an active journey until
 **Resume journey** is clicked; a bounded delta prevents suspension from skipping the sequence.
 
-Reduced-motion preferences disable jump vibration, speed/jump FOV changes, tunnel animation, and
-visual axial spin, alignment banking and animated star trails. Essential alignment, orbital positions,
-charge feedback, and travel remain available.
+Reduced-motion preferences disable recoil/rattle, speed/jump FOV changes, tunnel animation, exposure
+flashes, moving light/glass highlights, visual axial spin, alignment banking and animated star trails.
+Essential alignment, orbital positions, charge feedback, and travel remain available.
 
 ## Stack and commands
 
@@ -198,7 +204,8 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 Automated tests cover flight/input behavior plus definitions, invalid parents/cycles/duplicates,
 orbits, coordinate round-trips/rebases, target selection/bearings/distances, safe arrival selection,
 all jump phases, invalid destinations, cancellation, async failure/late completion, timeout,
-focus/visibility, reset/disposal, camera independence, arrival state, and keyboard restoration.
+focus/visibility, reset/disposal, camera independence and bounded recoil, arrival state, keyboard
+restoration, and audio cue timing/suspension/cleanup.
 
 Browser playtesting covers launching in Solara, tracking/flying toward Lyra, both maps, the
 Solara → Vesper → Aether → Solara journey, cockpit/chase modes, input suppression and re-entry,
@@ -210,7 +217,8 @@ embedded or automated browser rejects it.
   and beacons are visual references and can be flown through.
 - Bundled procedural systems are prepared in memory; there is no network asset streaming or save-game
   persistence. Reloading starts in Solara. There is no touch/gamepad piloting.
-- One synthesized hyperdrive cue, not a complete soundscape. No audio assets or post-processing stack.
+- Procedural hyperdrive audio; broader environmental and normal-flight sound remain future work.
+  No downloaded audio assets or post-processing stack.
 - Rendering continues while paused. Pixel ratio is bounded; geometry, buffers, and scratch vectors
   are reused. Approximately 60 FPS is a target, not a guarantee across hardware. Wider profiling and
   adaptive quality/LOD remain future work.

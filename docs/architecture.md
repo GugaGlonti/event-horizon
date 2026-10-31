@@ -101,18 +101,18 @@ preparation readiness and bounded dt. It never changes a world, ship, camera, au
 
 `ExplorationSession.beginJump` derives a shared travel axis from the source/destination galactic
 positions, checks the swept departure lane, clears/restricts input, starts preparation and optional
-Web Audio. `HyperspaceFlight` samples an analytical quaternion alignment/bank, cubic departure surge,
+Web Audio. `HyperspaceFlight` samples an analytical quaternion alignment/bank, quadratic departure surge,
 and decelerating arrival coast. Its distance derivative matches the 100 m/s physics handoff. Paused
 normal physics never integrates hyperspeed. Abort adopts the currently displayed pose with zero speed.
 
-The 1.3-second entry gives stars a buildup and a clear hold: full extension by 48%, ignition at 55%,
-and tunnel reveal after 72%. The cubic forward surge and camera/audio impact share the ignition
-threshold, keeping the actual launch under 0.6 seconds. Each visible star anchors its own outward
-trail through the stretch hold, with varied lengths/widths, a white core and a soft blue edge. A bounded
-analytical sweep moves the existing sky outward at ignition; no particles recycle or morph to another
-layout. The stars fade under increasing tunnel coverage, with one brief exposure crest as they dissolve
-into broad blue cloud walls. Exit contracts the same field back into points. `hyperspaceVisuals` owns
-the continuous stretch, travel and exposure envelopes; reduced motion suppresses all three effects.
+The 1.3-second entry gives stars a readable buildup: full extension by 48%, ignition at 55%, and tunnel
+reveal after 72%. The 5.2 km departure and camera/audio impact share the ignition threshold, keeping the
+actual launch under 0.6 seconds. A small continuous star sweep prevents a frozen long-streak hold;
+most virtual travel occurs at ignition. Each star supplies its own outward exposure trail, with varied
+depths/widths, a white core, cyan shoulders and a soft blue halo. No particles recycle or morph to
+another layout. The stars fade through one exposure crest into layered cloud walls. Exit contracts the
+same field back into points. `hyperspaceVisuals` owns continuous stretch/travel/exposure envelopes and
+damped camera recoil/rattle. Reduced motion suppresses these effects.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
 `routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of
@@ -122,15 +122,20 @@ position, orientation and FOV. A reset still explicitly snaps the camera.
 
 EXITING stays at zero progress with full coverage until the matching destination SystemScene reports
 its first frame. Stale source frames cannot unlock it. Both CPU preparation and renderer readiness have
-bounded 12-second deadlines. The first 8% of exit remains opaque; coverage falls quickly over 8–30%,
-then the forward coast settles into normal flight. All current assets are synchronous procedural
+bounded 12-second deadlines. The first 14% of exit remains opaque; coverage falls over 14–23% (about
+0.1 seconds), coordinated with star contraction, a restrained exposure crest and the exit impulse.
+The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
+distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
+in flight/config.ts and the full swept corridor uses those same bounds. All assets are procedural
 geometry/shaders. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
 Camera mode, assistance and engine reserve survive. The arrival notice lasts three seconds. Charge is
 a small HUD readout; transit has no central overlay or phase percentages. A held journey shows explicit
-resume/abort controls. Layered oscillators, filtered seeded noise and short impacts follow the same
-phase boundaries and mute on suspension; source nodes and context are disposed on teardown.
+resume/abort controls. Layered motor harmonics, filtered mechanical chatter and seeded stereo noise
+feed a compressor. Ignition/exit add bass sweeps, filtered air bursts and short latch tones, once each.
+Exit audio waits for reveal progress, including while renderer readiness holds the scene opaque.
+Suspension mutes the master; abort/teardown stop and disconnect every voice and release buffers.
 
 Failure before commit keeps the source runtime and current cinematic pose. HYPERSPACE readiness has a 12-second deadline.
 Cancel before commit retains the source; cancel after commit holds at the destination. Both paths
@@ -169,17 +174,23 @@ textures, models or post-processing dependencies. Sky and hyperdrive components 
 uniform references between frames. One persistent 12,000-star galactic catalogue supplies point and
 trail billboards across all systems. Its 48,000 vertices fit 16-bit indices. The normal sky already
 contains every star used by the jump, and the same angular pattern survives the world handoff. Buffers
-depend only on sky radius, never system seed or frame time. Trail dimensions use CSS viewport pixels;
-there is no separate corridor particle layout, time loop or accumulating star simulation.
+depend only on sky radius, never system seed or frame time. Stars occupy 35–100% of that virtual radius.
+Projecting each star's finite forward exposure produces depth-dependent length and outward speed;
+bounded proximity controls width. Virtual depths affect motion only: normal stars render behind the
+celestial bodies. Trail widths use CSS viewport pixels. There is no separate corridor particle layout,
+time loop or accumulating star simulation.
 
-The tunnel shader uses nested ray/cylinder cloud samples and periodic angular noise, avoiding the
-atan seam. Broad cloud walls replace narrow procedural filaments, so the tunnel introduces no extra
-streaks. A camera-relative point light and ambient blue light connect the foreground to the exposure
-crest and cloud corridor. Both are declarative scene resources. The transparent depth-tested mask
-draws after celestial transparency (order 10), preserving
+The tunnel samples two scales of 3D value noise on three bounded depth shells. A bent centerline,
+irregular wisps and dark cloud channels create forward flow without angular rotation or an atan seam.
+This is a layered analytic effect, with no volume raymarch or extra star streaks. Two camera-relative
+point lights move blue highlights across foreground surfaces; ambient light fills the shadows.
+The original Kestrel canopy has ribs, instrument housings and faint procedural glass highlights.
+It follows the craft's nominal cockpit pose while the camera impulse moves relative to it.
+
+The transparent depth-tested tunnel mask draws after celestial transparency (order 10), preserving
 nearby opaque ship/cockpit depth. Star trails draw next (20), with bounded virtual depth during transit;
-foreground exhaust draws last (30). This hides rings/atmospheres as well as opaque planets without
-covering the spacecraft. These are ordered scene draws, with no render targets or post-processing.
+glass highlights follow (25) and exhaust draws last (30). Fiber owns every declarative geometry,
+material and light. These are ordered scene draws, with no render targets or post-processing.
 
 Fiber 9 copies shader uniform wrappers when applying props. Update per-frame scalar uniforms through
 the mounted ShaderMaterial ref; mutating the original props object's number does not update the GPU.
@@ -188,7 +199,8 @@ geometry or publish React state per frame. The flight frame callback has priorit
 origin and camera update before world/effect presentation. No positive-priority callback takes over
 rendering.
 
-Reduced motion disables dynamic FOV, vibration, tunnel animation, star trails, alignment bank and axial spin. The tunnel still
+Reduced motion disables dynamic FOV, recoil/rattle, tunnel animation, star trails, exposure flashes,
+moving light/glass highlights, alignment bank and axial spin. The tunnel still
 masks a transition and progress remains legible. Device pixel ratio stays bounded. LOD/adaptive quality
 and broader hardware profiling are future improvements, not a promise of universal 60 FPS.
 
@@ -218,7 +230,9 @@ presentation data layered over the same logical hierarchy and coordinate contrac
 Pure tests cover validation, hierarchy/order, analytical orbits, coordinate conversions/rebases,
 target/distance/bearing logic, safe arrivals, every jump phase, cancellation and load recovery. Browser
 adapter tests cover maps, stale held keys, visibility, disposal, reset and flight restoration. Camera
-and physics tests retain the Milestone 2 replay, boost and steering coverage.
+and physics tests retain the Milestone 2 replay, boost and steering coverage, with bounded camera
+impulse/settling and reduced-motion suppression. Audio adapter tests check one-shot cue timing,
+gating the exit cue while arrival is held, suspension muting, restart and complete node/context teardown.
 
 `npm run check` runs lint, all tests and a strict production build. Browser QA must cover the entire
 Solara → Vesper → Aether → Solara route, orbital contact selection, maps, jump masking, phase/status
