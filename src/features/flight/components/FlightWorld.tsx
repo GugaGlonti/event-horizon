@@ -56,7 +56,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
         <Starfield session={session} radius={GAME_CONFIG.environment.starRadius} />
       </group>
       <Starfighter modelRef={ship} exhaustRef={exhaust} visible={cameraMode === 'chase'} />
-      <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} />
+      <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} session={session} />
       <HyperspaceTunnel session={session} />
     </>
   );

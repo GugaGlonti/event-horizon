@@ -6,6 +6,7 @@ import {
   type PointLight,
   type ShaderMaterial,
   Vector2,
+  Vector3,
 } from 'three';
 import { jumpExposure, jumpStretch } from '@/features/exploration/hyperspaceVisuals';
 import type { FlightSession } from '@/features/flight/FlightSession';
@@ -68,6 +69,9 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const material = useRef<ShaderMaterial>(null);
   const light = useRef<AmbientLight>(null);
   const reflection = useRef<PointLight>(null);
+  const fill = useRef<PointLight>(null);
+  const right = useMemo(() => new Vector3(), []);
+  const up = useMemo(() => new Vector3(), []);
   const reduced = useReducedMotion();
   const clock = useRef(0);
   const uniforms = useMemo(
@@ -100,15 +104,32 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       light.current.intensity =
         jump.coverage * 1.8 + (reduced ? 0 : jumpStretch(jump) * 0.6) + exposure * 2;
     if (reflection.current) {
-      reflection.current.position.copy(camera.position);
+      const wave = reduced
+        ? 0
+        : Math.sin(clock.current * 3.1) * 0.65 + Math.sin(clock.current * 5.7) * 0.35;
+      right.set(1, 0, 0).applyQuaternion(camera.quaternion);
+      up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      reflection.current.position
+        .copy(camera.position)
+        .addScaledVector(right, wave * 1.6)
+        .addScaledVector(up, 0.4);
+      reflection.current.color.setRGB(0.4 + exposure * 0.5, 0.7 + exposure * 0.25, 1);
       reflection.current.intensity =
-        jump.coverage * 18 + (reduced ? 0 : jumpStretch(jump) * 8) + exposure * 35;
+        jump.coverage * (18 + wave * 6) + (reduced ? 0 : jumpStretch(jump) * 8) + exposure * 35;
+      if (fill.current) {
+        fill.current.position
+          .copy(camera.position)
+          .addScaledVector(right, -wave * 2 - 1.5)
+          .addScaledVector(up, -0.5);
+        fill.current.intensity = jump.coverage * (5 - wave * 2) + exposure * 8;
+      }
     }
   });
   return (
     <group ref={group} visible={false}>
       <ambientLight ref={light} color="#649de3" intensity={0} />
       <pointLight ref={reflection} color="#8bcaff" intensity={0} distance={80} />
+      <pointLight ref={fill} color="#4267db" intensity={0} distance={40} />
       <mesh renderOrder={10} frustumCulled={false}>
         <planeGeometry args={[2, 2]} />
         <shaderMaterial
