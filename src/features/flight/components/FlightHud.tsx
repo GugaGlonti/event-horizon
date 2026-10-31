@@ -93,89 +93,103 @@ export function FlightHud({ session }: { session: FlightSession }) {
         </div>
       </header>
 
-      <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center font-mono tablet:top-9">
-        <p className="text-[8px] tracking-[0.3em] text-slate-500">HEADING</p>
-        <output
-          className="mt-1 block text-lg tracking-[0.16em] text-teal-100/80"
-          aria-label="Heading"
-          aria-live="off"
-        >
-          {Math.round(telemetry.heading).toString().padStart(3, '0')}
-          <span className="text-xs">°</span>
-        </output>
-        <p className="mt-1 text-[8px] tracking-widest text-slate-500">
-          PITCH {telemetry.pitch >= 0 ? '+' : ''}
-          {Math.round(telemetry.pitch)}°
-        </p>
-      </div>
+      <div className={busy ? 'hidden' : 'contents'} aria-hidden={busy}>
+        <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center font-mono tablet:top-9">
+          <p className="text-[8px] tracking-[0.3em] text-slate-500">HEADING</p>
+          <output
+            className="mt-1 block text-lg tracking-[0.16em] text-teal-100/80"
+            aria-label="Heading"
+            aria-live="off"
+          >
+            {Math.round(telemetry.heading).toString().padStart(3, '0')}
+            <span className="text-xs">°</span>
+          </output>
+          <p className="mt-1 text-[8px] tracking-widest text-slate-500">
+            PITCH {telemetry.pitch >= 0 ? '+' : ''}
+            {Math.round(telemetry.pitch)}°
+          </p>
+        </div>
 
-      <div className="absolute top-1/2 left-1/2 -translate-1/2 text-teal-100/60" aria-hidden="true">
-        <svg
+        <div
+          className="absolute top-1/2 left-1/2 -translate-1/2 text-teal-100/60"
           aria-hidden="true"
-          width="72"
-          height="72"
-          viewBox="0 0 72 72"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
         >
-          <circle cx="36" cy="36" r="18" strokeOpacity="0.4" />
-          <path d="M36 8v10M36 54v10M8 36h10M54 36h10" />
-          <circle cx="36" cy="36" r="1.5" fill="currentColor" />
-        </svg>
+          <svg
+            aria-hidden="true"
+            width="72"
+            height="72"
+            viewBox="0 0 72 72"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+          >
+            <circle cx="36" cy="36" r="18" strokeOpacity="0.4" />
+            <path d="M36 8v10M36 54v10M8 36h10M54 36h10" />
+            <circle cx="36" cy="36" r="1.5" fill="currentColor" />
+          </svg>
+        </div>
+
+        <section
+          aria-label="Flight telemetry"
+          className="absolute bottom-24 left-5 w-32 tablet:bottom-28 tablet:left-10 tablet:w-48"
+        >
+          <p className="font-mono text-[8px] tracking-[0.18em] text-slate-400">VELOCITY / M·S⁻¹</p>
+          <output
+            className="mt-1 block font-mono text-4xl font-light tracking-tight text-stone-100 tablet:text-5xl"
+            aria-label="Speed"
+            aria-live="off"
+          >
+            {Math.round(telemetry.speed).toString().padStart(3, '0')}
+          </output>
+          <Meter label="THROTTLE" value={telemetry.throttle} />
+          <p className="mt-3 hidden font-mono text-[8px] tracking-widest text-slate-500 tablet:block">
+            CRUISE {FLIGHT_CONFIG.maxSpeed} / BOOST {FLIGHT_CONFIG.boostMaxSpeed}
+          </p>
+        </section>
+
+        <section
+          aria-label="Ship systems"
+          className="absolute right-5 bottom-24 w-32 text-right tablet:right-10 tablet:bottom-28 tablet:w-48"
+        >
+          <p
+            className={`font-mono text-[9px] tracking-[0.14em] ${telemetry.boosting ? 'text-amber-200' : 'text-slate-400'}`}
+          >
+            {telemetry.boosting
+              ? 'BOOST ACTIVE'
+              : telemetry.boostReady
+                ? 'BOOST READY'
+                : 'RECHARGING'}
+          </p>
+          <Meter
+            label="BOOST"
+            value={telemetry.boostCharge}
+            color={telemetry.boosting ? 'bg-amber-200' : 'bg-teal-100/65'}
+          />
+          <p className="mt-4 font-mono text-[9px] text-slate-400">
+            FLIGHT ASSIST{' '}
+            <span className={assistance ? 'text-teal-100' : 'text-amber-200'}>
+              {assistance ? 'ON' : 'OFF'}
+            </span>
+          </p>
+          <p className="mt-2 font-mono text-[9px] uppercase text-slate-500">{cameraMode} camera</p>
+        </section>
       </div>
-
-      <section
-        aria-label="Flight telemetry"
-        className="absolute bottom-24 left-5 w-32 tablet:bottom-28 tablet:left-10 tablet:w-48"
-      >
-        <p className="font-mono text-[8px] tracking-[0.18em] text-slate-400">VELOCITY / M·S⁻¹</p>
-        <output
-          className="mt-1 block font-mono text-4xl font-light tracking-tight text-stone-100 tablet:text-5xl"
-          aria-label="Speed"
-          aria-live="off"
-        >
-          {Math.round(telemetry.speed).toString().padStart(3, '0')}
-        </output>
-        <Meter label="THROTTLE" value={telemetry.throttle} />
-        <p className="mt-3 hidden font-mono text-[8px] tracking-widest text-slate-500 tablet:block">
-          CRUISE {FLIGHT_CONFIG.maxSpeed} / BOOST {FLIGHT_CONFIG.boostMaxSpeed}
-        </p>
-      </section>
-
-      <section
-        aria-label="Ship systems"
-        className="absolute right-5 bottom-24 w-32 text-right tablet:right-10 tablet:bottom-28 tablet:w-48"
-      >
-        <p
-          className={`font-mono text-[9px] tracking-[0.14em] ${telemetry.boosting ? 'text-amber-200' : 'text-slate-400'}`}
-        >
-          {telemetry.boosting
-            ? 'BOOST ACTIVE'
-            : telemetry.boostReady
-              ? 'BOOST READY'
-              : 'RECHARGING'}
-        </p>
-        <Meter
-          label="BOOST"
-          value={telemetry.boostCharge}
-          color={telemetry.boosting ? 'bg-amber-200' : 'bg-teal-100/65'}
-        />
-        <p className="mt-4 font-mono text-[9px] text-slate-400">
-          FLIGHT ASSIST{' '}
-          <span className={assistance ? 'text-teal-100' : 'text-amber-200'}>
-            {assistance ? 'ON' : 'OFF'}
-          </span>
-        </p>
-        <p className="mt-2 font-mono text-[9px] uppercase text-slate-500">{cameraMode} camera</p>
-      </section>
-
       <footer className="absolute inset-x-5 bottom-5 flex items-center justify-between gap-3 border-t border-white/10 pt-4 tablet:inset-x-10 tablet:bottom-7">
         <p className="font-mono text-[8px] tracking-[0.1em] text-slate-500">
           <span className="text-teal-100/70">
-            {phase === 'flying' ? 'FLIGHT ACTIVE' : 'STANDBY'}
+            {busy ? 'HYPERDRIVE ACTIVE' : phase === 'flying' ? 'FLIGHT ACTIVE' : 'STANDBY'}
           </span>
-          <span className="ml-3 hidden tablet:inline">
+          {busy && (
+            <button
+              type="button"
+              aria-label="Abort jump"
+              onClick={() => session.exploration.cancelJump()}
+              className="pointer-events-auto ml-3 cursor-pointer text-slate-400 hover:text-cyan-100 focus-visible:outline-2 focus-visible:outline-focus"
+            >
+              ESC · ABORT
+            </button>
+          )}
+          <span className={busy ? 'hidden' : 'ml-3 hidden tablet:inline'}>
             {inputMode === 'mouse'
               ? 'MOUSE CAPTURED'
               : inputMode === 'keyboard'
