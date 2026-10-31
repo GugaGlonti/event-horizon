@@ -81,6 +81,16 @@ export class FlightCamera {
         .addScaledVector(this.up, strength * 0.55);
       camera.position.add(this.lastImpulse);
     }
+    if (!reducedMotion && !jump.busy && session.combat.simulation.impact > 0.01) {
+      const strength = session.combat.simulation.impact * 0.09;
+      const time = session.combat.simulation.time;
+      this.right.set(1, 0, 0).applyQuaternion(session.orientation);
+      this.up.set(0, 1, 0).applyQuaternion(session.orientation);
+      this.lastImpulse
+        .addScaledVector(this.right, Math.sin(time * 63) * strength)
+        .addScaledVector(this.up, Math.sin(time * 47) * strength * 0.7);
+      camera.position.add(this.lastImpulse);
+    }
     const fov = snap ? targetFov : MathUtils.damp(camera.fov, targetFov, config.fovDamping, dt);
     if (Math.abs(fov - camera.fov) > 0.001) {
       camera.fov = fov;

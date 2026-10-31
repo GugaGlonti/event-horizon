@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { type Group, PerspectiveCamera } from 'three';
+import { CombatScene } from '@/features/combat/components/CombatScene';
 import { HyperspaceTunnel } from '@/features/exploration/rendering/HyperspaceTunnel';
 import { SystemScene } from '@/features/exploration/rendering/SystemScene';
 import { FlightCamera } from '@/features/flight/camera/FlightCamera';
@@ -27,6 +28,8 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   useFrame((_, delta) => {
     session.advance(delta, reducedMotion);
     if (ship.current) {
+      ship.current.visible =
+        cameraMode === 'chase' && !session.combat.simulation.player.health.destroyed;
       ship.current.position.copy(session.renderPosition);
       ship.current.quaternion.copy(session.orientation);
     }
@@ -60,6 +63,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       </group>
       <Starfighter modelRef={ship} exhaustRef={exhaust} visible={cameraMode === 'chase'} />
       <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} session={session} />
+      <CombatScene session={session} />
       <HyperspaceTunnel session={session} />
     </>
   );
