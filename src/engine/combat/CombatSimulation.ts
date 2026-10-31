@@ -19,6 +19,7 @@ import {
 import { impactDamage } from './damage';
 import { ShipAi } from './ShipAi';
 import { leadTime } from './targeting';
+import { missileCanLock } from './weapons';
 
 /** Authoritative gameplay state. No renderer, browser, stores, clocks or async work. */
 export class CombatSimulation {
@@ -42,6 +43,7 @@ export class CombatSimulation {
   private readonly relativeVelocity = new Vector3();
   private readonly point = new Vector3();
   private readonly rotation = new Quaternion();
+  private readonly turn = new Quaternion();
   private hitFraction = 1;
   private hitShip: CombatShip | null = null;
   private hitDetected = false;
@@ -119,7 +121,8 @@ export class CombatSimulation {
       position: new Vector3().copy(position),
       team,
       age: 0,
-      lifetime: kind === 'explosion' ? 1.5 : kind === 'shot' ? 0.07 : 0.35,
+      lifetime:
+        kind === 'explosion' ? 1.5 : kind === 'detonation' ? 0.7 : kind === 'shot' ? 0.07 : 0.35,
     });
   }
 
@@ -152,7 +155,7 @@ export class CombatSimulation {
     if (this.projectiles.length >= 192) return;
     this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
     this.point
-      .set(ship.barrel * 2.65, 0, -6)
+      .set(ship.weapon === 1 ? ship.barrel * 2.65 : 0, ship.weapon === 2 ? -0.4 : 0, -6)
       .applyQuaternion(ship.orientation)
       .add(ship.position);
     ship.barrel *= -1;
@@ -162,7 +165,7 @@ export class CombatSimulation {
         : ship.team === 'hostile'
           ? this.player
           : undefined;
-    const config = ship.config.laser;
+    const config = ship.weapon === 2 ? ship.config.missile : ship.config.laser;
     ship.cooldown = config.interval;
     if (ship.weapon === 1 && target && !target.health.destroyed && config.aimAssistAngle > 0) {
       this.aim.subVectors(target.position, this.point);
@@ -183,8 +186,18 @@ export class CombatSimulation {
       radius: config.radius,
       life: config.lifetime,
     };
-    this.projectiles.push({ ...state, kind: 'gun' });
-    this.effect('shot', this.point, ship.team);
+    if (ship.weapon === 2)
+      this.projectiles.push({
+        ...state,
+        kind: 'missile',
+        targetId: missileCanLock(ship, target) ? (target?.id ?? null) : null,
+        heading: this.direction.clone(),
+        inheritedVelocity: ship.velocity.clone(),
+        speed: ship.config.missile.speed,
+        turnRate: ship.config.missile.turnRate,
+      });
+    else this.projectiles.push({ ...state, kind: 'gun' });
+    this.effect(ship.weapon === 2 ? 'missile-launch' : 'shot', this.point, ship.team);
   }
 
   /** Shared nearest-hit query. A zero motion fraction traces current collider positions. */
@@ -259,6 +272,25 @@ export class CombatSimulation {
       const shot = this.projectiles[index];
       if (!shot) continue;
       const travel = Math.min(dt, shot.life);
+      if (shot.kind === 'missile' && shot.targetId) {
+        const target = this.ships.get(shot.targetId);
+        if (!target || target.health.destroyed || target.team === shot.team) shot.targetId = null;
+        else {
+          this.aim.subVectors(target.position, shot.position);
+          this.relativeVelocity.subVectors(target.velocity, shot.inheritedVelocity);
+          const time = leadTime(this.aim, this.relativeVelocity, shot.speed, shot.life);
+          this.aim.addScaledVector(this.relativeVelocity, time).normalize();
+          const angle = Math.acos(Math.max(-1, Math.min(1, shot.heading.dot(this.aim))));
+          if (angle > 1e-8) {
+            this.rotation.setFromUnitVectors(shot.heading, this.aim);
+            this.turn
+              .identity()
+              .slerp(this.rotation, Math.min(1, (shot.turnRate * travel) / angle));
+            shot.heading.applyQuaternion(this.turn).normalize();
+          }
+          shot.velocity.copy(shot.heading).multiplyScalar(shot.speed).add(shot.inheritedVelocity);
+        }
+      }
       shot.previous.copy(shot.position);
       this.end.copy(shot.position).addScaledVector(shot.velocity, travel);
       this.trace(shot.position, this.end, shot.owner, shot.team, shot.radius, travel / dt);
@@ -266,7 +298,7 @@ export class CombatSimulation {
       shot.life -= dt;
       if (this.hitDetected) {
         if (this.hitShip) this.damage(this.hitShip, shot.damage);
-        this.effect('impact', shot.position, shot.team);
+        this.effect(shot.kind === 'missile' ? 'detonation' : 'impact', shot.position, shot.team);
       }
       if (this.hitDetected || shot.life <= 1e-9) this.projectiles.splice(index, 1);
     }

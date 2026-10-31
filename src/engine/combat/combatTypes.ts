@@ -16,13 +16,19 @@ export interface LaserConfig {
   readonly radius: number;
   readonly aimAssistAngle: number;
 }
-export type WeaponSlot = 1;
+export type WeaponSlot = 1 | 2;
+export interface MissileConfig extends LaserConfig {
+  readonly turnRate: number;
+  readonly lockRange: number;
+  readonly lockAngle: number;
+}
 export interface ShipConfig {
   readonly mass: number;
   readonly radius: number;
   readonly flight: FlightConfig;
   readonly defense: DefenseConfig;
   readonly laser: LaserConfig;
+  readonly missile: MissileConfig;
 }
 export interface AiConfig {
   readonly detectionRange: number;
@@ -116,10 +122,21 @@ interface ProjectileState {
   readonly radius: number;
   life: number;
 }
-export type Projectile = ProjectileState & { readonly kind: 'gun' };
+export type Projectile = ProjectileState &
+  (
+    | { readonly kind: 'gun' }
+    | {
+        readonly kind: 'missile';
+        targetId: string | null;
+        readonly heading: Vector3;
+        readonly inheritedVelocity: Vector3;
+        readonly speed: number;
+        readonly turnRate: number;
+      }
+  );
 export interface CombatEffect {
   readonly id: number;
-  readonly kind: 'shield' | 'impact' | 'explosion' | 'shot';
+  readonly kind: 'shield' | 'impact' | 'explosion' | 'shot' | 'missile-launch' | 'detonation';
   readonly position: Vector3;
   readonly team: CombatShip['team'];
   age: number;

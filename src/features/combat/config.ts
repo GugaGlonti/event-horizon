@@ -6,6 +6,17 @@ export const PLAYER_SHIP: ShipConfig = {
   radius: 5,
   flight: FLIGHT_CONFIG,
   defense: { shields: 100, hull: 100, regeneration: 10, regenerationDelay: 4 },
+  missile: {
+    interval: 1.4,
+    damage: 85,
+    speed: 320,
+    lifetime: 7,
+    radius: 0.9,
+    aimAssistAngle: 0,
+    turnRate: 1.6,
+    lockRange: 2200,
+    lockAngle: Math.PI / 3,
+  },
   laser: {
     interval: 0.14,
     damage: 16,
@@ -16,6 +27,7 @@ export const PLAYER_SHIP: ShipConfig = {
   },
 };
 export const ENEMY_SHIP: ShipConfig = {
+  missile: PLAYER_SHIP.missile,
   mass: 10,
   radius: 5,
   flight: { ...FLIGHT_CONFIG, maxSpeed: 135, acceleration: 36, maxAngularSpeed: [0.75, 0.7, 1.2] },
@@ -37,4 +49,7 @@ export const AI_CONFIG: AiConfig = {
 };
 export const ENCOUNTER_CONFIG = { enemies: 5, maximumEnemies: 10, asteroids: 8 } as const;
 
-export const WEAPON_CHOICES = [{ slot: 1, label: 'Gun' }] as const;
+export const WEAPON_CHOICES = [
+  { slot: 1, label: 'Gun' },
+  { slot: 2, label: 'Missiles' },
+] as const;
