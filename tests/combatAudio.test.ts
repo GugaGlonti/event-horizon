@@ -112,6 +112,27 @@ describe('combat mix and nearby traffic', () => {
     expect(context.close).toHaveBeenCalledOnce();
   });
 
+  it('crossfades early fallback engines to decoded recordings exactly once', () => {
+    const mix = new FlightAudioMix(),
+      audio = new CombatAudio(mix),
+      { frame, ships } = scene();
+    ships.set('near', ship('near', 80));
+    audio.unlock();
+    audio.update(frame, true);
+    const context = ContextStub.instances[0];
+    const buffer = mix.context?.createBuffer(2, 320, 32000);
+    if (!buffer || !context) throw new Error('Missing context.');
+    audio.update(frame, true, 1 / 60, false, buffer);
+    expect(context.sources).toHaveLength(2);
+    expect(context.sources[0]?.stop).toHaveBeenCalled();
+    expect(context.sources[1]?.buffer).toBe(buffer);
+    context.finishStopped();
+    audio.update(frame, true, 1 / 60, false, buffer);
+    expect(context.sources).toHaveLength(2);
+    audio.dispose();
+    mix.dispose();
+  });
+
   it('attenuates engines with distance and pans relative to the player heading', () => {
     const audio = new CombatAudio(),
       { frame, ships } = scene();

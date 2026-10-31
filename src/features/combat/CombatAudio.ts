@@ -84,6 +84,7 @@ export class CombatAudio {
     voice.panner.disconnect();
     voice.filter.disconnect();
     this.voices.delete(voice.source);
+    for (const [id, enemy] of this.enemies) if (enemy === voice) this.enemies.delete(id);
   }
   private release(voice: Voice, immediate = false) {
     if (voice.releasing && !immediate) return;
@@ -169,6 +170,11 @@ export class CombatAudio {
     }
     for (const ship of this.candidates) {
       let voice = this.enemies.get(ship.id);
+      if (voice && engine && voice.source.buffer !== engine) {
+        this.release(voice);
+        this.enemies.delete(ship.id);
+        voice = undefined;
+      }
       if (!voice) {
         const buffer = engine ?? this.fallback;
         if (!buffer) continue;
