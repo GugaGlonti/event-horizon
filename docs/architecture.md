@@ -270,6 +270,37 @@ journey; **Resume journey** continues it. Bounded dt prevents hidden-tab catch-u
 cancels travel and disables launch/map actions. Reset cancels first, then respawns in the current
 system. No queued callback may revive a disposed session.
 
+## Flight audio
+
+`FlightSession` composes a single `engine/audio/FlightAudioMix` with player engine and combat
+adapters. The mix owns the gesture-resumed context, engine/weapons/traffic channels, low-frequency
+filter and common compressor. Important weapon/hit activity ducks the two continuous beds with an
+18 ms attack and 240 ms release. Adapters dispose their own nodes; the session closes the shared
+context after disposing both. Hyperdrive audio remains a separately owned, mutually exclusive journey
+effect. Sound never gates physics, preparation or frame readiness.
+
+`EngineSoundModel` consumes a reused scalar input (actual throttle, requested thrust, speed,
+brake/translation, boost/reserve and camera). It adds audio-only spool inertia, single boost/release
+edges and a smooth cabin blend. Coasting does not imply thrust. `EngineAudio` fetches six local CC0
+stems without opening a context, caches decoding and mixes slightly offset twin turbines, machinery,
+boost, jets and short transients. Quiet sine reinforcement doubles as an asset-failure fallback.
+The mix has restrained idle/tonal levels, rolled-off highs and subtle boost modulation.
+Pause invalidates async attachment and schedules short gain fades/source stops; ended callbacks
+disconnect owned nodes. Fading voices count toward a hard cap, even when a suspended context delays
+ended callbacks. Teardown aborts fetching and releases caches. Settings survive reset.
+
+`CombatAudio` consumes a read-only structural audio projection supplied at composition, not stores
+or DOM input. Seven original filtered pressure/crack buffers are generated once per context. Effect
+IDs are consumed while muted; stale cues are skipped. Up to ten transient voices prioritize player
+hits/explosions over lower-priority distant fire. The three nearest moving hostile engines are
+selected within 1.1 km with small retention hysteresis; culled voices fade. The player turbine buffer
+can be shared without transferring its ownership; seeded pressure texture is the fallback.
+
+`SpatialAudioProjection` computes bounded listener-relative positions and a smooth inverse-distance
+envelope from logical coordinates, independent of render origin. HRTF panners supply direction;
+distance/rear low-pass filtering and a pitch shift capped at ±12% supply restrained flyby movement.
+No per-frame React/store updates, fresh audio buffers, or new audio context are needed.
+
 ## Input, overlays and accessibility
 
 The DOM interface uses phosphor/amber theme tokens and the bundled Share Tech Mono font. Shared

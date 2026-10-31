@@ -19,6 +19,7 @@ and landings remain future work; add them only when the current task requests th
 - `src/app`: application composition and error boundaries. Keep domain logic out.
 - `src/features/<feature>`: feature-owned components, controllers, logic, and types when needed.
 - `src/engine/rendering`: renderer policy and common graphics infrastructure.
+- `src/engine/audio`: shared gesture-unlocked normal-flight mix, channel headroom and cue ducking.
 - `src/engine/simulation`: browser/framework-independent flight math and bounded fixed-step clock.
   Three.js Vector3/Quaternion math is allowed here; rendering, React, DOM, and stores are not.
 - `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
@@ -29,6 +30,7 @@ and landings remain future work; add them only when the current task requests th
 - `src/engine/world`: serializable definitions, validation, analytical hierarchy/orbits, render origin.
 - `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
 - `src/features/flight`: session orchestration, configuration, interpolated presentation, cameras, HUD.
+  Player engine sound consumes reusable scalar snapshots; keep audio inertia separate from physics.
 - `src/features/exploration`: handcrafted catalogue, cancellable system preparation, journey orchestration,
   maps/navigation read models, hyperdrive presentation and recorded/synthesized audio adapter.
 - `src/features/planets`: shared procedural surface, atmosphere and ring rendering.
@@ -124,6 +126,11 @@ and landings remain future work; add them only when the current task requests th
   Stop/disconnect recorded and synthesized audio voices on abort. Cache decoded local stems across
   jumps; invalidate pending playback on cancellation and abort fetches/release buffers/context on
   teardown. Keep audio optional and independent of the journey clock. Keep effects reusable across jumps.
+- `FlightSession` owns the shared normal-flight audio mix. Engine/combat adapters receive it at
+  composition and dispose only their own voices; close the shared context after both adapters.
+  Keep three active enemy engine loops, with fading voices included in the overall cap. Project
+  audio in logical space and consume muted/paused effects without replaying them. Keep weapon/hit
+  cues above the engine bed.
 - Avoid per-frame allocations, unnecessary rerenders, and expensive graphics features without profiling.
 - Keep device pixel ratio bounded. Add LOD, richer terrain, adaptive quality or post-processing as
   focused future work, backed by measurements and an actual feature requirement.

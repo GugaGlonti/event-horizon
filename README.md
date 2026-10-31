@@ -166,6 +166,29 @@ Ship mass/radius/handling, defenses, gun/missile/railgun/flak stats, AI threshol
 `src/features/combat/config.ts`. The default is five enemies; configuration supports up to ten.
 There are no missions, factions, progression, network requests or combat persistence.
 
+## Spacecraft audio
+
+**Engine audio on/off** in the briefing controls the Kestrel's local machinery/reactor mix. Idle is
+restrained; W raises a twin-turbine bed, Shift adds boost pressure, release leaves a winding-down
+tail, and S activates pulsed braking jets. Strafe/lift/reverse commands use quieter translation
+jets. Sound follows actual throttle, boost reserve and commands; coasting speed does not sustain
+full engine noise. Cockpit mode smoothly softens the upper frequencies and overall level.
+
+Engine and combat sound share one gesture-unlocked Web Audio context, three channels and a common
+peak-control stage. Shots and player hits briefly lower engine/traffic levels with a smooth recovery.
+Gun, missile, railgun, flak, shield, impact and explosion cues use distinct short pressure/crack
+textures. No steady sawtooth alarm or continuous weapon tone is used.
+
+**Combat audio on/off** also controls nearby enemy engines and spatial enemy shots. At most three
+moving enemy ships are audible within 1.1 km; distance falloff, HRTF positioning, softer rear/distant
+sound and a bounded approach/recede pitch shift keep flybys directional without a constant crowd
+drone. Stationary practice targets have no engine loop. Headphones make direction easiest to judge.
+Pause, maps, destruction, reset and departure silence normal-flight audio; arrival restores it when
+keyboard flight resumes. Async sample loading never controls flight or revives cancelled playback.
+
+Engine stems use existing CC0 sources; weapons are original synthesized buffers. No new dependency
+or external service is needed. Source credits and offline preview commands are in [CREDITS.md](CREDITS.md).
+
 ## Hyperspace
 
 The galaxy map highlights your current system, shows destination details and its arrival anchor, and
@@ -332,7 +355,7 @@ embedded or automated browser rejects it.
   persistence. Reloading starts in Solara. There is no touch/gamepad piloting.
 - Hyperdrive audio uses transformed CC0 preview recordings (about 1.1 MB of local PCM assets) and a
   synthesized fallback. It is an original film-inspired interpretation; source fidelity is limited by
-  the public MP3 previews. Broader environmental/engine sound and post-processing remain future work.
+  the public MP3 previews. Broader environmental sound and post-processing remain future work.
 - Rendering continues while paused. Pixel ratio is bounded; geometry, buffers, and scratch vectors
   are reused. Approximately 60 FPS is a target, not a guarantee across hardware. Wider profiling and
   adaptive quality/LOD remain future work.
