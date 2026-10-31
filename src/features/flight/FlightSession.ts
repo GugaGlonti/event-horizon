@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import { FlightAudioMix } from '@/engine/audio/FlightAudioMix';
 import { FlightInputManager } from '@/engine/input/FlightInputManager';
 import { FixedStepLoop } from '@/engine/simulation/FixedStepLoop';
 import { FlightController } from '@/engine/simulation/FlightController';
@@ -12,6 +13,7 @@ import {
   createEngineSoundInput,
   engineTranslationEffort,
 } from '@/features/flight/audio/EngineSoundModel';
+import { loadEngineAssets } from '@/features/flight/audio/engineAssets';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { useCombatStore } from '@/stores/combatStore';
@@ -28,7 +30,9 @@ export class FlightSession {
   readonly orientation = new Quaternion();
   readonly exploration: ExplorationSession;
   readonly journey = new HyperspaceFlight();
-  readonly engineAudio = new EngineAudio();
+  private readonly audioMix = new FlightAudioMix();
+  private combatActivity = 0;
+  readonly engineAudio = new EngineAudio(loadEngineAssets, this.audioMix);
   private readonly engineSoundInput = createEngineSoundInput();
   readonly combat: CombatSession;
   private readonly previousPosition = new Vector3();
@@ -46,6 +50,7 @@ export class FlightSession {
 
   constructor() {
     this.combat = new CombatSession(this.controller, this.input);
+    this.combat.audio.connect(this.audioMix);
     this.exploration = new ExplorationSession({
       onPause: this.pause,
       onDepart: (direction) => {
@@ -152,6 +157,7 @@ export class FlightSession {
       this.exploration.dispose();
       this.engineAudio.dispose();
       this.combat.dispose();
+      this.audioMix.dispose();
       useFlightStore.getState().setRendererReady(false);
       if (this.manager === manager) this.manager = null;
     };
@@ -291,6 +297,7 @@ export class FlightSession {
       delta,
       state.engineSound && state.phase === 'flying' && !this.exploration.jump.busy,
     );
+    this.audioMix.update(this.combatActivity, delta);
   }
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
@@ -347,7 +354,11 @@ export class FlightSession {
     this.combat.audio.update(
       this.combat.simulation,
       useCombatStore.getState().sound && useFlightStore.getState().phase === 'flying',
+      delta,
+      state.cameraMode === 'cockpit',
+      this.engineAudio.trafficBuffer,
     );
+    this.combatActivity = this.combat.audio.activity;
     if (this.journey.active && this.exploration.jump.busy)
       this.journey.sample(this.exploration.jump, this.position, this.orientation, reducedMotion);
     this.origin.update(this.position);

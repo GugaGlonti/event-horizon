@@ -7,6 +7,8 @@ import type {
   CombatAudioFrame,
 } from '@/features/combat/audio/combatAudioTypes';
 import { CombatAudio } from '@/features/combat/CombatAudio';
+import { EngineAudio } from '@/features/flight/audio/EngineAudio';
+import { createEngineSoundInput } from '@/features/flight/audio/EngineSoundModel';
 import { ContextStub } from './helpers/audioStubs';
 
 function ship(id: string, distance = 0): AudioShip {
@@ -38,6 +40,32 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('combat mix and nearby traffic', () => {
+  it('shares one context with player engines and keeps the two mute paths independent', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({ ok: true, arrayBuffer: async () => new ArrayBuffer(16) })),
+    );
+    const mix = new FlightAudioMix(),
+      engine = new EngineAudio(undefined, mix),
+      combat = new CombatAudio(mix);
+    engine.unlock();
+    combat.unlock();
+    expect(ContextStub.instances).toHaveLength(1);
+    const context = ContextStub.instances[0];
+    engine.update(createEngineSoundInput(), 0.1, true);
+    await vi.waitFor(() => expect(context?.sources).toHaveLength(7));
+    const { frame, effects } = scene();
+    effects.push(effect(1));
+    combat.update(frame, true);
+    const shot = context?.sources.at(-1);
+    engine.stop();
+    expect(shot?.stop).not.toHaveBeenCalled();
+    engine.dispose();
+    combat.dispose();
+    expect(context?.close).not.toHaveBeenCalled();
+    mix.dispose();
+    expect(context?.close).toHaveBeenCalledOnce();
+  });
   it('plays each cue once, ducks the engine bed, and gives the mix a smooth release', () => {
     const mix = new FlightAudioMix(),
       audio = new CombatAudio(mix);
