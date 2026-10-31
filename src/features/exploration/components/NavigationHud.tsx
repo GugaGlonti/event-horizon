@@ -13,16 +13,17 @@ export function NavigationHud({ session }: { session: FlightSession }) {
   return (
     <section
       aria-label="Navigation target"
-      className="pointer-events-auto col-span-2 border border-line bg-console/95 tablet:col-span-1"
+      className="pointer-events-auto col-span-2 min-w-0 tablet:col-span-1 tablet:w-full tablet:max-w-88 tablet:justify-self-end"
     >
-      <div className="flex justify-between border-b border-line px-3 py-1.5 text-[10px] font-bold tracking-[0.12em] text-phosphor-dim">
-        <span>04 / navigation</span>
-        <span>{target ? 'TRACK' : 'FREE'}</span>
+      <div className="mb-2 flex items-center gap-2 text-[10px] tracking-[0.16em] text-phosphor-dim">
+        <span aria-hidden="true" className="h-px w-4 bg-phosphor/50" />
+        <span>Navigation</span>
+        <span className="ml-auto text-phosphor/60">{target ? 'TRACK' : 'FREE'}</span>
       </div>
-      <div className="flex items-center gap-3 px-3 py-2">
+      <div className="flex items-center gap-3">
         <svg
           viewBox="0 0 100 100"
-          className="size-16 shrink-0 text-phosphor tablet:size-23"
+          className="size-16 shrink-0 text-phosphor/80 tablet:size-20"
           fill="none"
           stroke="currentColor"
           strokeWidth="0.7"
@@ -50,10 +51,10 @@ export function NavigationHud({ session }: { session: FlightSession }) {
             aria-label="Choose navigation target"
             className="block w-full cursor-pointer text-left focus-visible:outline-2 focus-visible:outline-focus"
           >
-            <span className="block truncate text-sm font-bold tracking-wider text-phosphor">
+            <span className="block truncate text-base tracking-wider text-phosphor">
               {target?.name ?? 'No target'}
             </span>
-            <span className="mt-1 block text-[11px] text-instrument">
+            <span className="mt-1 block text-xs text-instrument">
               {target
                 ? `${formatDistance(navigation.surfaceDistance)} / SURFACE`
                 : 'L / SELECT CONTACT'}
