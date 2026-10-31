@@ -20,7 +20,7 @@ import {
 import { impactDamage } from './damage';
 import { ShipAi } from './ShipAi';
 import { leadTime } from './targeting';
-import { missileCanLock } from './weapons';
+import { flakDirection, missileCanLock } from './weapons';
 
 /** Authoritative gameplay state. No renderer, browser, stores, clocks or async work. */
 export class CombatSimulation {
@@ -130,7 +130,7 @@ export class CombatSimulation {
           ? 1.5
           : kind === 'detonation'
             ? 0.7
-            : kind === 'shot' || kind === 'railgun-shot'
+            : kind === 'shot' || kind === 'railgun-shot' || kind === 'flak-shot'
               ? 0.07
               : 0.35,
     });
@@ -163,7 +163,8 @@ export class CombatSimulation {
 
   private fire(ship: CombatShip) {
     if (ship.cooldown > 1e-9 || ship.health.destroyed) return;
-    if (ship.weapon !== 3 && this.projectiles.length >= 192) return;
+    const projectileCount = ship.weapon === 4 ? ship.config.flak.pellets : 1;
+    if (ship.weapon !== 3 && this.projectiles.length + projectileCount > 192) return;
     this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
     this.point
       .set(ship.weapon === 1 ? ship.barrel * 2.65 : 0, ship.weapon === 2 ? -0.4 : 0, -6)
@@ -196,6 +197,30 @@ export class CombatSimulation {
       if (this.hitShip) this.damage(this.hitShip, railgun.damage);
       if (this.hitDetected) this.effect('impact', this.end, ship.team);
       this.effect('railgun-shot', this.point, ship.team);
+      return;
+    }
+    if (ship.weapon === 4) {
+      const flak = ship.config.flak;
+      ship.cooldown = flak.interval;
+      const phase = this.sequence * 2.399963229728653;
+      for (let index = 0; index < flak.pellets; index++) {
+        flakDirection(index, flak.pellets, flak.spreadAngle, phase, this.direction).applyQuaternion(
+          ship.orientation,
+        );
+        this.projectiles.push({
+          id: ++this.sequence,
+          owner: ship.id,
+          team: ship.team,
+          kind: 'flak',
+          position: this.point.clone(),
+          previous: this.point.clone(),
+          velocity: this.direction.clone().multiplyScalar(flak.speed).add(ship.velocity),
+          damage: flak.damage,
+          radius: flak.radius,
+          life: flak.lifetime,
+        });
+      }
+      this.effect('flak-shot', this.point, ship.team);
       return;
     }
     const config = ship.weapon === 2 ? ship.config.missile : ship.config.laser;

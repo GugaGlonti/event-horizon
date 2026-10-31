@@ -2,7 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import { CombatSimulation } from '@/engine/combat/CombatSimulation';
 import type { CombatShip, Obstacle, ShipCommand, WeaponSlot } from '@/engine/combat/combatTypes';
-import { missileCanLock } from '@/engine/combat/weapons';
+import { flakDirection, missileCanLock } from '@/engine/combat/weapons';
 import { FixedStepLoop } from '@/engine/simulation/FixedStepLoop';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { AI_CONFIG, PLAYER_SHIP, PRACTICE_TARGET } from '@/features/combat/config';
@@ -199,7 +199,7 @@ describe('charged central railgun', () => {
     expect(world.player.railgunCharge).toBe(0);
     advance(world, 0.5, { ...idle, fire: true });
     expect(world.tracers).toHaveLength(0);
-    world.step({ ...idle, weapon: 2 }, dt);
+    world.step({ ...idle, weapon: 4 }, dt);
     world.step({ ...idle, weapon: 3 }, dt);
     expect(world.player.railgunCharge).toBe(0);
     advance(world, 0.5, { ...idle, fire: true });
@@ -250,8 +250,85 @@ describe('charged central railgun', () => {
   });
 });
 
+describe('flak scattergun', () => {
+  it('covers a finite cone evenly with a central pellet and deterministic directions', () => {
+    const directions = Array.from({ length: 12 }, (_, index) =>
+      flakDirection(index, 12, 0.14, 0.7, new Vector3()),
+    );
+    expect(directions[0]?.toArray()).toEqual([0, 0, -1]);
+    for (const direction of directions) {
+      expect(direction.length()).toBeCloseTo(1);
+      expect(direction.angleTo(new Vector3(0, 0, -1))).toBeLessThanOrEqual(0.14 + 1e-9);
+    }
+    expect(directions[11]?.angleTo(new Vector3(0, 0, -1))).toBeCloseTo(0.14);
+    expect(directions.some((direction) => direction.x < 0)).toBe(true);
+    expect(directions.some((direction) => direction.x > 0)).toBe(true);
+    expect(flakDirection(5, 12, 0.14, 0.7, new Vector3())).toEqual(directions[5]);
+  });
+  it('fires a 12-pellet burst from the rotated center with inherited velocity and a shared reload', () => {
+    const world = simulation();
+    const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.7);
+    world.player.controller.relocate(new Vector3(100000, 200, -100000), rotation, 90);
+    world.step({ ...idle, weapon: 4, fire: true }, dt);
+    expect(world.projectiles).toHaveLength(12);
+    expect(world.player.cooldown).toBe(0.75);
+    for (const pellet of world.projectiles) {
+      expect(pellet.kind).toBe('flak');
+      const local = pellet.position
+        .clone()
+        .sub(world.player.position)
+        .applyQuaternion(rotation.clone().invert());
+      expect(local.x).toBeCloseTo(0);
+      expect(local.y).toBeCloseTo(0);
+      expect(local.z).toBeCloseTo(-6);
+      expect(pellet.velocity.clone().sub(world.player.velocity).length()).toBeCloseTo(650);
+    }
+    world.step({ ...idle, weapon: 1, fire: true }, dt);
+    expect(world.projectiles).toHaveLength(12);
+    expect(world.effects.some((effect) => effect.kind === 'flak-shot')).toBe(true);
+  });
+  it('is powerful at close range and cannot reach a target beyond its short lifetime', () => {
+    const world = simulation(),
+      near = target(world, new Vector3(0, 0, -30));
+    world.step({ ...idle, weapon: 4, fire: true }, dt);
+    advance(world, 0.1);
+    expect(near.health.destroyed).toBe(true);
+    world.respawn();
+    const far = target(world, new Vector3(0, 0, -400));
+    world.step({ ...idle, weapon: 4, fire: true }, dt);
+    advance(world, 0.51);
+    expect(world.projectiles).toHaveLength(0);
+    expect(far.health.shields).toBe(30);
+  });
+  it('blocks every pellet on environment geometry before it can hit the target', () => {
+    const world = simulation(),
+      enemy = target(world);
+    world.obstacles.push(rock());
+    world.step({ ...idle, weapon: 4, fire: true }, dt);
+    advance(world, 0.2);
+    expect(world.projectiles).toHaveLength(0);
+    expect(enemy.health.shields).toBe(30);
+  });
+  it('reserves the entire salvo and stays under the projectile capacity', () => {
+    const world = simulation();
+    const command = { ...idle, weapon: 4 as const, fire: true };
+    for (let index = 0; index < 16; index++) {
+      world.player.cooldown = 0;
+      world.step(command, dt);
+    }
+    expect(world.projectiles).toHaveLength(192);
+    world.projectiles.pop();
+    world.player.cooldown = 0;
+    world.step(command, dt);
+    expect(world.projectiles).toHaveLength(191);
+    expect(world.player.cooldown).toBe(0);
+    world.clearEncounter();
+    expect(world.projectiles).toHaveLength(0);
+  });
+});
+
 describe('fixed-step weapon replay', () => {
-  it.each([1, 2, 3] as const)(
+  it.each([1, 2, 3, 4] as const)(
     'replays slot %s identically at 30/60/144 render FPS',
     (weapon: WeaponSlot) => {
       function replay(fps: number) {

@@ -25,6 +25,16 @@ export const PLAYER_SHIP: ShipConfig = {
     radius: 0.25,
     duration: 0.25,
   },
+  flak: {
+    interval: 0.75,
+    damage: 10,
+    speed: 650,
+    lifetime: 0.5,
+    radius: 0.25,
+    aimAssistAngle: 0,
+    pellets: 12,
+    spreadAngle: 0.14,
+  },
   laser: {
     interval: 0.14,
     damage: 16,
@@ -37,6 +47,7 @@ export const PLAYER_SHIP: ShipConfig = {
 export const ENEMY_SHIP: ShipConfig = {
   missile: PLAYER_SHIP.missile,
   railgun: PLAYER_SHIP.railgun,
+  flak: PLAYER_SHIP.flak,
   mass: 10,
   radius: 5,
   flight: { ...FLIGHT_CONFIG, maxSpeed: 135, acceleration: 36, maxAngularSpeed: [0.75, 0.7, 1.2] },
@@ -62,4 +73,5 @@ export const WEAPON_CHOICES = [
   { slot: 1, label: 'Gun' },
   { slot: 2, label: 'Missiles' },
   { slot: 3, label: 'Railgun' },
+  { slot: 4, label: 'Flak scattergun' },
 ] as const;
