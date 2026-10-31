@@ -9,7 +9,7 @@ import {
   type HyperdriveAssetLoader,
   type HyperdriveStem,
   loadHyperdriveAssets,
-} from './hyperdriveAssets';
+} from '@/features/exploration/audio/hyperdriveAssets';
 
 type Stems = Record<HyperdriveStem, AudioBuffer>;
 interface Loop {

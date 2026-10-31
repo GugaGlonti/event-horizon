@@ -26,7 +26,7 @@ landings remain future work; add them only when the current task requests them.
 - `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
 - `src/features/flight`: session orchestration, configuration, interpolated presentation, cameras, HUD.
 - `src/features/exploration`: handcrafted catalogue, cancellable system preparation, journey orchestration,
-  maps/navigation read models, hyperdrive presentation and synthesized audio adapter.
+  maps/navigation read models, hyperdrive presentation and recorded/synthesized audio adapter.
 - `src/features/planets`: shared procedural surface, atmosphere and ring rendering.
 - `src/features/spacecraft`: replaceable procedural model and engine visuals; no simulation imports.
 - `src/components/ui`: reusable DOM UI with no feature or engine dependencies.
@@ -111,7 +111,9 @@ landings remain future work; add them only when the current task requests them.
   shared resources or recreate geometry in the frame loop.
 - Each SystemScene explicitly owns/disposes its shared sphere geometry; primitive geometry attachments
   are external resources. Fiber disposes body materials/rings and per-scene declarative resources.
-  Dispose synthesized audio nodes/context on teardown. Keep effects reusable across jumps.
+  Stop/disconnect recorded and synthesized audio voices on abort. Cache decoded local stems across
+  jumps; invalidate pending playback on cancellation and abort fetches/release buffers/context on
+  teardown. Keep audio optional and independent of the journey clock. Keep effects reusable across jumps.
 - Avoid per-frame allocations, unnecessary rerenders, and expensive graphics features without profiling.
 - Keep device pixel ratio bounded. Add LOD, richer terrain, adaptive quality or post-processing as
   focused future work, backed by measurements and an actual feature requirement.

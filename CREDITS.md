@@ -48,6 +48,17 @@ The output is 32 kHz stereo PCM16 WAV (about 1.1 MB total), supported by browser
 an additional codec library. `assets/manifest.json` records durations, levels and derivative hashes.
 Raw source downloads are not part of the repository.
 
+For offline listening comparisons, add an explicit stem output directory and a preview directory:
+
+```sh
+node scripts/build-hyperdrive-audio.mjs /path/to/decoded-sources /tmp/hyperdrive-stems /tmp/hyperdrive-previews
+```
+
+This creates balanced, heavy and restrained full-jump WAV previews. Balanced approximates the default
+in-game mix; the others are authoring comparisons, not additional game settings. Previews omit the
+live compressor, parameter smoothing and quiet synthesized reinforcement, so they are not browser
+output captures.
+
 ## Interface font
 
 Share Tech Mono is bundled in `public/fonts/`. Its SIL Open Font License is included there.

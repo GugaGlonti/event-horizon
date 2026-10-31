@@ -25,7 +25,7 @@ T selects the next contact, including the moon Lyra. L opens
 the local system map; M opens the galaxy map. Select Vesper and choose **Engage hyperdrive**.
 
 No API keys, external services, or separate asset downloads are required. **No dependencies were added
-for Milestone 3.** All celestial definitions, shaders, synthesized audio, and interface assets are local.
+for Milestone 3.** All celestial definitions, shaders, audio, and interface assets are local.
 
 The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
@@ -137,9 +137,12 @@ restrained FOV changes and a quiet cruise; the cockpit stays attached to the cra
 
 The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief
 arrival notice after exit. Normal flight instruments return with control. A central prompt appears
-only when a journey is held after losing focus. Optional synthesized audio layers motor harmonics,
-mechanical charge chatter, stereo rushing air, bass impacts and short latch transients. The exit cue
-follows the visual reveal, and a compressor controls peaks. Disable audio in the galaxy map.
+only when a journey is held after losing focus. Optional audio layers edited CC0 machinery and motor
+recordings: a rising spool, a phased stereo transit bed, and distinct entry/exit relay and pressure
+impacts. Quiet synthesized bass reinforces the recordings; synthesis also provides a fallback if
+loading/decoding fails. The exit cue follows the visual reveal, and a compressor controls peaks.
+Disable audio in the galaxy map. Bundled sound sources, licences and the offline processing recipe
+are documented in [CREDITS.md](CREDITS.md).
 
 Arrival preserves engine reserve, trip distance, assistance and camera choice, handing back a
 controlled 100 m/s forward motion with matching throttle. Hold W to accelerate after arrival;
@@ -191,6 +194,7 @@ src/features/
     data/systems.ts       Handcrafted catalogue and cancellable bundled-definition loader
     ExplorationSession.ts Preparation, jump lifecycle, system commit, navigation publication
     HyperdriveAudio.ts    Gesture-started layered jump audio and cleanup
+    audio/                Local CC0 stems, cached decoding and recorded voice lifetime
     components/           Galaxy/local maps, target HUD, journey status
     rendering/            System scene composition and GPU hyperspace effect
   flight/                 Input/session lifetime, interpolation, camera, HUD, tuning
@@ -226,7 +230,8 @@ Automated tests cover flight/input behavior plus definitions, invalid parents/cy
 orbits, coordinate round-trips/rebases, target selection/bearings/distances, safe arrival selection,
 all jump phases, invalid destinations, cancellation, async failure/late completion, timeout,
 focus/visibility, reset/disposal, camera independence and bounded recoil, arrival state, keyboard
-restoration, and audio cue timing/suspension/cleanup.
+restoration, audio cue timing/suspension/cleanup, async audio cancellation/cache reuse and bundled
+PCM levels/loop boundaries.
 
 Browser playtesting covers launching in Solara, tracking/flying toward Lyra, both maps, the
 Solara → Vesper → Aether → Solara journey, cockpit/chase modes, input suppression and re-entry,
@@ -238,8 +243,9 @@ embedded or automated browser rejects it.
   and beacons are visual references and can be flown through.
 - Bundled procedural systems are prepared in memory; there is no network asset streaming or save-game
   persistence. Reloading starts in Solara. There is no touch/gamepad piloting.
-- Procedural hyperdrive audio; broader environmental and normal-flight sound remain future work.
-  No downloaded audio assets or post-processing stack.
+- Hyperdrive audio uses transformed CC0 preview recordings (about 1.1 MB of local PCM assets) and a
+  synthesized fallback. It is an original film-inspired interpretation; source fidelity is limited by
+  the public MP3 previews. Broader environmental/normal-flight sound and post-processing remain future work.
 - Rendering continues while paused. Pixel ratio is bounded; geometry, buffers, and scratch vectors
   are reused. Approximately 60 FPS is a target, not a guarantee across hardware. Wider profiling and
   adaptive quality/LOD remain future work.

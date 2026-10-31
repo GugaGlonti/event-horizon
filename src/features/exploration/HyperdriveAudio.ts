@@ -4,7 +4,7 @@ import {
   type HyperspaceController,
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
-import { HyperdriveRecordings } from './audio/HyperdriveRecordings';
+import { HyperdriveRecordings } from '@/features/exploration/audio/HyperdriveRecordings';
 
 /** Gesture-started recorded machinery, with a quiet synthesized bed and an asset-failure fallback. */
 export class HyperdriveAudio {

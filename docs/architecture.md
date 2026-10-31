@@ -131,16 +131,26 @@ bounded 12-second deadlines. The first 14% of exit remains opaque; coverage fall
 0.1 seconds), coordinated with star contraction, a restrained exposure crest and the exit impulse.
 The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
 distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
-in flight/config.ts and the full swept corridor uses those same bounds. All assets are procedural
-geometry/shaders. The old keyed SystemScene releases its owned resources.
+in flight/config.ts and the full swept corridor uses those same bounds. Celestial and spacecraft
+assets use procedural geometry/shaders. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
 Camera mode, assistance and engine reserve survive. The arrival notice lasts three seconds. Charge is
 a small HUD readout; transit has no central overlay or phase percentages. A held journey shows explicit
-resume/abort controls. Layered motor harmonics, filtered mechanical chatter and seeded stereo noise
-feed a compressor. Ignition/exit add bass sweeps, filtered air bursts and short latch tones, once each.
+resume/abort controls. `HyperdriveAudio` owns the gesture-resumed context and master compressor.
+`audio/HyperdriveRecordings` fetches four bundled CC0 WAV stems on mount without opening a context,
+then decodes/caches them per context. Spool pitch rises through charge; its loop crossfades into a
+phased machinery bed across ignition. Recorded entry/exit pressure and relay attacks fire once each.
 Exit audio waits for reveal progress, including while renderer readiness holds the scene opaque.
-Suspension mutes the master; abort/teardown stop and disconnect every voice and release buffers.
+Quiet motor/sub synthesis reinforces the recordings; the existing full synthesized mix remains the
+fallback on fetch/decode failure. No audio promise gates simulation or renderer readiness.
+
+Suspension mutes the master and defers cue triggering until explicit resume. Abort stops/disconnects
+all voices and invalidates late decode callbacks; encoded/decoded buffers survive for the next jump.
+Teardown additionally aborts fetching, releases caches and closes the context. A missed sampled cue
+uses synthesis immediately and is never replayed when decoding finishes. The next mount can prepare
+again, including React Strict Mode remounts. `CREDITS.md` records source/derivative provenance and the
+deterministic Node authoring recipe; there is no runtime audio dependency or third-party request.
 
 Failure before commit keeps the source runtime and current cinematic pose. HYPERSPACE readiness has a 12-second deadline.
 Cancel before commit retains the source; cancel after commit holds at the destination. Both paths
