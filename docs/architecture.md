@@ -107,11 +107,12 @@ normal physics never integrates hyperspeed. Abort adopts the currently displayed
 
 The 1.3-second entry gives stars a buildup and a clear hold: full extension by 48%, ignition at 55%,
 and tunnel reveal after 72%. The cubic forward surge and camera/audio impact share the ignition
-threshold, keeping the actual launch under 0.6 seconds. Star positions morph into the corridor only
-under tunnel coverage, so extending them does not replace the visible realspace star pattern early.
-Peripheral trails lengthen roughly 2–3 times. Each trail keeps its bright head at the original star and
-extends only outward, fading toward the screen edge. At zero stretch its original point footprint is
-preserved. The mature corridor retains short trails, and exit timing stays sharp.
+threshold, keeping the actual launch under 0.6 seconds. Each visible star anchors its own outward
+trail through the stretch hold, with varied lengths/widths, a white core and a soft blue edge. A bounded
+analytical sweep moves the existing sky outward at ignition; no particles recycle or morph to another
+layout. The stars fade under increasing tunnel coverage, with one brief exposure crest as they dissolve
+into broad blue cloud walls. Exit contracts the same field back into points. `hyperspaceVisuals` owns
+the continuous stretch, travel and exposure envelopes; reduced motion suppresses all three effects.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
 `routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of
@@ -159,19 +160,23 @@ not an exact camera-space lock-on reticle.
 One reusable celestial shader supports ocean/cloud, desert, ice, volcanic, banded and cratered
 patterns. Normals and a CPU-updated star direction provide day/night light. Atmospheres use a Fresnel
 limb; stars use emissive surface/corona. Rings combine fine radial bands, transparency and an analytic
-planet shadow. Per-system ambient light and seeded nebula/starfield vary the mood.
+planet shadow. Per-system ambient light and seeded nebula backgrounds vary the mood.
 
 Each mounted SystemScene owns one shared SphereGeometry, attached to bodies/atmospheres as external
 primitives and explicitly disposed on scene teardown. Fiber owns declarative per-body materials,
 rings, sky, ship, cockpit, dust, beacons and tunnel buffers. There are no render targets, external
 textures, models or post-processing dependencies. Sky and hyperdrive components reuse geometry and
-uniform references between frames. The 2400-star billboard field uses each point's original position
-for its trail; under tunnel coverage it morphs into a system-independent camera-space corridor layout.
-Destination seed changes therefore stay invisible in transit. Trails contract into the actual new
-sky during exit. Buffers change only with system seed, never per frame.
+uniform references between frames. One persistent 12,000-star galactic catalogue supplies point and
+trail billboards across all systems. Its 48,000 vertices fit 16-bit indices. The normal sky already
+contains every star used by the jump, and the same angular pattern survives the world handoff. Buffers
+depend only on sky radius, never system seed or frame time. Trail dimensions use CSS viewport pixels;
+there is no separate corridor particle layout, time loop or accumulating star simulation.
 
-The tunnel shader uses nested ray/cylinder wall samples and periodic angular noise, avoiding the
-atan seam. Its transparent depth-tested mask draws after celestial transparency (order 10), preserving
+The tunnel shader uses nested ray/cylinder cloud samples and periodic angular noise, avoiding the
+atan seam. Broad cloud walls replace narrow procedural filaments, so the tunnel introduces no extra
+streaks. A camera-relative point light and ambient blue light connect the foreground to the exposure
+crest and cloud corridor. Both are declarative scene resources. The transparent depth-tested mask
+draws after celestial transparency (order 10), preserving
 nearby opaque ship/cockpit depth. Star trails draw next (20), with bounded virtual depth during transit;
 foreground exhaust draws last (30). This hides rings/atmospheres as well as opaque planets without
 covering the spacecraft. These are ordered scene draws, with no render targets or post-processing.

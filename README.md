@@ -37,8 +37,9 @@ for Milestone 3.** All celestial definitions, shaders, and synthesized audio are
 Reusable shaders provide ocean/land/cloud patterns, desert strata, icy fractures, volcanic seams,
 crater-like variation, and gas bands. Planets have day/night lighting and axial rotation. Optional
 Fresnel atmospheres brighten toward the limb; banded translucent rings receive a planet shadow.
-System palettes, ambient light, nebula backgrounds, and seeded starfields give each destination its own
-appearance. Moons follow deterministic inclined orbits. Planet positions are deliberately fixed.
+System palettes, ambient light and seeded nebula backgrounds give each destination its own
+appearance. A shared distant starfield preserves the galactic sky across journeys. Moons follow
+deterministic inclined orbits. Planet positions are deliberately fixed.
 
 ## Controls
 
@@ -99,13 +100,15 @@ exit coast and frame the primary world at a readable distance.
 
 Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` samples bounded local
 trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
-The same stars stretch on entry and contract into the destination sky on exit. Entry holds fully
-extended trails for about 0.3 seconds before the tunnel reveal; peripheral trails are roughly 2–3 times
-longer, with shorter central streaks. Each bright star anchors a trail that extends and fades outward
-toward the screen edge. Ignition, forward motion and the camera kick stay concentrated in
-the final 0.6 seconds. The fully developed corridor layout is shared across systems, hiding the
-seeded-sky replacement. The camera carries its
-relative pose across the system switch, with brief ignition/exit transients and a quiet cruise.
+A persistent 12,000-star sky supplies every entry streak. Entry holds fully extended trails for about
+0.3 seconds before the tunnel reveal. Varied lengths, widths, white cores and soft blue edges give the
+outward trails density without filling the center with crossing lines. Bright points stay anchored
+through the stretch hold, then sweep outward once at ignition. There is no replacement particle field
+or recycled stream of new streaks. The stars dissolve through a brief exposure crest into a soft blue
+cloud corridor; camera-side light catches the ship and cockpit through the transition. Exit contracts
+the same sky back into points. Ignition, forward motion and the camera kick stay concentrated in the
+final 0.6 seconds. The camera carries its relative pose across the masked system switch, with brief
+ignition/exit transients and a quiet cruise.
 
 The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief
 arrival notice after exit. Normal flight instruments return with control. A central prompt appears
