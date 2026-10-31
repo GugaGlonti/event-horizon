@@ -1,53 +1,126 @@
 import { useFrame } from '@react-three/fiber';
-import { useRef } from 'react';
-import { DoubleSide, type Mesh } from 'three';
-import { advanceAngle } from '@/engine/simulation/rotation';
+import { useMemo, useRef } from 'react';
+import {
+  AdditiveBlending,
+  BackSide,
+  Color,
+  DoubleSide,
+  type Group,
+  type Mesh,
+  type SphereGeometry,
+  Vector3,
+} from 'three';
+import type { RenderOrigin } from '@/engine/world/RenderOrigin';
+import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import type { CelestialDefinition } from '@/engine/world/worldTypes';
+import {
+  atmosphereFragment,
+  celestialVertex,
+  ringFragment,
+  surfaceFragment,
+} from '@/features/planets/rendering/celestialShaders';
 import { useRotationEnabled } from '@/hooks/useRotationEnabled';
 
-const RING_BANDS = [
-  { inner: 2.75, outer: 2.79, color: '#8e7864', opacity: 0.3 },
-  { inner: 2.88, outer: 3.14, color: '#a18a70', opacity: 0.75 },
-  { inner: 3.17, outer: 3.36, color: '#b4a18c', opacity: 0.85 },
-  { inner: 3.4, outer: 3.46, color: '#6c6056', opacity: 0.6 },
-  { inner: 3.56, outer: 3.88, color: '#9a8774', opacity: 0.75 },
-  { inner: 3.92, outer: 4.08, color: '#756857', opacity: 0.45 },
-  { inner: 4.15, outer: 4.18, color: '#ad9980', opacity: 0.3 },
-] as const;
+const patterns = { ocean: 0, desert: 1, ice: 2, volcanic: 3, bands: 4, cratered: 5 };
 
-export function CelestialBody() {
-  const body = useRef<Mesh>(null);
-  const rotationEnabled = useRotationEnabled();
+export function CelestialBody({
+  body,
+  world,
+  origin,
+  geometry,
+}: {
+  body: CelestialDefinition;
+  world: SystemRuntime;
+  origin: RenderOrigin;
+  geometry: SphereGeometry;
+}) {
+  const group = useRef<Group>(null);
+  const surface = useRef<Mesh>(null);
+  const rotating = useRotationEnabled();
+  const starId = world.definition.bodies.find((candidate) => candidate.kind === 'star')?.id ?? '';
+  const uniforms = useMemo(
+    () => ({
+      uA: { value: new Color(body.surface.palette[0]) },
+      uB: { value: new Color(body.surface.palette[1]) },
+      uC: { value: new Color(body.surface.palette[2]) },
+      uLight: { value: new Vector3(1, 0, 0) },
+      uSeed: { value: body.surface.seed },
+      uPattern: { value: patterns[body.surface.pattern] },
+      uStar: { value: body.kind === 'star' ? 1 : 0 },
+      uBrightness: { value: body.surface.brightness },
+      uAmbient: { value: world.definition.environment.ambient },
+      uColor: { value: new Color(body.atmosphere?.color ?? body.surface.palette[0]) },
+      uStrength: { value: body.kind === 'star' ? 0.8 : (body.atmosphere?.strength ?? 0) },
+    }),
+    [body, world],
+  );
+  const rings = useMemo(
+    () => ({
+      uColor: { value: new Color(body.rings?.color ?? '#ffffff') },
+      uInner: { value: body.rings?.inner ?? 1 },
+      uOuter: { value: body.rings?.outer ?? 2 },
+      uRadius: { value: body.radius },
+      uLight: uniforms.uLight,
+      uCenter: { value: new Vector3() },
+    }),
+    [body, uniforms],
+  );
 
-  useFrame((_, delta) => {
-    if (body.current && rotationEnabled) {
-      body.current.rotation.y = advanceAngle(body.current.rotation.y, 0.065, delta);
+  useFrame(() => {
+    const position = world.positions.get(body.id);
+    const star = world.positions.get(starId);
+    if (!group.current || !position) return;
+    origin.toRender(position, group.current.position);
+    group.current.visible = group.current.position.lengthSq() < 60000 ** 2;
+    if (!group.current.visible) {
+      group.current.position.set(0, 0, 0);
+      return;
     }
+    if (star && body.kind !== 'star') uniforms.uLight.value.copy(star).sub(position).normalize();
+    rings.uCenter.value.copy(group.current.position);
+    if (surface.current)
+      surface.current.rotation.y = rotating ? world.time * body.rotation.speed : 0;
   });
 
   return (
-    <group rotation={[0.15, 0, -0.28]}>
-      <mesh ref={body}>
-        <icosahedronGeometry args={[2.15, 4]} />
-        <meshStandardMaterial color="#9a8170" roughness={0.92} metalness={0.08} flatShading />
-      </mesh>
-      <group rotation={[-Math.PI / 2, 0, 0]}>
-        {RING_BANDS.map((band) => (
-          <mesh key={band.inner}>
-            <ringGeometry args={[band.inner, band.outer, 160]} />
-            <meshStandardMaterial
-              color={band.color}
-              roughness={1}
+    <group ref={group} scale={body.radius}>
+      <group rotation={[0, 0, body.rotation.tilt]}>
+        <mesh ref={surface}>
+          <primitive object={geometry} attach="geometry" />
+          <shaderMaterial
+            vertexShader={celestialVertex}
+            fragmentShader={surfaceFragment}
+            uniforms={uniforms}
+          />
+        </mesh>
+        {body.rings && (
+          <mesh rotation={[-Math.PI / 2 + body.rings.tilt, 0, 0]}>
+            <ringGeometry args={[body.rings.inner, body.rings.outer, 192]} />
+            <shaderMaterial
+              vertexShader={celestialVertex}
+              fragmentShader={ringFragment}
+              uniforms={rings}
               side={DoubleSide}
               transparent
-              opacity={band.opacity}
+              depthWrite={false}
             />
           </mesh>
-        ))}
-        <mesh>
-          <ringGeometry args={[5.05, 5.055, 192]} />
-          <meshBasicMaterial color="#7d8a96" transparent opacity={0.16} side={DoubleSide} />
-        </mesh>
+        )}
       </group>
+      {(body.atmosphere || body.kind === 'star') && (
+        <mesh scale={body.kind === 'star' ? 1.2 : (body.atmosphere?.scale ?? 1.04)}>
+          <primitive object={geometry} attach="geometry" />
+          <shaderMaterial
+            vertexShader={celestialVertex}
+            fragmentShader={atmosphereFragment}
+            uniforms={uniforms}
+            side={BackSide}
+            blending={AdditiveBlending}
+            transparent
+            depthWrite={false}
+          />
+        </mesh>
+      )}
     </group>
   );
 }

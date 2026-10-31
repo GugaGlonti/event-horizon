@@ -43,15 +43,7 @@ export const GAME_CONFIG = {
     far: 65000,
   },
   environment: {
-    planetPosition: [-750, 280, -2400] as const,
-    planetScale: 180,
     starRadius: 18000,
     starSize: 9,
-    gateDistances: [160, 350, 650, 1050, 1600, 2300] as const,
-    gateRadius: 16,
-    dustCount: 1200,
-    dustWidth: 1800,
-    dustHeight: 900,
-    dustDepth: 3600,
   },
 } as const;

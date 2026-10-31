@@ -7,7 +7,7 @@ export default function SpaceScene({ session }: { session: FlightSession }) {
   return (
     <SceneCanvas
       onReady={session.markReady}
-      label="Interactive spacecraft flight environment near Aster"
+      label="Interactive galaxy exploration environment"
       cameraSettings={{
         position: [...GAME_CONFIG.camera.chaseOffset],
         fov: GAME_CONFIG.camera.chaseFov,

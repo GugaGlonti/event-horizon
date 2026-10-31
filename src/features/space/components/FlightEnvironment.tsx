@@ -1,59 +1,69 @@
-import { useMemo } from 'react';
-import { GAME_CONFIG } from '@/features/flight/config';
-import { CelestialBody } from '@/features/planets/components/CelestialBody';
+import { useFrame } from '@react-three/fiber';
+import { useMemo, useRef } from 'react';
+import { type BufferAttribute, DoubleSide, type Group, Vector3 } from 'three';
+import type { RenderOrigin } from '@/engine/world/RenderOrigin';
+import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 
-const config = GAME_CONFIG.environment;
-
-function createDust() {
-  const data = new Float32Array(config.dustCount * 3);
-  // Stable local scenery; no work or allocation during simulation ticks.
-  let seed = 6849;
-  const random = () => {
-    seed = (seed * 16807) % 2147483647;
-    return seed / 2147483647;
-  };
-  for (let index = 0; index < config.dustCount; index += 1) {
-    data[index * 3] = (random() - 0.5) * config.dustWidth;
-    data[index * 3 + 1] = (random() - 0.5) * config.dustHeight;
-    data[index * 3 + 2] = 200 - random() * config.dustDepth;
-  }
-  return data;
-}
-
-export function FlightEnvironment() {
-  const dust = useMemo(createDust, []);
+/** Periodic world-anchored dust and approach beacons remain bounded across origin shifts. */
+export function FlightEnvironment({
+  world,
+  origin,
+}: {
+  world: SystemRuntime;
+  origin: RenderOrigin;
+}) {
+  const beacons = useRef<Group>(null);
+  const dust = useRef<BufferAttribute>(null);
+  const arrival = useMemo(() => new Vector3().fromArray(world.arrival().position), [world]);
+  const lastOrigin = useMemo(() => new Vector3(Number.NaN, 0, 0), []);
+  const field = useMemo(() => {
+    let seed = world.definition.environment.seed;
+    return Float32Array.from({ length: 2100 }, () => {
+      seed = (seed * 1664525 + 1013904223) >>> 0;
+      return (seed / 4294967296) * 4000;
+    });
+  }, [world]);
+  const positions = useMemo(() => new Float32Array(field.length), [field]);
+  useFrame(() => {
+    if (beacons.current) {
+      origin.toRender(arrival, beacons.current.position);
+      beacons.current.visible = beacons.current.position.lengthSq() < 60000 ** 2;
+      if (!beacons.current.visible) beacons.current.position.set(0, 0, 0);
+    }
+    if (lastOrigin.equals(origin.position) || !dust.current) return;
+    for (let index = 0; index < field.length; index += 3) {
+      positions[index] =
+        (((((field[index] ?? 0) - origin.position.x) % 4000) + 4000) % 4000) - 2000;
+      positions[index + 1] =
+        (((((field[index + 1] ?? 0) - origin.position.y) % 4000) + 4000) % 4000) - 2000;
+      positions[index + 2] =
+        (((((field[index + 2] ?? 0) - origin.position.z) % 4000) + 4000) % 4000) - 2000;
+    }
+    dust.current.needsUpdate = true;
+    lastOrigin.copy(origin.position);
+  });
   return (
     <>
-      <ambientLight color="#bccfdf" intensity={0.6} />
-      <directionalLight position={[-5, 5, 6]} color="#ffdfb5" intensity={3.2} />
-      <directionalLight position={[2, 1, -5]} color="#8aaac8" intensity={0.9} />
-      <group position={config.planetPosition} scale={config.planetScale}>
-        <CelestialBody />
-      </group>
-      <points>
+      <points frustumCulled={false}>
         <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[dust, 3]} />
+          <bufferAttribute ref={dust} attach="attributes-position" args={[positions, 3]} />
         </bufferGeometry>
-        <pointsMaterial size={0.4} color="#8caaa9" transparent opacity={0.55} depthWrite={false} />
+        <pointsMaterial color="#b9d9e9" size={0.85} transparent opacity={0.3} depthWrite={false} />
       </points>
-      {config.gateDistances.map((distance, index) => (
-        <group key={distance} position={[0, 0, -distance]}>
-          <mesh>
-            <torusGeometry args={[config.gateRadius, 0.18, 6, 64]} />
-            <meshBasicMaterial color="#3d7779" />
+      <group ref={beacons}>
+        {[180, 400, 680].map((distance) => (
+          <mesh key={distance} position={[0, 0, -distance]}>
+            <ringGeometry args={[23.8, 24, 64]} />
+            <meshBasicMaterial
+              color={world.definition.environment.accent}
+              transparent
+              opacity={0.2}
+              side={DoubleSide}
+              depthWrite={false}
+            />
           </mesh>
-          {[-1, 1].map((side) => (
-            <mesh key={side} position={[side * config.gateRadius, 0, 0]}>
-              <boxGeometry args={[0.65, 3, 0.65]} />
-              <meshStandardMaterial
-                color="#65777b"
-                emissive={index % 2 ? '#c08248' : '#65bbb6'}
-                emissiveIntensity={1.2}
-              />
-            </mesh>
-          ))}
-        </group>
-      ))}
+        ))}
+      </group>
     </>
   );
 }
