@@ -43,8 +43,11 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       const dt = Math.min(delta, GAME_CONFIG.maxFrameTime);
       cameraController.update(camera, session, cameraMode, dt, reducedMotion);
       if (cockpit.current) {
-        cockpit.current.position.copy(camera.position);
-        cockpit.current.quaternion.copy(camera.quaternion);
+        cockpit.current.position
+          .fromArray(GAME_CONFIG.camera.cockpitOffset)
+          .applyQuaternion(session.orientation)
+          .add(session.renderPosition);
+        cockpit.current.quaternion.copy(session.orientation);
       }
     }
   }, -2);

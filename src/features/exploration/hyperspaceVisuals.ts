@@ -2,6 +2,7 @@ import {
   entrySurge,
   HYPERSPACE_ENTRY,
   HYPERSPACE_EXIT,
+  HYPERSPACE_TIMING,
   type HyperspaceController,
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
@@ -40,4 +41,35 @@ export function jumpExposure(jump: HyperspaceController) {
     );
   if (jump.phase !== 'ACCELERATING') return 0;
   return smoothRamp(0.7, 0.87, jump.progress) * (1 - smoothRamp(0.87, 1, jump.progress));
+}
+
+function impactAge(jump: HyperspaceController) {
+  if (jump.phase === 'ACCELERATING')
+    return jump.elapsed - HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart;
+  if (jump.phase === 'HYPERSPACE')
+    return jump.elapsed + HYPERSPACE_TIMING.ACCELERATING * (1 - HYPERSPACE_ENTRY.ignitionStart);
+  if (jump.phase === 'EXITING')
+    return jump.elapsed - HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealStart;
+  return -1;
+}
+
+/** A short damped recoil carries continuously through ignition into the corridor. */
+export function jumpRecoil(jump: HyperspaceController) {
+  const age = impactAge(jump);
+  if (age < 0) return 0;
+  return (
+    Math.sin(age * 23) *
+    Math.exp(-age * 9) *
+    (1 - smoothRamp(0.3, 0.65, age)) *
+    (jump.phase === 'EXITING' ? -0.65 : 1)
+  );
+}
+
+export function jumpRattle(jump: HyperspaceController) {
+  const age = impactAge(jump);
+  if (age < 0) return 0;
+  const envelope = Math.exp(-age * 18) * (1 - Math.exp(-age * 60));
+  return (
+    (Math.sin(age * 71) + Math.sin(age * 137) * 0.45) * envelope * (1 - smoothRamp(0.3, 0.65, age))
+  );
 }

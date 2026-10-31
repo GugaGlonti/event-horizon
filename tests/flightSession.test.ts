@@ -103,6 +103,30 @@ describe('flight presentation boundaries', () => {
     expect(camera.fov).toBeGreaterThan(GAME_CONFIG.camera.cockpitFov);
   });
 
+  it('gives the cockpit a bounded impulse without accumulation, then settles or suppresses it', () => {
+    const session = new FlightSession();
+    const camera = new PerspectiveCamera();
+    const rig = new FlightCamera();
+    const jump = session.exploration.jump;
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = 0.8;
+    const baseline = session.renderPosition
+      .clone()
+      .add(new Vector3(...GAME_CONFIG.camera.cockpitOffset));
+    rig.update(camera, session, 'cockpit', 1 / 120, false);
+    const offset = camera.position.clone().sub(baseline);
+    expect(offset.length()).toBeGreaterThan(0.01);
+    expect(offset.length()).toBeLessThan(0.2);
+    for (let frame = 0; frame < 30; frame++) rig.update(camera, session, 'cockpit', 0, false);
+    expect(camera.position.clone().sub(baseline).distanceTo(offset)).toBeLessThan(1e-8);
+    rig.update(camera, session, 'cockpit', 1 / 120, true);
+    expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
+    jump.phase = 'HYPERSPACE';
+    jump.elapsed = 1;
+    rig.update(camera, session, 'cockpit', 1 / 120, false);
+    expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
+  });
+
   it('keeps cinematic camera lag bounded while the departure crosses render-origin cells', () => {
     const session = new FlightSession();
     const camera = new PerspectiveCamera();

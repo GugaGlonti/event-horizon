@@ -7,6 +7,8 @@ import {
 import {
   jumpExposure,
   jumpKick,
+  jumpRattle,
+  jumpRecoil,
   jumpStarTravel,
   jumpStretch,
 } from '@/features/exploration/hyperspaceVisuals';
@@ -40,6 +42,8 @@ describe('hyperspace visual timing', () => {
     const previous = [
       jumpStretch(jump),
       jumpKick(jump),
+      jumpRecoil(jump),
+      jumpRattle(jump),
       jumpStarTravel(jump),
       jumpExposure(jump),
       jump.coverage,
@@ -50,6 +54,8 @@ describe('hyperspace visual timing', () => {
     const next = [
       jumpStretch(jump),
       jumpKick(jump),
+      jumpRecoil(jump),
+      jumpRattle(jump),
       jumpStarTravel(jump),
       jumpExposure(jump),
       jump.coverage,

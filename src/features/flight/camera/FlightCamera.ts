@@ -1,6 +1,6 @@
 import { MathUtils, type PerspectiveCamera, Vector3 } from 'three';
 import { smoothRamp } from '@/engine/navigation/HyperspaceController';
-import { jumpKick } from '@/features/exploration/hyperspaceVisuals';
+import { jumpKick, jumpRattle, jumpRecoil } from '@/features/exploration/hyperspaceVisuals';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
@@ -14,6 +14,8 @@ export class FlightCamera {
   private readonly movement = new Vector3();
   private readonly right = new Vector3();
   private readonly up = new Vector3();
+  private readonly back = new Vector3();
+  private readonly lastImpulse = new Vector3();
   private jumping = false;
   private mode: CameraMode | null = null;
   private resetVersion = -1;
@@ -29,6 +31,8 @@ export class FlightCamera {
     const jump = session.exploration.jump;
     if (jump.busy && session.exploration.isSuspended) dt = 0;
     const kick = reducedMotion ? 0 : jumpKick(jump);
+    camera.position.sub(this.lastImpulse);
+    this.lastImpulse.set(0, 0, 0);
     camera.position.add(this.previousOrigin).sub(session.origin.position);
     this.previousOrigin.copy(session.origin.position);
     if (jump.busy && this.jumping) {
@@ -39,11 +43,9 @@ export class FlightCamera {
     this.targetPosition.fromArray(offset);
     if (mode === 'chase') {
       this.targetPosition.multiplyScalar(Math.max(1, config.narrowScreenAspect / camera.aspect));
-      this.targetPosition.z += kick * 4;
       if (jump.phase === 'EXITING')
         this.targetPosition.z +=
           (JUMP_MOTION.exitSpeed / config.positionDamping) * smoothRamp(0.25, 1, jump.progress);
-      this.targetPosition.y += kick * 0.35;
     }
     this.targetPosition.applyQuaternion(session.orientation).add(session.renderPosition);
     const snap =
@@ -69,17 +71,15 @@ export class FlightCamera {
           config.hyperspaceFov * kick +
           jump.coverage * 3);
     if (!reducedMotion && jump.busy) {
-      const strength = kick * config.hyperspaceVibration;
+      const strength = jumpRattle(jump) * config.hyperspaceVibration;
       this.right.set(1, 0, 0).applyQuaternion(session.orientation);
       this.up.set(0, 1, 0).applyQuaternion(session.orientation);
-      camera.position.addScaledVector(
-        this.right,
-        Math.sin(session.exploration.world.time * 53) * strength,
-      );
-      camera.position.addScaledVector(
-        this.up,
-        Math.cos(session.exploration.world.time * 47) * strength,
-      );
+      this.back.set(0, 0, 1).applyQuaternion(session.orientation);
+      this.lastImpulse.addScaledVector(this.back, jumpRecoil(jump) * config.hyperspaceRecoil[mode]);
+      this.lastImpulse
+        .addScaledVector(this.right, strength)
+        .addScaledVector(this.up, strength * 0.55);
+      camera.position.add(this.lastImpulse);
     }
     const fov = snap ? targetFov : MathUtils.damp(camera.fov, targetFov, config.fovDamping, dt);
     if (Math.abs(fov - camera.fov) > 0.001) {
