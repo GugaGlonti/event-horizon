@@ -1,190 +1,215 @@
 # Event Horizon
 
-A browser-based 3D flight and space simulator, built one system at a time.
+A browser-based space flight, combat, and exploration game, built one system at a time.
 
-**Phase 1: Foundation.** The starting experience is an orbital observatory: a softly lit, rotating
-ringed world against a starfield. Drag to orbit, scroll or pinch to zoom, and use the overlay to pause
-rotation, toggle stars, or restore the camera. Aster is a fictional artist's study, not a physical model.
-No flight or gameplay systems are implemented yet.
+**Milestone 2 — Spacecraft flight.** Pilot the original Kestrel starfighter near the ringed world Aster.
+Adjust throttle, bank and turn, engage boost, and switch between chase and cockpit views. Illuminated
+navigation rings and local dust provide movement references. This milestone is single-player free
+flight; combat, networking, AI, landings, and hyperspace are not implemented.
 
 ## Stack
 
-| Technology                           | Role                                        |
-| ------------------------------------ | ------------------------------------------- |
-| TypeScript 7, strict mode            | Application and tooling types               |
-| React 19 + Vite 8                    | UI, development server, production bundling |
-| Three.js 0.182 + React Three Fiber 9 | WebGL 2 scene and React renderer            |
-| Drei 10                              | Orbit camera utilities                      |
-| Zustand 5                            | Discrete scene and UI state                 |
-| Tailwind CSS 4                       | UI utilities and styling integration        |
-| Biome 2                              | Linting, import organization, formatting    |
-| Vitest 5                             | Unit tests running in Node                  |
+| Technology                           | Role                                                              |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| TypeScript 7, strict mode            | Application, simulation, and tooling types                        |
+| React 19 + Vite 8                    | UI, development server, production bundling                       |
+| Three.js 0.182 + React Three Fiber 9 | 3D math and WebGL 2 rendering                                     |
+| Drei 10                              | Available Three.js utilities; no extra flight dependency required |
+| Zustand 5                            | Discrete session choices and sampled HUD telemetry                |
+| Tailwind CSS 4                       | HUD, menus, responsive layout, interaction states                 |
+| Biome 2 + Vitest 5                   | Formatting, linting, and Node-based unit tests                    |
 
-Exact resolved versions are recorded in `package-lock.json`. React and React Three Fiber must be
-upgraded together; consult the [Fiber compatibility guide](https://r3f.docs.pmnd.rs/getting-started/introduction).
-Three.js is intentionally pinned to r182: stable Fiber 9 still constructs `THREE.Clock`, which logs a
-deprecation warning in r183 and later ([upstream issue](https://github.com/pmndrs/react-three-fiber/issues/3741)).
-Reevaluate this pin when a stable Fiber release migrates to `Timer`; keep the Three.js types aligned.
+Resolved versions are in `package-lock.json`. React and Fiber must be upgraded together; see the
+[Fiber compatibility guide](https://r3f.docs.pmnd.rs/getting-started/introduction). Three.js is pinned to
+r182 because stable Fiber 9 still constructs `Clock`, deprecated in r183 and later
+([upstream issue](https://github.com/pmndrs/react-three-fiber/issues/3741)). Reevaluate the pin when a
+stable Fiber release migrates to `Timer`, and update the Three types together.
 
-## Get started
+## Start flying
 
-Prerequisites: **Node.js 22.12+ on the 22.x line, or Node.js 24+**, npm 10+, and a modern browser with
-WebGL 2 and hardware acceleration. `.nvmrc` selects Node 22. Prefer a supported Node LTS release.
+Requires **Node.js 22.12+ on the 22.x line, or Node.js 24+**, npm 10+, and a desktop keyboard with a
+modern WebGL 2 browser. Hardware acceleration is recommended. `.nvmrc` selects Node 22.
 
 ```bash
-nvm use                    # optional, if using nvm
-npm ci                     # install the committed dependency graph
+nvm use                    # optional, with nvm
+npm ci
 npm run dev
 ```
 
-Open the Local URL printed by Vite (normally `http://127.0.0.1:5173`). There are no required environment
-variables, API keys, network services, models, fonts, or external texture downloads.
+Open the Local URL printed by Vite (normally `http://127.0.0.1:5173`). Choose **Fly with mouse** to
+request pointer lock, or **Keyboard flight** to steer with arrows. The ship starts stationary in chase
+view. Hold W to raise throttle; releasing W holds that setting. There are no API keys, external models,
+fonts, textures, or services to configure. No new dependencies were needed for this milestone.
 
-The scene supports mouse and touch orbiting, wheel/pinch zooming, and keyboard-accessible toolbar
-buttons. Automatic rotation respects `prefers-reduced-motion` until the user explicitly presses Resume.
-Resizing reframes the object, including on portrait screens. WebGL startup failures show a readable
-fallback. The observation camera is the only camera in this phase.
+## Controls
+
+| Input          | Action                                                   |
+| -------------- | -------------------------------------------------------- |
+| Mouse movement | Pitch/yaw; steering gently recenters when movement stops |
+| Arrow keys     | Alternative pitch/yaw in either input mode               |
+| Q / E          | Roll left/right                                          |
+| W / S          | Increase/decrease throttle                               |
+| Shift          | Hold for temporary engine boost                          |
+| Space          | Hold to brake; stored throttle is preserved              |
+| C              | Switch chase/cockpit camera                              |
+| F              | Toggle flight assistance                                 |
+| Esc            | Pause simulation and release the mouse                   |
+
+**Controls** opens the pause/controls reference. The camera and assistance also have keyboard-focusable
+HUD buttons. **Reset flight** in the briefing returns the craft and camera to the starting point,
+restores engine reserve, and clears momentum; camera and assistance preferences are preserved.
+
+Boost lasts about four seconds from a full reserve and recharges after a delay. After depletion,
+release Shift and let reserve reach at least 18% to rearm. Excess boost speed decays back toward the
+cruise limit. Braking overrides thrust and boost; engines accelerate again when the brake is released
+if throttle is still open. Flight assistance damps lateral drift and angular momentum. With assistance
+off, the ship retains drift and rotation; use counter-steering or the brake to regain control.
+
+Escape, window blur, hiding the tab, pointer-lock release, and renderer errors pause flight. Resume is
+explicit. If mouse capture is blocked or unsupported, choose Keyboard flight. Mouse capture requires a
+user gesture and depends on browser support ([Pointer Lock API](https://developer.mozilla.org/en-US/docs/Web/API/Pointer_Lock_API)).
 
 ## Commands
 
-| Command              | Behavior                                                         |
-| -------------------- | ---------------------------------------------------------------- |
-| `npm run dev`        | Start Vite with hot module replacement                           |
-| `npm run build`      | Type-check both TS projects, then produce `dist/`                |
-| `npm run preview`    | Serve the built `dist/` locally; build first                     |
-| `npm run lint`       | Check formatting, imports, and recommended Biome rules           |
-| `npm run format`     | Apply formatting, import organization, and safe lint fixes       |
-| `npm run typecheck`  | Check application, tests, and Vite config with strict TypeScript |
-| `npm run test`       | Run all unit tests once; suitable for CI                         |
-| `npm run test:watch` | Run tests interactively                                          |
-| `npm run check`      | Run lint, tests, and a type-checked production build             |
+| Command              | Behavior                                            |
+| -------------------- | --------------------------------------------------- |
+| `npm run dev`        | Vite server with hot module replacement             |
+| `npm run build`      | Strict type check, then production build to `dist/` |
+| `npm run preview`    | Serve the built `dist/` locally; build first        |
+| `npm run lint`       | Biome formatting/import/lint checks                 |
+| `npm run format`     | Apply formatting, import organization, safe fixes   |
+| `npm run typecheck`  | Check app, tests, and Vite configuration            |
+| `npm run test`       | Run all unit tests once                             |
+| `npm run test:watch` | Interactive test runner                             |
+| `npm run check`      | Lint, tests, and a type-checked production build    |
 
-CI runs `npm ci`, lint, tests, and the production build on pushes and pull requests. The preview server
-is for local validation; production hosting can serve `dist/` as static files. Hosting is not configured.
+CI runs npm ci, lint, tests, and the production build. Hosting is not configured; `dist/` can be served
+as static files. The preview server is for local verification.
 
-## Project structure
+## Structure and architecture
 
 ```text
-public/assets/                     Local static assets (currently the favicon)
 src/
-  app/                             App composition and renderer error boundary
-  components/ui/                   Shared DOM UI: icons and scene messages
+  app/                             Composition, session lifetime, renderer error boundary
+  components/ui/                   Shared DOM messages and icons
   engine/
-    rendering/                     Canvas, renderer settings, initial camera configuration
-    simulation/                    Pure, framework-independent animation math
+    input/FlightInputManager.ts    Keyboard/pointer-lock adapter and cleanup
+    simulation/FlightController.ts Flight state, quaternion integration, thrust, damping, boost
+    simulation/FixedStepLoop.ts    Bounded fixed-timestep accumulator
+    simulation/flightTypes.ts      Input, tuning, read-only scalar telemetry contracts
+    rendering/SceneCanvas.tsx      Renderer policy and configurable camera startup
   features/
-    planets/components/            Reference celestial body and its visual rotation
-    space/components/              Scene composition, orbit camera, scene toolbar
-  hooks/                           Motion preference and effective rotation subscriptions
-  stores/                          Zustand scene settings and camera reset requests
-  styles/                          Tailwind theme, responsive variants, and global base defaults
-  main.tsx                         React entry point
-  vite-env.d.ts                    Client environment declarations
-tests/                             Rotation behavior and scene-state unit tests
-docs/architecture.md               Boundaries, performance guidance, extension points
-AGENTS.md                          Repository instructions for AI-assisted development
+    flight/
+      config.ts                    Central flight, input, timing, camera, environment tuning
+      FlightSession.ts             Input → fixed ticks → interpolated render pose → sampled HUD
+      camera/                      Presentation-only camera following
+      components/                  Flight world, cockpit framing, HUD, controls menu
+    spacecraft/components/         Original procedural model and engine plumes
+    space/components/              Scene composition, stars, stationary environment references
+    planets/components/            Reference ringed planet
+  hooks/                           Reduced-motion and visual-rotation subscriptions
+  stores/                          Flight UI state, sampled telemetry, visual scene preferences
+  styles/                          Tailwind theme/variants and global defaults
+public/assets/                     Local favicon
+tests/                            Simulation, timing, input, session/camera, scene-state tests
+docs/architecture.md              Ownership, units, timing, resource and extension guidance
+AGENTS.md                          Instructions for AI-assisted development
 ```
 
-Flight, spacecraft, input, hyperdrive, provider, and shared type directories should be added when they
-have real responsibilities. Empty scaffolding and speculative abstractions are intentionally absent.
+Simulation uses metres, seconds, and radians. Local forward is **-Z**, up **+Y**, right **+X**.
+`FlightController` uses Three.js vectors/quaternions but has no React, DOM, WebGL, store, clock, or
+randomness dependency. It accepts a configuration and input snapshot with explicit dt. Its internal
+vectors are private; render poses are copied and telemetry contains only read-only scalar values.
 
-## Architecture
+`FlightSession` runs simulation at **120 Hz**, caps catch-up to **0.1 seconds / 12 ticks**, and discards
+suspension backlog. Rendering interpolates previous/current transforms. The camera follows that render
+pose and cannot affect physics. The HUD receives snapshots at **10 Hz**. No per-frame React state
+updates or transient transforms are sent through Zustand. See [architecture notes](docs/architecture.md).
 
-`App` composes the DOM overlay and lazily loads `SpaceScene`. `SceneCanvas` owns renderer policy and
-the initial camera configuration. Feature components own visible scene objects and orbit input.
-`engine/simulation/rotation.ts` contains pure angle integration and has no React or Three.js dependency.
-See [the architecture notes](docs/architecture.md) for how future systems should connect.
-
-Zustand stores low-frequency user choices. Components select individual fields rather than subscribing
-to the entire store. Animated object transforms live in Three.js refs and change inside `useFrame`.
-Never put per-frame position, velocity, or camera telemetry into React state.
-
-The reference world uses declarative geometries and materials that Fiber disposes on unmount. Drei
-owns its orbit controls; the local starfield also uses declarative geometry and material. Pixel ratio
-is capped to limit GPU load on dense displays.
-Rotation uses seconds rather than frame counts and caps large frame gaps. A fixed-timestep gameplay
-loop, floating origin, LOD, atmosphere, shader pipeline, and post-processing are future work.
+The procedural model is separate from simulation and can later be replaced with a GLTF model facing
+-Z. Chase view damps position/orientation, fits narrow screens, and varies FOV with speed. Cockpit view attaches to the
+interpolated craft pose and hides the external model. Reduced motion disables speed-based FOV and
+automatic planet rotation; steering and essential ship motion remain available.
 
 ## Roadmap
 
 ### Phase 1 — Foundation
 
-- [x] Project initialization and modular architecture
-- [x] Interactive basic 3D scene
-- [x] Development tooling, tests, CI, and contributor documentation
+- [x] Modular architecture and basic scene
+- [x] Strict tooling, unit tests, CI, contributor documentation
 
 ### Phase 2 — Flight
 
-- [ ] Spacecraft controls
-- [ ] Flight camera
-- [ ] Movement physics with fixed-timestep simulation
-- [ ] Cockpit HUD
+- [x] Keyboard and pointer-lock input, keyboard-only fallback
+- [x] Throttle, acceleration, inertia, quaternion steering, brake, boost, optional assistance
+- [x] Fixed-step simulation with interpolated rendering
+- [x] Chase and cockpit cameras, procedural spacecraft, engine glow
+- [x] Responsive flight HUD, pause, controls reference, reset
+- [ ] Wider hardware playtesting and flight-feel tuning
 
 ### Phase 3 — Planetary Systems
 
-- [ ] Procedural planets
-- [ ] Atmospheres
-- [ ] Space environments
-- [ ] Planetary approach and departure
+- [ ] Procedural planets and atmospheres
+- [ ] Richer space environments
+- [ ] Planetary approach/departure and landings
 
 ### Phase 4 — Hyperdrive
 
-- [ ] Hyperdrive charging
-- [ ] Warp visual effects
-- [ ] Star system navigation
-- [ ] Cinematic transitions
+- [ ] Charging, warp effects, star-system navigation, cinematic transitions
 
 ### Phase 5 — Polish
 
-- [ ] Audio
-- [ ] Visual effects
-- [ ] Performance optimization
-- [ ] Improved UI/UX
+- [ ] Audio, visual effects, performance profiling, improved UI/UX
+
+Combat, multiplayer, and AI will be separate future milestones. The simulation boundary supports later
+server reuse; no authority, synchronization, prediction, or reconciliation protocol is implemented.
 
 ## Development conventions
 
-- Inspect the existing modules and `AGENTS.md` before changing code. Extend established patterns.
-- Use feature-local components and colocate types with their owners; extract only when reused.
-- Use PascalCase for React components and camelCase for hooks, functions, and non-component modules.
-- Use the `@/` alias for source imports and explicit `import type` for type-only dependencies.
-- Prefer Tailwind utilities in components for UI styling, including responsive, focus, and motion
-  variants. Keep `src/styles/index.css` for shared theme tokens, custom variants, and global defaults;
-  use custom CSS only when it expresses an effect more clearly. Reuse components or static class
-  strings instead of rebuilding utility styles as CSS component classes.
-- Keep strict typing, two-space indentation, LF line endings, and a target line width of 100 characters.
-- Favor small modules, composition, named exports, and pure simulation functions. The lazy-loaded
-  scene has a default export for `React.lazy`.
-- Add behavior tests for math, simulation, state transitions, or regressions; avoid snapshots of 3D
-  implementation details. Unit tests do not validate GPU rendering.
-- After a change, run the relevant checks and inspect visual changes in a browser.
-- Keep this README, architecture notes, and AI instructions aligned with the actual implementation.
+- Inspect existing code and `AGENTS.md`; extend patterns and avoid unrelated refactors.
+- Keep components small and feature-local; use composition and colocated types.
+- Maintain strict typing, explicit type imports, `@/` aliases, two-space indentation, and ~100-column lines.
+- Prefer Tailwind utilities for UI layout, colors, typography, states, and responsive behavior. Keep CSS
+  for theme tokens, variants, global defaults, and effects that are clearer there. Use inline styles
+  only for runtime values such as a telemetry meter's scale.
+- Keep gameplay parameters in `features/flight/config.ts`. Do not couple simulation to browser input,
+  React, the renderer, or UI stores. Never integrate spacecraft orientation using Euler angles.
+- Reuse scratch vectors/quaternions in hot paths. Fiber owns declarative geometries/materials; manually
+  created GPU resources need explicit, documented disposal ownership.
+- Test behavior and regressions. Verify visual/input changes in a browser. Report checks actually run.
+- Keep README, architecture notes, and agent instructions accurate.
+- Use npm and commit the matching lockfile. Add dependencies only for an immediate requirement.
 
-No environment file is required. If configuration is added, copy `.env.example` to `.env.local`, use
-the `VITE_` prefix, and declare each variable in `src/vite-env.d.ts`. These values are public and embedded
-at build time. Never put secrets in them or commit local `.env` files.
+No environment file is required. Future browser configuration must use `VITE_`, be explicitly typed in
+`src/vite-env.d.ts`, and have safe examples in `.env.example`. Client variables are public at build time;
+never put secrets there or commit local `.env` files.
 
-Install only dependencies needed by the current feature. Use npm and commit the matching lockfile.
-Potential future additions, **not installed**, include `@react-three/rapier` for collision/rigid-body
-physics, `@react-three/postprocessing` for effects, `@react-three/gltfjsx` as a model-conversion tool,
-and a browser test runner when repeatable end-to-end coverage is needed. Evaluate each against actual
-requirements before adding it.
+Potential future additions, **not installed**, include `@react-three/rapier` for collisions,
+`@react-three/postprocessing` for effects, `@react-three/gltfjsx` for asset conversion, and a browser test
+runner for repeatable end-to-end input tests. Evaluate actual requirements before adding them.
 
-## Known limitations
+## Verification and limitations
 
-- This is a scene foundation, not a playable flight simulator. There is no spacecraft, physical orbit,
-  collision, navigation, procedural planet system, audio, backend, persistence, or asset pipeline.
-- The observation camera offers pointer/touch controls; a dedicated keyboard/gamepad flight input
-  system and full nonvisual interaction with the 3D world are not implemented.
-- Visual rotation is variable-step. The capped delta deliberately discards background-tab time;
-  it is unsuitable as a gameplay clock or an authoritative simulation.
-- The canvas renders continuously while mounted, including when rotation is paused. Low-power and
-  demand-rendering modes should be measured and introduced when needed.
-- Star positions are random per scene mount and remain stable when toggled. State is session-only
-  and resets on page reload. Camera reset preserves the rotation and star settings.
-- The 3D renderer is the largest initial scene download, though it loads separately from the UI shell.
-  Vite reports its standard large-chunk advisory for this WebGL bundle. There is no WebGPU or non-WebGL
-  visual equivalent; unsupported browsers receive a message.
-- WebGL capability and GPU performance vary. Mobile devices and graphics-context loss need broader
-  hardware testing before production release.
+Node tests cover acceleration/deceleration, throttle and speed bounds, boost exhaustion/recharge,
+quaternion steering and normalization, assistance, 20/30/60/144 FPS replay equivalence, catch-up limits,
+input cleanup and pointer-lock failures, reset, camera separation, reduced-motion FOV, and HUD cadence.
+They do not validate GPU behavior or replace playtesting. Input lifecycle tests use lightweight browser
+adapter stubs rather than a real pointer-lock implementation.
+
+- This is an arcade flight model, not an aerodynamic or orbital physics simulation.
+- No combat, networking, AI, gravity, collisions, damage, landings, hyperspace, or audio exists yet.
+  Rings and the planet are visual references and can be flown through.
+- The reference corridor and local dust occupy a finite area. Free flight is unbounded; use Reset
+  flight after leaving the scene. Floating origin, streaming, and large-coordinate precision remain
+  future work. There is no touch or gamepad piloting yet.
+- Pointer capture may be unavailable in embedded browsers or restricted contexts. Keyboard flight
+  remains usable. Native pointer-lock success still needs manual verification in a supported browser
+  if an automated browser rejects the request.
+- Identical fixed-step input replays are tested locally; cross-platform determinism, server input
+  validation, state serialization, prediction, and reconciliation are future networking work.
+- The scene renders continuously while mounted, even when flight is paused. GPU/device performance
+  needs broader measurement; approximately 60 FPS is a target, not a certified hardware guarantee.
+- Vite reports its large-chunk advisory for the Three.js application/scene bundles. Unsupported WebGL
+  browsers receive a fallback; automatic graphics-context recovery is not implemented.
 
 Licensed under [MIT](LICENSE).
