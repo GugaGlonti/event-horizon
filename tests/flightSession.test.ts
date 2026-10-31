@@ -1,5 +1,5 @@
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { FlightCamera } from '@/features/flight/camera/FlightCamera';
 import { GAME_CONFIG } from '@/features/flight/config';
@@ -116,5 +116,34 @@ describe('flight presentation boundaries', () => {
       rig.update(camera, session, 'chase', 1 / 60, false);
       expect(camera.position.distanceTo(session.renderPosition)).toBeLessThan(20);
     }
+  });
+
+  it('preserves the camera offset and FOV across the masked system handoff', async () => {
+    const session = new FlightSession();
+    const camera = new PerspectiveCamera();
+    const rig = new FlightCamera();
+    session.exploration.selectDestination('vesper');
+    session.exploration.beginJump();
+    await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
+    const revision = session.resetVersion;
+    let committed = false;
+    for (let frame = 0; frame < 1500; frame += 1) {
+      const previous = session.exploration.jump.phase;
+      const offset = camera.position.clone().sub(session.renderPosition);
+      const fov = camera.fov;
+      session.advance(1 / 120);
+      rig.update(camera, session, 'chase', 1 / 120, false);
+      if (previous === 'HYPERSPACE' && session.exploration.jump.phase === 'EXITING') {
+        expect(session.resetVersion).toBe(revision);
+        expect(camera.position.clone().sub(session.renderPosition).distanceTo(offset)).toBeLessThan(
+          0.01,
+        );
+        expect(Math.abs(camera.fov - fov)).toBeLessThan(0.2);
+        committed = true;
+        break;
+      }
+    }
+    expect(committed).toBe(true);
+    session.exploration.dispose();
   });
 });

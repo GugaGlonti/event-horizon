@@ -16,17 +16,23 @@ function createStars(radius: number, seed: number) {
   const seeds = new Float32Array(STAR_COUNT * 4);
   const indices = new Uint16Array(STAR_COUNT * 6);
   let value = seed;
+  let tunnelSeed = 1201;
   const random = () => {
     value = (value * 1664525 + 1013904223) >>> 0;
     return value / 4294967296;
+  };
+  const tunnelRandom = () => {
+    tunnelSeed = (tunnelSeed * 1664525 + 1013904223) >>> 0;
+    return tunnelSeed / 4294967296;
   };
   for (let i = 0; i < STAR_COUNT; i += 1) {
     const y = random() * 2 - 1;
     const angle = random() * Math.PI * 2;
     const horizontal = Math.sqrt(1 - y * y) * radius;
-    const brightness = ((i * 1664525 + 1013904223) >>> 0) / 4294967296;
-    const tunnelAngle = i * 2.399963;
-    const tunnelRadius = radius * Math.sqrt(((i * 16807) % 2147) / 2147);
+    const brightness = tunnelRandom();
+    const tunnelAngle = tunnelRandom() * Math.PI * 2;
+    const tunnelRadius = radius * Math.sqrt(tunnelRandom());
+    const tunnelDepth = -radius * (0.3 + tunnelRandom() * 0.7);
     for (let corner = 0; corner < 4; corner += 1) {
       const vertex = i * 4 + corner;
       positions.set(
@@ -36,11 +42,7 @@ function createStars(radius: number, seed: number) {
       corners.set([corner === 0 || corner === 3 ? -1 : 1, corner < 2 ? -1 : 1], vertex * 2);
       seeds[vertex] = brightness;
       tunnel.set(
-        [
-          Math.cos(tunnelAngle) * tunnelRadius,
-          Math.sin(tunnelAngle) * tunnelRadius,
-          -radius * (0.3 + brightness * 0.7),
-        ],
+        [Math.cos(tunnelAngle) * tunnelRadius, Math.sin(tunnelAngle) * tunnelRadius, tunnelDepth],
         vertex * 3,
       );
     }
@@ -95,7 +97,7 @@ export function Starfield({
     } else uniforms.uVanishing.value.set(0, 0);
   });
   return (
-    <mesh visible={visible} frustumCulled={false}>
+    <mesh visible={visible} renderOrder={20} frustumCulled={false}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[field.positions, 3]} />
         <bufferAttribute attach="attributes-aCorner" args={[field.corners, 2]} />

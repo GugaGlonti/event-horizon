@@ -42,7 +42,7 @@ export class FlightSession {
         this.journey.arrive(system);
         this.journey.sample(this.exploration.jump, this.position, this.orientation);
         this.controller.relocate(this.position, this.orientation);
-        this.snapPose();
+        this.snapPose(false);
         useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
       },
       onRestore: () => {

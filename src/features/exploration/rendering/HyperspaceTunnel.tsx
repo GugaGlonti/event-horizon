@@ -27,9 +27,10 @@ const fragment = /* glsl */ `
       float depth = min(420.0, shell / radius);
       float z = depth - uTime * (42.0 + float(layer) * 12.0);
       float twist = angle + sin(depth * 0.05 - uTime * 0.7) * 0.35 + depth * 0.012;
-      vec2 p = vec2(twist * 3.5 + float(layer) * 21.0, z * 0.08);
+      vec2 circle = vec2(cos(twist), sin(twist));
+      vec2 p = circle * 3.5 + vec2(z * 0.08, z * 0.043 + float(layer) * 21.0);
       float cloud = noise(p) * 0.65 + noise(p * 2.7) * 0.35;
-      float filaments = pow(noise(vec2(twist * 15.0, z * 0.045)), 5.0);
+      float filaments = pow(noise(circle * 15.0 + vec2(z * 0.045, z * 0.025)), 5.0);
       float depthFade = exp(-depth * 0.004);
       color += mix(vec3(0.006, 0.02, 0.07), vec3(0.1, 0.32, 0.68), cloud * cloud * cloud) * depthFade * 0.8;
       color += vec3(0.21, 0.5, 0.85) * filaments * depthFade * 0.6;
@@ -76,7 +77,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   return (
     <group ref={group} visible={false}>
       <ambientLight ref={light} color="#649de3" intensity={0} />
-      <mesh renderOrder={-5} frustumCulled={false}>
+      <mesh renderOrder={10} frustumCulled={false}>
         <planeGeometry args={[2, 2]} />
         <shaderMaterial
           ref={material}

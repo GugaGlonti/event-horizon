@@ -55,7 +55,12 @@ export function Starfighter({ modelRef, exhaustRef, visible }: StarfighterProps)
       ))}
       <group ref={exhaustRef} position={[0, 0, 2.75]}>
         {[-1, 1].map((side) => (
-          <mesh key={side} position={[side * 2.65, 0, 0.8]} rotation={[Math.PI / 2, 0, 0]}>
+          <mesh
+            key={side}
+            renderOrder={30}
+            position={[side * 2.65, 0, 0.8]}
+            rotation={[Math.PI / 2, 0, 0]}
+          >
             <coneGeometry args={[0.3, 1.6, 12]} />
             <meshBasicMaterial
               color="#73eaff"
