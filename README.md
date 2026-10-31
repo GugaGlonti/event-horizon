@@ -29,7 +29,8 @@ for Milestone 3.** All celestial definitions, shaders, synthesized audio, and in
 
 The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
-The briefing, survey charts, and hyperdrive controls share hard-edged instrument panels and visible
+Flight instruments float over the scene with short reference rules, slim gauges, and a quiet header;
+the briefing, survey charts, and warnings retain framed terminal panels. Controls share visible
 keyboard focus. A static CRT texture adds scanlines without flicker or animation. The bundled
 Share Tech Mono font is distributed under the SIL Open Font License; see
 [`public/assets/fonts/OFL-ShareTechMono.txt`](public/assets/fonts/OFL-ShareTechMono.txt).

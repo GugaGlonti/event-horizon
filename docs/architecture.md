@@ -155,7 +155,10 @@ The DOM interface uses phosphor/amber theme tokens and the bundled Share Tech Mo
 `InstrumentButton` styles own button states, keyboard focus, and primary-action contrast.
 `SegmentReadout` renders local SVG digits with a text alternative. Flight instruments and the bearing
 scope consume the existing 10 Hz read models; they do not introduce a second telemetry loop. The
-wireframe ship is a static SVG illustration. A pointer-transparent CSS CRT texture is static, with
+live HUD uses open instrument groups, short reference rules, a continuous bottom contrast gradient,
+and the shared button's `hud` variant for quiet header controls. Full frames remain on maps, menus,
+and warnings. Speed digits, slim engine bars, and the circular scope provide different visual weights.
+The wireframe ship is a static SVG illustration. A pointer-transparent CSS CRT texture is static, with
 no flicker, animation, filters on the WebGL scene, or additional renderer resources. Narrow layouts
 stack the navigation instrument below velocity/propulsion and allow briefing/map content to scroll.
 
