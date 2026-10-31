@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import type { JumpPhase } from '@/engine/navigation/HyperspaceController';
 import type { NavigationSnapshot } from '@/engine/navigation/NavigationComputer';
 import type { Position3 } from '@/engine/world/worldTypes';
+import type { PlanetMarkerSnapshot } from '@/features/exploration/planetMarkers';
 
 export type MapView = 'local' | 'galaxy';
 
@@ -11,6 +12,7 @@ interface ExplorationState {
   destinationId: string | null;
   jump: { phase: JumpPhase; progress: number; suspended: boolean; destinationId: string | null };
   navigation: NavigationSnapshot;
+  planetMarkers: PlanetMarkerSnapshot | null;
   chart: {
     ship: Position3;
     bodies: readonly { id: string; position: Position3; distance: number }[];
@@ -20,7 +22,7 @@ interface ExplorationState {
   soundEnabled: boolean;
 }
 
-/** Read models only. ExplorationSession owns actions and publishes scalar/tuple snapshots at 10 Hz. */
+/** Read models only. Session/navigation and camera marker snapshots publish at 10 Hz. */
 export const useExplorationStore = create<ExplorationState>()(() => ({
   systemId: 'solara',
   overlay: null,
@@ -37,6 +39,7 @@ export const useExplorationStore = create<ExplorationState>()(() => ({
     nearestId: null,
     nearestDistance: 0,
   },
+  planetMarkers: null,
   chart: { ship: [0, 0, 0], bodies: [] },
   arrival: null,
   error: null,

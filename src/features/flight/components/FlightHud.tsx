@@ -2,6 +2,7 @@ import { InstrumentButton } from '@/components/ui/InstrumentButton';
 import { SegmentReadout } from '@/components/ui/SegmentReadout';
 import { HyperspaceStatus } from '@/features/exploration/components/HyperspaceStatus';
 import { NavigationHud, NavigationMarker } from '@/features/exploration/components/NavigationHud';
+import { NearbyPlanetMarkers } from '@/features/exploration/components/NearbyPlanetMarkers';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { FlightMenu } from '@/features/flight/components/FlightMenu';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
@@ -240,6 +241,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
             <NavigationHud session={session} />
           </div>
           <NavigationMarker />
+          <NearbyPlanetMarkers />
         </>
       )}
       <footer className="absolute inset-x-3 bottom-3 flex min-h-8 items-center justify-between gap-2 border-y border-line bg-console/95 px-2 text-[10px] font-bold tracking-wider tablet:inset-x-6 tablet:px-3">

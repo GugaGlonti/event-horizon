@@ -2,6 +2,7 @@ import { bodyLabel, formatDistance } from '@/features/exploration/components/Loc
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
+import { useFlightStore } from '@/stores/flightStore';
 
 export function NavigationHud({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
@@ -74,10 +75,20 @@ export function NavigationHud({ session }: { session: FlightSession }) {
 export function NavigationMarker() {
   const systemId = useExplorationStore((state) => state.systemId);
   const navigation = useExplorationStore((state) => state.navigation);
+  const markers = useExplorationStore((state) => state.planetMarkers);
+  const overlay = useExplorationStore((state) => state.overlay);
+  const flying = useFlightStore((state) => state.phase === 'flying');
   const target = SYSTEMS.find((system) => system.id === systemId)?.bodies.find(
     (body) => body.id === navigation.targetId,
   );
-  if (!target) return null;
+  if (
+    !target ||
+    (flying &&
+      !overlay &&
+      markers?.systemId === systemId &&
+      markers.items.some((marker) => marker.id === target.id))
+  )
+    return null;
   return (
     <div
       aria-hidden="true"

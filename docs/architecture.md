@@ -159,6 +159,17 @@ wireframe ship is a static SVG illustration. A pointer-transparent CSS CRT textu
 no flicker, animation, filters on the WebGL scene, or additional renderer resources. Narrow layouts
 stack the navigation instrument below velocity/propulsion and allow briefing/map content to scroll.
 
+`PlanetMarkersProjection` runs after the camera rig and samples on the existing chart publication
+cadence, plus discrete camera/viewport changes. `PlanetMarkerProjector` converts logical planet
+positions through the current render origin and camera matrices, while measuring surface ranges from
+the logical ship. Its detached `planetMarkers` read model is presentation-only. Off-screen rocky/gas
+planets within the configured range receive edge arrows; rear contacts preserve their turn direction
+and carry an AFT label. Labels avoid the heading/instrument banks and are spaced along their edge,
+prioritizing nearest contacts when space is exhausted. A selected planet's edge arrow replaces its
+interior bearing marker. Maps, paused flight, and jumps suppress the arrows; system identity guards
+prevent stale markers from appearing after a handoff. No additional timer or per-frame store updates
+are introduced.
+
 `FlightInputManager` installs movement, wheel and context-menu listeners only while piloting, cleans
 held state on pause, and rejects late pointer capture after pause/disposal. Keyboard fallback is
 preserved. `FlightSession.attach` owns a separate discrete navigation shortcut listener so M/L can

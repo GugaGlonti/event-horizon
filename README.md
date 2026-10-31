@@ -80,6 +80,14 @@ for legibility. The flight HUD shows the target's name/type, surface distance, c
 ship-relative directional marker, including when the destination is behind you. X clears the target
 and exposes the nearest contact.
 
+While flying, edge arrows identify up to three off-screen planets within **30 km of their surface**.
+Each shows its name and surface distance; **AFT** marks a planet behind the camera. The selected
+planet is amber, and other nearby planets use phosphor green. Arrows follow the actual chase/cockpit
+view, stay clear of the compass and instrument bank, and separate nearby labels. Crowded compact
+layouts prioritize the nearest planets. Stars and moons retain normal target selection. These edge
+markers hide while paused, in maps, and during hyperspace. Range and count are tunable in
+`features/flight/config.ts`.
+
 **Controls** opens the briefing. **Reset flight** cancels any pending jump and returns the craft to a
 safe arrival in its current system, restoring engine reserve and clearing momentum. Camera and
 assistance preferences survive reset. Boost lasts about four seconds, recharges after a delay, and

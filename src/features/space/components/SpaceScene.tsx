@@ -1,4 +1,5 @@
 import { SceneCanvas } from '@/engine/rendering/SceneCanvas';
+import { PlanetMarkersProjection } from '@/features/exploration/rendering/PlanetMarkersProjection';
 import { FlightWorld } from '@/features/flight/components/FlightWorld';
 import { GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
@@ -16,6 +17,7 @@ export default function SpaceScene({ session }: { session: FlightSession }) {
       }}
     >
       <FlightWorld session={session} />
+      <PlanetMarkersProjection session={session} />
     </SceneCanvas>
   );
 }
