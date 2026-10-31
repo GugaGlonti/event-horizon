@@ -16,7 +16,7 @@ const vertex = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, 0.9985, 1.0); }
 `;
 const fragment = /* glsl */ `
-  uniform float uTime, uOpacity, uExposure;
+  uniform float uTime, uOpacity, uExposure, uStarlight;
   uniform vec2 uLens;
   varying vec2 vUv;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -43,8 +43,9 @@ const fragment = /* glsl */ `
     float core = exp(-radius * 4.5);
     color += vec3(0.42, 0.62, 0.9) * core;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.3;
-    color = mix(color * 0.25, vec3(0.82, 0.93, 1.0), uExposure);
-    gl_FragColor = vec4(color, max(uOpacity, uExposure * 0.8));
+    color = mix(vec3(0.025, 0.10, 0.24), color * 0.25, smoothstep(0.0, 0.85, uOpacity));
+    color = mix(color, vec3(0.82, 0.93, 1.0), uExposure);
+    gl_FragColor = vec4(color, max(max(uOpacity, uExposure * 0.8), uStarlight * 0.22));
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -63,6 +64,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uTime: { value: 0 },
       uOpacity: { value: 0 },
       uExposure: { value: 0 },
+      uStarlight: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
     }),
     [],
@@ -78,6 +80,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     const exposure = reduced ? 0 : jumpExposure(jump);
     if (target?.uExposure) target.uExposure.value = exposure;
+    if (target?.uStarlight) target.uStarlight.value = reduced ? 0 : jumpStretch(jump);
     uniforms.uLens.value.set(
       1 / camera.projectionMatrix.elements[0],
       1 / camera.projectionMatrix.elements[5],

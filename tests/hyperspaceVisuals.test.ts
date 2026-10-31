@@ -60,11 +60,12 @@ describe('hyperspace visual timing', () => {
     });
   });
 
-  it('anchors the stars through the stretch hold, then sweeps outward without recycling', () => {
+  it('keeps the long-streak buildup moving and reserves most travel for ignition', () => {
     const jump = new HyperspaceController();
     jump.phase = 'ACCELERATING';
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.55;
-    expect(jumpStarTravel(jump)).toBe(0);
+    expect(jumpStarTravel(jump)).toBeGreaterThan(0.02);
+    expect(jumpStarTravel(jump)).toBeLessThan(0.065);
     let previous = 0;
     for (let frame = 0; frame <= 120; frame++) {
       jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
@@ -74,6 +75,10 @@ describe('hyperspace visual timing', () => {
       previous = travel;
     }
     expect(previous).toBe(1);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.45;
+    const earlier = jumpStarTravel(jump);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.6;
+    expect(jumpStarTravel(jump)).toBeGreaterThan(earlier);
   });
 
   it('dissolves the streaks in one bounded exposure crest and settles the exit sweep', () => {

@@ -22,7 +22,8 @@ export function jumpKick(jump: HyperspaceController) {
 
 /** A single outward sweep; no recycled particles or replacement sky during a jump. */
 export function jumpStarTravel(jump: HyperspaceController) {
-  if (jump.phase === 'ACCELERATING') return entrySurge(jump.progress) ** 3;
+  if (jump.phase === 'ACCELERATING')
+    return smoothRamp(0.02, 0.85, jump.progress) * 0.065 + entrySurge(jump.progress) ** 3 * 0.935;
   if (jump.phase === 'HYPERSPACE') return 1;
   if (jump.phase === 'EXITING') return 1 - smoothRamp(0.02, 0.4, jump.progress);
   return 0;
