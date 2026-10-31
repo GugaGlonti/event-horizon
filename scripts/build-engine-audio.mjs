@@ -104,24 +104,20 @@ const stems = {
     (t, c) =>
       machine(13 + t * 0.73 + c * 0.035, c) * 0.7 +
       motor(1.5 + t * 0.41 + c * 0.012) * 0.18 +
-      Math.sin(tau * (36 + c * 0.23) * t) * 0.035,
-    { loop: true, cutoff: 1050, rms: 0.12 },
+      Math.sin(tau * (36 + c * 0.23) * t) * 0.012,
+    { loop: true, cutoff: 950, rms: 0.1 },
   ),
   turbine: makeStem(
     2.5,
     (t, c) =>
-      motor(1.1 + t * 1.17 + c * 0.024) * 0.72 +
-      machine(9 + t * 0.95 + c * 0.011, c) * 0.34 +
-      Math.sin(tau * (183 + c * 1.7) * t + Math.sin(tau * 19 * t) * 0.38) * 0.022,
-    { loop: true, cutoff: 3600, rms: 0.16 },
+      motor(1.1 + t * 1.17 + c * 0.024) * 0.72 + machine(9 + t * 0.95 + c * 0.011, c) * 0.34,
+    { loop: true, cutoff: 3000, rms: 0.14 },
   ),
   boost: makeStem(
     2.2,
     (t, c) =>
-      machine(17 + t * 1.54 + c * 0.029, c) * 0.9 +
-      motor(1.4 + t * 0.71 - c * 0.014) * 0.48 +
-      Math.sin(tau * (56 + c * 0.6) * t) * 0.04,
-    { loop: true, cutoff: 4900, rms: 0.17 },
+      machine(17 + t * 1.54 + c * 0.029, c) * 0.9 + motor(1.4 + t * 0.71 - c * 0.014) * 0.48,
+    { loop: true, cutoff: 3700, rms: 0.15 },
   ),
   jets: makeStem(
     1.6,
@@ -129,7 +125,7 @@ const stems = {
       machine(3 + t * 2.11 + c * 0.045, c) * 0.8 -
       machine(3.016 + t * 2.11 + c * 0.045, c) * 0.68 +
       motor(4.5 + t * 0.7 + c * 0.022) * 0.23,
-    { loop: true, cutoff: 4200, rms: 0.13 },
+    { loop: true, cutoff: 3200, rms: 0.12 },
   ),
   engage: makeStem(
     0.3,
@@ -237,13 +233,14 @@ if (previewDirectory) {
     jets += ((t >= 12 && t < 14 ? 1 : 0) - jets) * (1 - Math.exp(-1 / rate / 0.1));
     for (let c = 0; c < 2; c++) {
       const body =
-        sample(stems.idle, t * 0.93, c) * (0.12 + power * 0.025) +
-        (sample(stems.turbine, left, c) + sample(stems.turbine, right, c)) * power * 0.23 +
-        sample(stems.boost, boostPosition, c) * boost * 0.44 +
-        sample(stems.jets, t * 1.07, c) * jets * 0.36 * (0.86 + Math.sin(t * 48) ** 2 * 0.14) +
-        sample(stems.engage, t - 7, c) * 0.3 +
-        sample(stems.release, t - 10, c) * 0.4;
-      channels[c][i] = Math.tanh(body * 0.48) * ramp(0, 0.06, t) * (1 - ramp(16.8, 17, t));
+        sample(stems.idle, t * 0.93, c) * (0.07 + power * 0.018) +
+        (sample(stems.turbine, left, c) + sample(stems.turbine, right, c)) * power * 0.21 +
+        sample(stems.boost, boostPosition, c) * boost * 0.4 +
+        sample(stems.jets, t * 1.07, c) * jets * 0.27 * (0.96 + Math.sin(t * 31) ** 2 * 0.04) +
+        sample(stems.engage, t - 7, c) * 0.18 +
+        sample(stems.release, t - 10, c) * 0.22;
+      channels[c][i] =
+        Math.tanh(body * 0.4 * 0.8 * 0.82) * ramp(0, 0.06, t) * (1 - ramp(16.8, 17, t));
     }
     left += (0.83 + power * 0.36 + boost * 0.07) / rate;
     right += (0.847 + power * 0.351 + boost * 0.074) / rate;

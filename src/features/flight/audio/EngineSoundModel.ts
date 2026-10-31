@@ -73,8 +73,8 @@ export class EngineSoundModel {
     this.release =
       this.primed &&
       this.releaseCooldown === 0 &&
-      ((this.wasBoosting && !boosting) || (this.wasThrusting && !thrusting && this.power > 0.06));
-    if (this.release) this.releaseCooldown = 0.45;
+      ((this.wasBoosting && !boosting) || (this.wasThrusting && !thrusting && this.power > 0.22));
+    if (this.release) this.releaseCooldown = 1.1;
     this.power = follow(this.power, demand, dt, demand > this.power ? 0.22 : 0.48);
     this.boost = follow(this.boost, boosting ? 1 : 0, dt, boosting ? 0.12 : 0.35);
     this.jets = follow(
@@ -85,7 +85,7 @@ export class EngineSoundModel {
     );
     this.cabin = follow(this.cabin, input.cockpit ? 1 : 0, dt, 0.38);
     this.strain = this.boost * (1 - bounded(input.boostReserve)) ** 2;
-    this.pulse = 0.86 + Math.sin(this.elapsed * 48) ** 2 * 0.14;
+    this.pulse = 0.96 + Math.sin(this.elapsed * 31) ** 2 * 0.04;
     this.wasBoosting = boosting;
     this.wasThrusting = thrusting;
     this.primed = true;

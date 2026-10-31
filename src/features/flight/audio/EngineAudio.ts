@@ -25,6 +25,8 @@ interface Machinery {
 
 /** Player engine adapter. Gesture unlock, cached local recordings, bounded voices and explicit fade-out. */
 export class EngineAudio {
+  private readonly mix: FlightAudioMix;
+  private readonly ownsMix: boolean;
   private readonly loader: EngineAssetLoader;
   private readonly model = new EngineSoundModel();
   private context: AudioContext | null = null;
@@ -42,8 +44,14 @@ export class EngineAudio {
   private active = false;
   private generation = 0;
 
-  constructor(loader: EngineAssetLoader = loadEngineAssets) {
+  constructor(loader: EngineAssetLoader = loadEngineAssets, mix?: FlightAudioMix) {
     this.loader = loader;
+    this.mix = mix ?? new FlightAudioMix();
+    this.ownsMix = !mix;
+  }
+
+  get trafficBuffer() {
+    return this.buffers?.turbine ?? null;
   }
 
   prepare() {
@@ -56,27 +64,21 @@ export class EngineAudio {
 
   /** Called by a flight/jump gesture. Fetching and decoding never resumes a context. */
   unlock() {
-    if (typeof AudioContext === 'undefined') return;
     try {
+      this.mix.unlock();
+      if (!this.mix.context || !this.mix.engine) return;
       if (!this.context) {
-        const context = new AudioContext();
+        const context = this.mix.context;
         this.context = context;
         this.master = context.createGain();
         this.master.gain.value = 0;
         this.filter = context.createBiquadFilter();
         this.filter.type = 'lowpass';
-        this.filter.frequency.value = 4300;
+        this.filter.frequency.value = 3200;
         this.filter.Q.value = 0.5;
-        const compressor = context.createDynamicsCompressor();
-        compressor.threshold.value = -16;
-        compressor.knee.value = 12;
-        compressor.ratio.value = 3;
-        compressor.attack.value = 0.008;
-        compressor.release.value = 0.2;
-        this.master.connect(this.filter).connect(compressor).connect(context.destination);
-        this.graph.push(this.master, this.filter, compressor);
+        this.master.connect(this.filter).connect(this.mix.engine);
+        this.graph.push(this.master, this.filter);
       }
-      void this.context.resume().catch(() => {});
       this.prepare();
       this.decoded ??= this.decode(this.context);
     } catch {
@@ -160,7 +162,7 @@ export class EngineAudio {
     this.model.reset();
     const generation = ++this.generation;
     this.reactor = this.oscillator(38, 'sine');
-    this.winding = this.oscillator(160, 'triangle');
+    this.winding = this.oscillator(140, 'sine');
     void this.decoded
       ?.then((buffers) => {
         if (!buffers || !this.active || generation !== this.generation) return;
@@ -189,26 +191,26 @@ export class EngineAudio {
       this.model.step(input, delta);
       const { power, boost, jets, cabin, strain, pulse } = this.model;
       const time = this.context.currentTime;
-      this.master.gain.setTargetAtTime(0.48 * (1 - cabin * 0.2), time, 0.04);
-      this.filter.frequency.setTargetAtTime(4300 - cabin * 2650, time, 0.08);
-      this.reactor?.gain.gain.setTargetAtTime(0.006 + power * 0.005, time, 0.08);
+      this.master.gain.setTargetAtTime(0.4 * (1 - cabin * 0.2), time, 0.06);
+      this.filter.frequency.setTargetAtTime(3200 - cabin * 1800, time, 0.12);
+      this.reactor?.gain.gain.setTargetAtTime(0.003 + power * 0.003, time, 0.12);
       this.winding?.gain.gain.setTargetAtTime(
-        (0.002 + power * (this.machinery ? 0.004 : 0.035) + boost * 0.008) * (1 - cabin * 0.35),
+        power * (this.machinery ? 0.0012 : 0.018) * (1 - cabin * 0.35),
         time,
         0.08,
       );
       if (this.winding)
         (this.winding.source as OscillatorNode).frequency.setTargetAtTime(
-          160 + power * 95 + boost * 35,
+          140 + power * 65 + boost * 20,
           time,
           0.1,
         );
       const machinery = this.machinery;
       if (machinery) {
-        machinery.idle.gain.gain.setTargetAtTime(0.12 + power * 0.025, time, 0.08);
+        machinery.idle.gain.gain.setTargetAtTime(0.07 + power * 0.018, time, 0.12);
         machinery.idle.source.playbackRate.setTargetAtTime(0.93 + power * 0.035, time, 0.15);
-        machinery.left.gain.gain.setTargetAtTime(power * 0.23, time, 0.06);
-        machinery.right.gain.gain.setTargetAtTime(power * 0.23, time, 0.06);
+        machinery.left.gain.gain.setTargetAtTime(power * 0.21, time, 0.08);
+        machinery.right.gain.gain.setTargetAtTime(power * 0.21, time, 0.08);
         machinery.left.source.playbackRate.setTargetAtTime(
           0.83 + power * 0.36 + boost * 0.07,
           time,
@@ -220,7 +222,7 @@ export class EngineAudio {
           0.08,
         );
         machinery.boost.gain.gain.setTargetAtTime(
-          boost * 0.44 * (1 - strain * (1 - pulse) * 1.5),
+          boost * 0.4 * (1 - strain * (1 - pulse)),
           time,
           0.025,
         );
@@ -229,11 +231,11 @@ export class EngineAudio {
           time,
           0.08,
         );
-        machinery.jets.gain.gain.setTargetAtTime(jets * 0.36 * pulse, time, 0.025);
+        machinery.jets.gain.gain.setTargetAtTime(jets * 0.27 * pulse, time, 0.06);
         machinery.jets.source.playbackRate.setTargetAtTime(input.braking ? 1.07 : 0.91, time, 0.08);
       }
-      if (this.model.engage) this.impact('engage', 0.3);
-      if (this.model.release) this.impact('release', 0.4);
+      if (this.model.engage) this.impact('engage', 0.18);
+      if (this.model.release) this.impact('release', 0.22);
     } catch {
       this.stop(); // Browser audio failure must never interrupt the flight/render loop.
     }
@@ -291,7 +293,9 @@ export class EngineAudio {
     this.master = this.filter = null;
     this.reactor = this.winding = null;
     this.model.reset();
-    void this.context?.close().catch(() => {});
+    if (this.ownsMix) this.mix.dispose();
     this.context = null;
   }
 }
+
+import { FlightAudioMix } from '@/engine/audio/FlightAudioMix';

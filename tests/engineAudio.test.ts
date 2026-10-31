@@ -2,71 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EngineAudio } from '@/features/flight/audio/EngineAudio';
 import { createEngineSoundInput } from '@/features/flight/audio/EngineSoundModel';
 import type { EncodedEngine } from '@/features/flight/audio/engineAssets';
+import { ContextStub } from './helpers/audioStubs';
 
-class Parameter {
-  value = 0;
-  setTargetAtTime = vi.fn();
-  cancelScheduledValues = vi.fn();
-}
-class NodeStub {
-  gain = new Parameter();
-  frequency = new Parameter();
-  playbackRate = new Parameter();
-  pan = new Parameter();
-  Q = new Parameter();
-  threshold = new Parameter();
-  knee = new Parameter();
-  ratio = new Parameter();
-  attack = new Parameter();
-  release = new Parameter();
-  buffer: { id: number; duration: number } | null = null;
-  onended: (() => void) | null = null;
-  connect = vi.fn((node: NodeStub) => node);
-  disconnect = vi.fn();
-  start = vi.fn();
-  stop = vi.fn();
-}
-class ContextStub {
-  static instances: ContextStub[] = [];
-  currentTime = 0;
-  destination = new NodeStub();
-  sources: NodeStub[] = [];
-  filters: NodeStub[] = [];
-  gains: NodeStub[] = [];
-  resume = vi.fn(async () => {});
-  close = vi.fn(async () => {});
-  decodeAudioData = vi.fn(async (bytes: ArrayBuffer) => ({ id: bytes.byteLength, duration: 3 }));
-  constructor() {
-    ContextStub.instances.push(this);
-  }
-  createGain() {
-    const node = new NodeStub();
-    this.gains.push(node);
-    return node;
-  }
-  createBiquadFilter() {
-    const node = new NodeStub();
-    this.filters.push(node);
-    return node;
-  }
-  createDynamicsCompressor() {
-    return new NodeStub();
-  }
-  createStereoPanner() {
-    return new NodeStub();
-  }
-  createBufferSource() {
-    const node = new NodeStub();
-    this.sources.push(node);
-    return node;
-  }
-  createOscillator() {
-    return this.createBufferSource();
-  }
-  finishStopped() {
-    for (const node of this.sources) if (node.stop.mock.calls.length) node.onended?.();
-  }
-}
 const bytes = (): EncodedEngine => ({
   idle: new ArrayBuffer(1),
   turbine: new ArrayBuffer(2),
@@ -97,7 +34,9 @@ describe('player engine audio lifetime', () => {
     await vi.waitFor(() => expect(context.sources).toHaveLength(7));
     audio.update(input, 0.1, true);
     // Two turbine channels stay at zero on idle; only the restrained machinery/reactor bed runs.
-    expect(context.gains[4]?.gain.setTargetAtTime.mock.lastCall?.[0]).toBe(0);
+    const turbine = context.sources.find((source) => source.buffer?.id === 2);
+    const turbineGain = turbine?.connect.mock.lastCall?.[0];
+    expect(turbineGain?.gain.setTargetAtTime.mock.lastCall?.[0]).toBe(0);
     audio.stop();
     for (const source of context.sources) expect(source.stop).toHaveBeenCalledWith(0.1);
     context.finishStopped();
@@ -128,9 +67,9 @@ describe('player engine audio lifetime', () => {
     expect(context.sources).toHaveLength(8);
     input.cockpit = true;
     for (let tick = 0; tick < 20; tick++) audio.update(input, 0.1, true);
-    const cutoff = context.filters[0]?.frequency.setTargetAtTime.mock.lastCall?.[0];
-    expect(cutoff).toBeLessThan(1800);
-    expect(cutoff).toBeGreaterThan(1600);
+    const cutoff = context.filters.at(-1)?.frequency.setTargetAtTime.mock.lastCall?.[0];
+    expect(cutoff).toBeLessThan(1500);
+    expect(cutoff).toBeGreaterThan(1300);
     input.boosting = false;
     input.requestedThrottle = 0;
     audio.update(input, 0.1, true);
