@@ -1,7 +1,11 @@
 import { Icon } from '@/components/ui/Icon';
+import { HyperspaceStatus } from '@/features/exploration/components/HyperspaceStatus';
+import { NavigationHud } from '@/features/exploration/components/NavigationHud';
+import { SYSTEMS } from '@/features/exploration/data/systems';
 import { FlightMenu, flightButtonClassName } from '@/features/flight/components/FlightMenu';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
 function Meter({
@@ -35,6 +39,11 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const inputMode = useFlightStore((state) => state.inputMode);
   const toggleCamera = useFlightStore((state) => state.toggleCamera);
   const toggleAssistance = useFlightStore((state) => state.toggleAssistance);
+  const ready = useFlightStore((state) => state.rendererReady);
+  const systemId = useExplorationStore((state) => state.systemId);
+  const jumpPhase = useExplorationStore((state) => state.jump.phase);
+  const busy = jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN';
+  const system = SYSTEMS.find((candidate) => candidate.id === systemId);
 
   return (
     <div className="pointer-events-none absolute inset-0 font-sans">
@@ -48,18 +57,40 @@ export function FlightHud({ session }: { session: FlightSession }) {
               EVENT HORIZON
             </h1>
             <p className="mt-1 font-mono text-[8px] tracking-[0.15em] text-slate-400">
-              ASTER / PROVING GROUND
+              {system?.name.toUpperCase()} / CHARTED REACHES
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={session.pause}
-          disabled={phase !== 'flying'}
-          className={`pointer-events-auto ${flightButtonClassName}`}
-        >
-          Controls <span className="ml-2 hidden text-slate-500 tablet:inline">ESC</span>
-        </button>
+        <div className="pointer-events-auto flex gap-1.5 tablet:gap-2">
+          <button
+            type="button"
+            aria-label="Open local system map"
+            disabled={!ready || busy}
+            onClick={() => session.exploration.openMap('local')}
+            className={flightButtonClassName}
+          >
+            <span className="mr-2 hidden tablet:inline">System</span>
+            <kbd>L</kbd>
+          </button>
+          <button
+            type="button"
+            aria-label="Open galaxy map"
+            disabled={!ready || busy}
+            onClick={() => session.exploration.openMap('galaxy')}
+            className={flightButtonClassName}
+          >
+            <span className="mr-2 hidden tablet:inline">Galaxy</span>
+            <kbd>M</kbd>
+          </button>
+          <button
+            type="button"
+            onClick={session.pause}
+            disabled={phase !== 'flying'}
+            className={`pointer-events-auto ${flightButtonClassName}`}
+          >
+            Controls <span className="ml-2 hidden text-slate-500 tablet:inline">ESC</span>
+          </button>
+        </div>
       </header>
 
       <div className="absolute top-24 left-1/2 -translate-x-1/2 text-center font-mono tablet:top-9">
@@ -173,11 +204,14 @@ export function FlightHud({ session }: { session: FlightSession }) {
           </button>
         </div>
       </footer>
+      <NavigationHud session={session} />
+      <HyperspaceStatus session={session} />
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
         Left and Right arrows roll left and right. Q and E yaw left and right. Use W and S for
         throttle, Shift for boost, Space to brake, C for camera, F for assistance, and Escape to
-        pause. Controls are available in the flight briefing.
+        pause. M opens the galaxy map; L opens the local system map. T cycles navigation targets; X
+        clears the target. Maps pause flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

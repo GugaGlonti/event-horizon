@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { SceneErrorBoundary } from '@/app/SceneErrorBoundary';
 import { SceneMessage } from '@/components/ui/SceneMessage';
+import { ExplorationOverlay } from '@/features/exploration/components/ExplorationOverlay';
 import { FlightHud } from '@/features/flight/components/FlightHud';
 import { FlightSession } from '@/features/flight/FlightSession';
 
@@ -21,12 +22,12 @@ export function App() {
       aria-label="Event Horizon flight simulator"
       className="relative isolate h-svh min-h-[560px] w-full overflow-hidden bg-space outline-none"
     >
-      <SceneErrorBoundary onError={session.pause}>
+      <SceneErrorBoundary onError={session.rendererFailed}>
         <div className="absolute inset-0 -z-2">
           <Suspense
             fallback={
               <SceneMessage title="Preparing the flight deck…">
-                Plotting a course near Aster.
+                Plotting a course through Solara.
               </SceneMessage>
             }
           >
@@ -38,6 +39,7 @@ export function App() {
           aria-hidden="true"
         />
         <FlightHud session={session} />
+        <ExplorationOverlay session={session} />
       </SceneErrorBoundary>
     </main>
   );

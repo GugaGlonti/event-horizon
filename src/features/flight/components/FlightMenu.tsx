@@ -1,4 +1,6 @@
+import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
 const controls = [
@@ -11,6 +13,8 @@ const controls = [
   ['SPACE', 'Brake'],
   ['C', 'Chase / cockpit'],
   ['F', 'Flight assistance'],
+  ['M / L', 'Galaxy / local map'],
+  ['T / X', 'Cycle / clear target'],
   ['ESC', 'Pause & release mouse'],
 ] as const;
 
@@ -21,7 +25,12 @@ export function FlightMenu({ session }: { session: FlightSession }) {
   const phase = useFlightStore((state) => state.phase);
   const ready = useFlightStore((state) => state.rendererReady);
   const notice = useFlightStore((state) => state.notice);
-  if (phase === 'flying') return null;
+  const overlay = useExplorationStore((state) => state.overlay);
+  const jumpPhase = useExplorationStore((state) => state.jump.phase);
+  const systemId = useExplorationStore((state) => state.systemId);
+  const system = SYSTEMS.find((candidate) => candidate.id === systemId);
+  if (phase === 'flying' || overlay || (jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN'))
+    return null;
 
   return (
     <div className="pointer-events-auto absolute inset-0 z-20 grid place-items-center bg-space/35 p-5 backdrop-blur-[2px]">
@@ -31,7 +40,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
           border border-teal-100/15 bg-[#0d141bf2] p-6 shadow-2xl tablet:p-8"
       >
         <p className="font-mono text-[9px] tracking-[0.2em] text-teal-200/65">
-          KESTREL / FLIGHT TEST 02
+          KESTREL / EXPLORATION 03
         </p>
         <h2
           id="flight-menu-title"
@@ -41,8 +50,8 @@ export function FlightMenu({ session }: { session: FlightSession }) {
         </h2>
         <p className="mt-3 text-xs leading-relaxed text-slate-400">
           {phase === 'ready'
-            ? 'Aster is off your port side. Follow the illuminated rings, open the throttle, and find your wings.'
-            : 'Your position and momentum are held. Resume when you’re ready to fly.'}
+            ? 'Welcome to Solara. Pelagos is ahead; Lyra waits beyond. Open the throttle, choose a contact, and discover the charted reaches.'
+            : `Your position and momentum are held in ${system?.name ?? 'the current system'}. Resume when you’re ready to fly.`}
         </p>
         <dl id="flight-controls" className="mt-6 grid grid-cols-2 gap-x-5 gap-y-3">
           {controls.map(([key, action]) => (
@@ -94,6 +103,24 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             className={flightButtonClassName}
           >
             Reset flight
+          </button>
+        </div>
+        <div className="mt-3 flex gap-2">
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => session.exploration.openMap('local')}
+            className={flightButtonClassName}
+          >
+            Local system <kbd className="ml-2 text-slate-500">L</kbd>
+          </button>
+          <button
+            type="button"
+            disabled={!ready}
+            onClick={() => session.exploration.openMap('galaxy')}
+            className={flightButtonClassName}
+          >
+            Galaxy map <kbd className="ml-2 text-slate-500">M</kbd>
           </button>
         </div>
       </section>
