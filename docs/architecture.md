@@ -46,7 +46,9 @@ braking, taking priority over thrust/boost. Both slow the ship with or without a
 W held. Braking caps stored throttle at the remaining forward cruise speed. A/D and R/V command
 local lateral/vertical velocity; Z commands bounded reverse thrust when main throttle is released.
 Translation jets use configurable acceleration/speed and braking takes priority over every axis.
-Space is primary fire, B begins a patrol, and N cycles hostile contacts independently of T/X navigation.
+Left mouse/Space fires, B begins a patrol, G acquires ahead, H clears, and N/Tab cycles hostile
+contacts independently of T/X navigation. UI clicks are excluded from firing; Tab retains normal
+button/map focus traversal and Escape pauses regardless of focused HUD controls.
 
 `FlightController.step(input, dt)` owns logical position, velocity, orientation, throttle, boost and
 assistance. It does not read clocks, stores or input devices. `copyTransform` copies into scratch
@@ -104,8 +106,12 @@ solver keeps one movement authority and adds no dependency. Reconsider Rapier wh
 complex rigid shapes, debris or larger scenes are actual requirements. This solver guarantees neither
 cross-platform bitwise replay nor general-purpose rigid-body dynamics.
 
-The default gun uses inherited ship velocity, cooldown, alternating muzzles, bounded lifetime and
-relative-motion sweeps against moving ships/environment. Missiles capture the selected hostile
+The default gun uses configured local hardpoints, inherited ship velocity, cooldown, bounded lifetime
+and a separate relative travel budget. Alternating fire advances a persistent hardpoint index;
+synchronized fire reserves capacity for the complete salvo. Each emitted bolt adds normalized heat.
+Cooling runs per fixed tick regardless of selected slot; overheating latches at capacity until the
+configured resume threshold, so switching slots cannot reset it. Player reset/respawn clears heat.
+Relative-motion sweeps against moving ships/environment truncate both lifetime and range travel. Missiles capture the selected hostile
 within a configured forward cone/range at launch, inherit launch velocity, and use bounded
 quaternion turns toward a constant-velocity intercept. Their target ID remains fixed when selection
 changes; target loss leaves ballistic flight. They use the same nearest-hit sweep and lifetime path.
@@ -134,23 +140,51 @@ anchors the source to the interpolated central emitter and the endpoint to the r
 `RailgunEffects` uses fixed instance buffers for a straight bright core and blue halo, with thickness
 bounded near the cockpit and scaled for distant visibility. A ref-driven central coil presents the
 simulation charge; reduced motion disables its rotation. `WeaponEffects` reuses bounded missile-body
-and amber exhaust-flare instances; `CombatScene` shares its bolt buffer with flak pellets. There are
-no emitted weapon-trail particles or per-frame geometry creation. Gun, missile, railgun, flak and detonation
+and amber exhaust-flare instances; `CombatScene` shares its bolt buffer with flak pellets. Laser cores share a second
+additive instance buffer for restrained halos/trails. Up to twelve analytical sparks/debris instances
+per impact/explosion use explicit effect age and seeded directions. Reduced motion suppresses these
+particles. There is no per-frame geometry creation or unbounded emission history. Gun, missile, railgun, flak and detonation
 cues use the existing bounded optional audio adapter.
 
 `CombatSimulation` centrally owns spawning, destruction, target validity, projectiles and effects.
 NPCs are removed on destruction; player death is retained until explicit respawn. Limits are ten
-NPCs, 192 projectiles, 32 rail traces, 96 transient effects and eight encounter asteroids. Effect IDs and entity IDs
-are monotonic within the session. Target cycling follows stable insertion order and is range-limited.
-The encounter adapter searches deterministic clear spawn positions near the current ship and checks
-celestial bodies, asteroids and ships. B cannot stack waves. Practice uses the same ship/health/hit
-path with stationary AI. Victory enables another encounter. Reset/respawn clears it and restores the
-player at the current system's safe arrival with three seconds of protection.
+NPCs, 192 projectiles, 32 rail traces, 96 effects, 128 gameplay events and eight encounter asteroids.
+The renderer adds at most 1,152 short-lived spark/debris instances and 192 bolt halos. Gameplay events
+have a monotonic event ID, explicit simulation time, ship ID and tuple position, with typed fire,
+impact, damage, destruction and spawn payloads. Damage includes source identity and actual shield/
+hull loss; a destroyed ship cannot emit duplicate destruction or damage events. Effects/audio remain
+independent of this bounded event history.
 
-`ShipAi` uses explicit patrol, pursue, attack, evade and disengage states. Detection, home leash,
-attack alignment, separation, hit evasion and duration are configured. It calculates an intercept,
-steers in its local quaternion frame, avoids imminent spherical obstacles and fires only in the
-attack state while aligned. It is lightweight steering, not pathfinding or strategic planning.
+`CombatSimulation.snapshot()`, `FlightController.snapshot()` and `Encounter.snapshot()` return
+plain, detached JSON data, including tuples, configurations, commands, health, cooldown/heat, AI
+reaction/state clocks, projectile guidance/range, events and pending respawns. Snapshot allocation is
+explicit and never in the frame loop. Runtime vectors/controllers stay private to gameplay and are
+not sent to stores. These are export contracts, not save loading, schema migration or reconciliation.
+
+`Encounter` owns pure simulation-time scheduling; `CombatSession` adapts it to analytical world
+colliders. Arrivals/reset wait eight active seconds before a five-slot patrol. A destroyed slot waits
+12 active seconds and reuses its stable system/generation/slot ID. Each respawn searches again around
+the current player, rejecting overlap with celestial bodies, asteroids and ships, and receives three
+seconds of protection. Failed spawns retry after two seconds. At most ten slots exist; B cannot stack
+patrols. Practice uses the shared ship/health/hit path with stationary AI and ends permanently when
+its single target dies. Reset/respawn clears pending work, restores the player at the current system's
+safe arrival and schedules a new patrol. Departure/disposal makes the schedule dormant.
+
+Target cycling follows stable insertion order and is range-limited. G selects the nearest live
+hostile within the configured ship-forward cone/range; H clears. Selection and lead math use logical
+coordinates. A constant-velocity intercept outside weapon range/lifetime or without a positive
+solution suppresses the lead cue, including the linear-quadratic edge case. Both cameras only project
+these results and never choose a target or alter physics.
+
+`ShipAi` uses patrol, pursue, attack, evade, retreat, disengage and destroyed states. Decisions run
+on per-ship reaction timers while retained commands feed every fixed tick. Time and an ID-derived
+phase seed bounded aim error and weaving; no wall clock or global randomness is used. Reaction time,
+aim error, aggression, preferred engagement distance, steering response and critical hull threshold
+are feature configuration. AI predicts relative movement, steers in its local quaternion frame,
+avoids nearby spherical obstacles and fires only while aligned in attack. Critical hull triggers
+retreat without firing. Disengagement returns home before reacquiring. FlightController still owns
+actual acceleration, speed, inertia and turning constraints. This is steering, not pathfinding or
+strategic planning.
 
 Maps/focus loss/pause stop the shared clock and clear fire as well as flight input. Hyperdrive
 departure clears the encounter and suspends normal collision/combat simulation. Arrival or abort
@@ -163,13 +197,13 @@ reattachment rebuilds colliders for React Strict Mode.
 Fiber owns their geometry/material lifetime. Ten reusable enemy model slots hide unused/far transforms.
 Combat projections follow the readout cadence after camera update. Death shows a keyboard-focusable
 respawn action. Camera impact offsets are bounded, decay with simulation time and respect reduced
-motion. `CombatAudio` uses gesture-started synthesis, consumes each effect ID once, caps voices at 12,
+motion. `CombatAudio` uses gesture-started synthesis, consumes each effect ID once, caps transient voices at ten,
 and stops/disconnects nodes on pause/mute/departure/disposal; audio never gates simulation.
 
 Future authority can validate commands and replay fixed ticks against stable system/entity IDs and
-shared configurations. A server implementation still needs serialization, input validation, explicit
-spawn/action events, synchronization, reconciliation, lag compensation and authoritative random/
-orbital policy. None of those are represented as implemented networking here.
+shared configurations, detached snapshots and attributed gameplay events. A server implementation
+still needs validated/versioned snapshot import, command validation, tick transport, synchronization,
+prediction/reconciliation, lag compensation and authoritative encounter/orbital policy. None of those are represented as implemented networking here.
 
 ## Logical coordinates and render origin
 
@@ -320,8 +354,9 @@ cadence, plus discrete camera/viewport changes. `PlanetMarkerProjector` converts
 positions through the current render origin and camera matrices, while measuring surface ranges from
 the logical ship. Its detached `planetMarkers` read model is presentation-only. Off-screen rocky/gas
 planets within the configured range receive edge arrows; rear contacts preserve their turn direction
-and carry an AFT label. Labels avoid the heading/instrument banks and are spaced along their edge,
-prioritizing nearest contacts when space is exhausted. A selected planet's edge arrow replaces its
+and carry an AFT label. Labels reserve the combat instrument columns and heading/lower banks and
+hide when no usable area remains. They are spaced along their edge, prioritizing nearest contacts
+when space is exhausted. A selected planet's edge arrow replaces its
 interior bearing marker. Maps, paused flight, and jumps suppress the arrows; system identity guards
 prevent stale markers from appearing after a handoff. No additional timer or per-frame store updates
 are introduced.
@@ -422,6 +457,27 @@ Reduced motion disables dynamic FOV, recoil/rattle, tunnel animation, star trail
 moving light/glass highlights, alignment bank and axial spin. The tunnel still
 masks a transition and progress remains legible. Device pixel ratio stays bounded. LOD/adaptive quality
 and broader hardware profiling are future improvements, not a promise of universal 60 FPS.
+
+## Adding weapons and enemy configurations
+
+- For another laser loadout, define a `ShipConfig` in `features/combat/config.ts`. Set local -Z-forward
+  hardpoint tuples, alternating/synchronized mode, projectile speed/damage/range/lifetime, inherited
+  velocity fraction, cooldown and heat per bolt/cooling/resume threshold. Place muzzles ahead of the
+  hull. Synchronized salvos reserve all slots before consuming cooldown/heat. Keep the shared sweep,
+  damage and event paths; add behavior tests for new boundaries.
+- A new weapon mechanism extends `WeaponSlot`/command/config contracts and the focused firing branch
+  in `CombatSimulation`, reusing nearest-hit collision and centralized damage. Extend input bindings,
+  `WEAPON_CHOICES`, telemetry, audio timbre/effect consumers, and document the actual controls. Test
+  release/pause/departure cancellation, inherited velocity, environment/friendly filtering, complete
+  salvo capacity, range/lifetime and fixed-step replay. Never apply damage from a renderer or tracer.
+- Define an enemy ship by composing `ENEMY_SHIP` with a distinct name, defense, handling, mass/radius
+  and loadout. Tune `AiConfig` reaction time, aim error, aggression, maneuverability and retreat
+  threshold independently of its appearance. `CombatSession.spawnSlot` is the explicit encounter
+  composition point for choosing a loadout per slot; keep the stable slot ID on replacement.
+- Add appearance through the spacecraft library/presentation slot composition, retaining shared asset
+  ownership. Weapon hardpoints belong to gameplay configuration, engines/lamps to the model. Check the
+  visual hull fits the collision sphere. Test every system's safe arrival/spawn and inspect both
+  cameras, floating-origin effects, pause, respawn and final resource teardown.
 
 ## Adding a system, planet or moon
 

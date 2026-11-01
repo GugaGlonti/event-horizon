@@ -3,7 +3,8 @@
 Event Horizon is a TypeScript/React browser-based space flight, exploration and PvE combat game.
 Milestone 4 extends three handcrafted systems, procedural celestial bodies, maps, floating-origin
 rendering and cinematic hyperspace with shared ship simulation, continuous sphere collisions,
-lasers, shields/hull, targeting, small AI encounters and respawn. Multiplayer PvP, detailed terrain
+four weapons, cannon heat, shields/hull, targeting, timed AI patrols/respawn and JSON combat snapshots.
+Multiplayer PvP/cooperative PvE, detailed terrain
 and landings remain future work; add them only when the current task requests them.
 
 ## Before changing code
@@ -23,7 +24,8 @@ and landings remain future work; add them only when the current task requests th
 - `src/engine/simulation`: browser/framework-independent flight math and bounded fixed-step clock.
   Three.js Vector3/Quaternion math is allowed here; rendering, React, DOM, and stores are not.
 - `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
-- `src/engine/combat`: shared command-driven ships, damage, weapons, AI and bounded entity lifetime;
+- `src/engine/combat`: shared command-driven ships, damage, weapons/heat, targeting, AI, pure encounter
+  scheduling, detached serializable snapshots and bounded attributed gameplay events/entity lifetime;
   no React, browser, renderer, stores or feature imports.
 - `src/features/combat`: encounter/world adaptation, HUD projections, effects and optional audio.
 - `src/engine/input`: keyboard and pointer-lock adapter, input snapshots, event lifecycle.
@@ -83,7 +85,9 @@ and landings remain future work; add them only when the current task requests th
   Cameras must never mutate simulation state. Telemetry snapshots are scalar and read-only.
 - Publish flight/combat HUD telemetry at 10 Hz, not at the simulation/render rate. Keep discrete state
   in Zustand. Keep collision/gameplay coordinates independent of render-origin changes. Bound ships,
-  projectiles/effects and audio voices; clear encounters on departure/reset/disposal. Preserve player
+  projectiles/effects/events and audio voices; clear encounters and reinforcement timers on
+  departure/reset/disposal. Encounter delays consume active fixed ticks; preserve patrol slot IDs on
+  respawn and revalidate spawn clearance against the current world. Practice remains finite. Preserve player
   damage across jumps, and clear held fire on every pause path.
 - Pause and clear held keys/mouse on Escape, focus loss, visibility loss, pointer-lock release, or
   renderer error. Remove active listeners when paused and all listeners on unmount. Handle async
@@ -108,6 +112,9 @@ and landings remain future work; add them only when the current task requests th
   galactic coordinates; check swept departure/arrival corridors including rings and moon motion. Match
   exit velocity and throttle at the physics handoff. Keep foreground ship/cockpit/exhaust visible;
   order the tunnel mask after celestial transparency and before star trails and exhaust.
+- Preserve T/X navigation and R/V lift. G/H acquire/clear combat targets; N/Tab cycle during flight.
+  Left mouse and Space fire only while active; HUD clicks must not fire. Escape works even with a
+  button focused, and Tab retains normal focus navigation inside maps and from focused controls.
 - Navigation shortcuts are separate discrete listeners owned by FlightSession, including while maps
   pause movement listeners. Maps release pointer lock and contain focus. Block maps/normal steering
   during jumps; hold journeys on blur/visibility and resume explicitly. Keyboard flight returns on
@@ -139,6 +146,9 @@ and landings remain future work; add them only when the current task requests th
 ## Tests and verification
 
 - Add meaningful behavior tests for changed math, simulation, state transitions, and bug regressions.
+  Include cannon heat hysteresis/range, AI reaction/retreat constraints, serializable state/events and
+  safe all-system reinforcement scheduling when those contracts change. See docs/milestone-4.md for
+  the consolidated acceptance record; keep it and README current.
 - Prefer pure unit tests. Do not add tests that merely mirror JSX or implementation details.
 - Run relevant checks after changes. For a foundation/configuration change, run:
   `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build`.
