@@ -134,6 +134,55 @@ export function validateSystem(system: StarSystemDefinition): void {
     }
   }
   if (!ids.has(system.defaultTargetId)) fail('Unknown default navigation target.');
+  const stationIds = new Set<string>();
+  for (const station of system.stations ?? []) {
+    if (
+      !station.id ||
+      stationIds.has(station.id) ||
+      ids.has(station.id) ||
+      !station.name.trim() ||
+      !tuple(station.position, 3) ||
+      !tuple(station.orientation, 4) ||
+      Math.abs(Math.hypot(...station.orientation) - 1) > 0.001 ||
+      (station.parentId && !ids.has(station.parentId))
+    )
+      fail('Invalid station definition.');
+    stationIds.add(station.id);
+    if (
+      station.orbit &&
+      (!positive(station.orbit.radius) ||
+        !positive(station.orbit.period) ||
+        !Number.isFinite(station.orbit.phase) ||
+        !Number.isFinite(station.orbit.inclination))
+    )
+      fail('Invalid station orbit.');
+    const ports = new Set<string>();
+    for (const port of station.ports) {
+      if (
+        !port.id ||
+        ports.has(port.id) ||
+        !port.name.trim() ||
+        !tuple(port.position, 3) ||
+        !tuple(port.approach, 3) ||
+        !tuple(port.orientation, 4) ||
+        Math.abs(Math.hypot(...port.orientation) - 1) > 0.001 ||
+        !['external', 'hangar', 'surface'].includes(port.kind)
+      )
+        fail('Invalid docking port.');
+      ports.add(port.id);
+    }
+    if (
+      !ports.size ||
+      station.boxes.length > 64 ||
+      !station.boxes.length ||
+      station.boxes.some(
+        (box) => !tuple(box.center, 3) || !tuple(box.size, 3) || !box.size.every(positive),
+      )
+    )
+      fail('Invalid station collision geometry.');
+    if (station.services.some((service) => !['repair', 'shields', 'weapons'].includes(service)))
+      fail('Invalid station service.');
+  }
   if (
     !system.spawns.length ||
     new Set(system.spawns.map((spawn) => spawn.id)).size !== system.spawns.length

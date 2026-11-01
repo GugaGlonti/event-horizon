@@ -28,6 +28,7 @@ export class FlightController {
   readonly surface = createSurfaceState();
   landingGear = false;
   transit = false;
+  flightLocked = false;
   impactSpeed = 0;
   private readonly surfaceSample = new SurfaceSample();
   private readonly motionStart = new Vector3();
@@ -70,6 +71,7 @@ export class FlightController {
   reset() {
     Object.assign(this.surface, createSurfaceState());
     this.landingGear = this.transit = false;
+    this.flightLocked = false;
     this.position.set(0, 0, 0);
     this.velocity.set(0, 0, 0);
     this.orientation.identity();
@@ -114,6 +116,7 @@ export class FlightController {
       },
       landingGear: this.landingGear,
       transit: this.transit,
+      flightLocked: this.flightLocked,
     };
   }
 
@@ -133,6 +136,7 @@ export class FlightController {
     Object.assign(this.surface, state.surface);
     this.landingGear = state.landingGear;
     this.transit = state.transit;
+    this.flightLocked = state.flightLocked;
   }
 
   /** Collision solver handoff; never resets engine reserve or orientation. */
@@ -168,6 +172,17 @@ export class FlightController {
     this.boosting = false;
     Object.assign(this.surface, createSurfaceState());
     this.transit = false;
+    this.flightLocked = false;
+  }
+
+  lockPose(position: Readonly<Vector3>, orientation: Readonly<Quaternion>) {
+    this.flightLocked = true;
+    this.position.copy(position);
+    this.orientation.copy(orientation);
+    this.velocity.set(0, 0, 0);
+    this.angularVelocity.set(0, 0, 0);
+    this.throttle = 0;
+    this.boosting = false;
   }
 
   requestTakeoff() {
@@ -217,6 +232,7 @@ export class FlightController {
       throw new RangeError('Flight dt must be finite and nonnegative.');
     if (dt === 0) return;
     this.impactSpeed = 0;
+    if (this.flightLocked) return;
     const field = this.environment;
     const sample = this.surfaceSample;
     field?.sample(this.position, sample);

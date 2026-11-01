@@ -4,6 +4,7 @@ import type {
   SurfacePointDefinition,
   TerrainDefinition,
 } from '@/engine/planetary/planetTypes';
+import type { StationDefinition } from '@/engine/stations/stationTypes';
 
 /** Serializable world data. Distances are gameplay metres; time is simulation seconds. */
 export type Position3 = readonly [number, number, number];
@@ -76,6 +77,7 @@ export interface StarSystemDefinition {
     readonly seed: number;
   };
   readonly bodies: readonly CelestialDefinition[];
+  readonly stations?: readonly StationDefinition[];
   readonly spawns: readonly SpawnDefinition[];
   readonly arrivalId: string;
   readonly defaultTargetId: string;

@@ -1,3 +1,4 @@
+import { SOLARA_STATION, VESPER_STATION } from '@/engine/stations/stations';
 import { validateCatalog } from '@/engine/world/validateSystem';
 import type {
   CelestialDefinition,
@@ -92,6 +93,7 @@ function moon(
 export const SYSTEMS: readonly StarSystemDefinition[] = [
   {
     id: 'solara',
+    stations: [SOLARA_STATION],
     name: 'Solara',
     description: 'A golden sun. Blue oceans. The familiar edge of the unknown.',
     chartPosition: [19, 65],
@@ -176,6 +178,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
   },
   {
     id: 'vesper',
+    stations: [VESPER_STATION],
     name: 'Vesper',
     description: 'Cold rings and long shadows beneath an ember-red sun.',
     chartPosition: [49, 27],

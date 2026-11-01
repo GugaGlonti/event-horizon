@@ -166,6 +166,7 @@ const flightStateSchema = z.strictObject({
   }),
   landingGear: z.boolean(),
   transit: z.boolean(),
+  flightLocked: z.boolean(),
 });
 const team = z.enum(['player', 'hostile']);
 const slot = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);

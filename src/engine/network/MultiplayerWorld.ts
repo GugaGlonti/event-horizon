@@ -15,6 +15,7 @@ import {
   travelDirection,
 } from '@/engine/navigation/hyperspaceRoute';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import { StationSimulation } from '@/engine/stations/StationSimulation';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 import { InputQueue, neutralInput } from './InputQueue';
@@ -48,6 +49,7 @@ export class MultiplayerWorld {
     if (!definition) throw new Error('Unknown star system.');
     this.system = new SystemRuntime(definition);
     this.simulation.environment = new PlanetaryEnvironment(this.system);
+    this.simulation.stations = new StationSimulation(this.system, this.simulation.ships);
     this.simulation.ships.clear();
     this.simulation.pvp = true;
     this.encounter.reset(systemId);
@@ -160,6 +162,7 @@ export class MultiplayerWorld {
     return false;
   }
   removePlayer(id: string) {
+    this.simulation.stations?.remove(id);
     this.pilots.delete(id);
     this.simulation.ships.delete(id);
     this.commands.delete(id);
@@ -187,7 +190,9 @@ export class MultiplayerWorld {
       destination === this.system.definition.id ||
       pilot.ship.health.destroyed ||
       pilot.ship.transferring ||
-      pilot.travelCooldown > 0
+      pilot.travelCooldown > 0 ||
+      pilot.ship.controller.surface.phase !== 'flying' ||
+      this.simulation.stations?.state(id).phase !== 'undocked'
     )
       return false;
     return !departureObstruction(

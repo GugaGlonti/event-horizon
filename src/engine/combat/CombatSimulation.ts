@@ -8,6 +8,8 @@ import {
 } from '@/engine/physics/spheres';
 import type { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
+import type { StationSimulation } from '@/engine/stations/StationSimulation';
+import { traceStation } from '@/engine/stations/stationGeometry';
 import {
   type AiConfig,
   type CombatEffect,
@@ -28,6 +30,7 @@ import { flakDirection, missileCanLock } from './weapons';
 /** Authoritative gameplay state. No renderer, browser, stores, clocks or async work. */
 export class CombatSimulation {
   environment: PlanetaryEnvironment | null = null;
+  stations: StationSimulation | null = null;
   readonly ships = new Map<string, CombatShip>();
   readonly projectiles: Projectile[] = [];
   readonly effects: CombatEffect[] = [];
@@ -448,6 +451,12 @@ export class CombatSimulation {
       this.hitShip = null;
       this.hitDetected = true;
     }
+    const stationHit = this.environment && traceStation(this.environment.world, start, end, radius);
+    if (stationHit && stationHit.fraction <= this.hitFraction) {
+      this.hitFraction = stationHit.fraction;
+      this.hitShip = null;
+      this.hitDetected = true;
+    }
   }
 
   private advanceProjectiles(dt: number) {
@@ -525,6 +534,7 @@ export class CombatSimulation {
       }
     }
     this.bodies.length = 0;
+    this.stations?.step(dt);
     for (const ship of this.ships.values()) {
       ship.sync();
       ship.previous.copy(ship.position);
@@ -583,6 +593,20 @@ export class CombatSimulation {
     }
     this.solver.solve(this.bodies, dt, this.collision);
     for (const ship of this.ships.values()) {
+      const hit =
+        this.environment &&
+        !ship.controller.flightLocked &&
+        traceStation(this.environment.world, ship.previous, ship.position, ship.radius);
+      if (hit) {
+        ship.position
+          .lerpVectors(ship.previous, ship.position, hit.fraction)
+          .addScaledVector(hit.normal, 0.02);
+        const closing = -ship.velocity.dot(hit.normal);
+        if (closing > 0) {
+          ship.velocity.addScaledVector(hit.normal, closing * 1.08);
+          this.damage(ship, impactDamage(closing, ship.config.mass), hit.stationId);
+        }
+      }
       ship.controller.resolveMotion(ship.position, ship.velocity);
     }
     // Existing projectiles sweep relative to this tick's moving colliders.
@@ -590,7 +614,9 @@ export class CombatSimulation {
     // New projectiles start at the end of the tick, avoiding a one-tick target motion error.
     for (const ship of this.ships.values()) {
       const firing =
-        !ship.transferring && (commands || ship !== this.player ? ship.command.fire : command.fire);
+        !ship.transferring &&
+        !ship.controller.flightLocked &&
+        (commands || ship !== this.player ? ship.command.fire : command.fire);
       if (ship.weapon === 3) {
         if (!firing || ship.health.destroyed || ship.cooldown > 1e-9) ship.railgunCharge = 0;
         else {

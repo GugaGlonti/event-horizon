@@ -6,6 +6,7 @@ import { missileCanLock } from '@/engine/combat/weapons';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightInput } from '@/engine/simulation/flightTypes';
+import { StationSimulation } from '@/engine/stations/StationSimulation';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { useCombatStore } from '@/stores/combatStore';
 import { CombatAudio } from './CombatAudio';
@@ -40,6 +41,7 @@ export class CombatSession {
   setWorld(world: SystemRuntime) {
     this.world = world;
     this.simulation.environment = new PlanetaryEnvironment(world);
+    this.simulation.stations = new StationSimulation(world, this.simulation.ships);
     this.simulation.player.controller.environment = this.simulation.environment;
     this.simulation.clearEncounter();
     this.encounter.reset(world.definition.id);
