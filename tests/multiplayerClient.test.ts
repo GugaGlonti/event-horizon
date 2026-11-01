@@ -5,8 +5,11 @@ import { FLIGHT_CONFIG } from '@/engine/simulation/config';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { CombatSession } from '@/features/combat/CombatSession';
+import { FlightSession } from '@/features/flight/FlightSession';
 import { MultiplayerSession } from '@/features/multiplayer/MultiplayerSession';
 import { useCombatStore } from '@/stores/combatStore';
+import { useExplorationStore } from '@/stores/explorationStore';
+import { useFlightStore } from '@/stores/flightStore';
 
 const transport = vi.hoisted(() => ({
   receivers: [] as ((state: WorldSnapshot, first: boolean) => void)[],
@@ -99,4 +102,26 @@ describe('multiplayer browser adapter without WebGL', () => {
     expect(transport.sent.at(-1)?.fire).toBe(false);
     expect(transport.sent.at(-1)?.paused).toBe(true);
   });
+});
+
+it('keeps paused multiplayer charts on authoritative celestial time at 10 Hz', () => {
+  const session = new FlightSession();
+  const world = new MultiplayerWorld('solara');
+  world.addPlayer('own', 'Own');
+  session.multiplayer.enabled = true;
+  const snapshot = world.snapshot('own', 6000);
+  snapshot.time = 60;
+  session.multiplayer.network.latest = snapshot;
+  useFlightStore.setState({ phase: 'paused' });
+  const before = useExplorationStore.getState().chart;
+  const sync = vi.spyOn(session.exploration, 'syncPose');
+  for (let frame = 0; frame < 10; frame++) session.advance(0.1);
+  expect(sync).toHaveBeenCalledTimes(10);
+  const moon = session.exploration.world.definition.bodies.find((body) => body.orbit);
+  if (!moon) throw new Error('moon');
+  const position = useExplorationStore
+    .getState()
+    .chart.bodies.find((body) => body.id === moon.id)?.position;
+  expect(position).toEqual(session.exploration.world.positions.get(moon.id)?.toArray());
+  expect(position).not.toEqual(before.bodies.find((body) => body.id === moon.id)?.position);
 });

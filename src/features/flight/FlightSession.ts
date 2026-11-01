@@ -468,6 +468,8 @@ export class FlightSession {
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
         state.publishTelemetry(this.controller.getTelemetry());
+        if (!flying && !this.exploration.jump.busy)
+          this.exploration.syncPose(this.position, this.orientation);
       }
       if (this.awaitingRespawn && !this.combat.simulation.player.health.destroyed) {
         this.awaitingRespawn = false;

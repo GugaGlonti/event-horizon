@@ -12,7 +12,7 @@ terrain, landings or distributed infrastructure were added.
 
 ## Executed automated verification
 
-- `npm run check`: Biome, **316 tests across 31 files**, strict TypeScript checks for client/server,
+- `npm run check`: Biome, **317 tests across 31 files**, strict TypeScript checks for client/server,
   scripts and tests, and production Vite build.
 - `npm run test:integration`: a real listening Colyseus server and SDK clients, without WebGL.
 - `npm run test:load`: 2, 8 and 16 simulated clients in one shared room, ten seconds per population.
@@ -21,7 +21,7 @@ terrain, landings or distributed infrastructure were added.
 
 Unit/adapter coverage includes renderer-independent math parity and alias safety, full flight-state
 restore, bounded input sequencing/rates and malformed commands, delayed prediction/replay, snapshot
-buffering/extrapolation/teleports, neutral pause input, 10 Hz readouts, stale weapon snapshot races,
+buffering/extrapolation/teleports, neutral pause input, paused charts on server time, 10 Hz readouts, stale weapon snapshot races,
 correct practice defenses, destroyed target removal, nearest-live-player AI selection, relevance
 filtering, roster cleanup, flight reserve preservation, safe occupied-arrival release, pending travel
 approval cancellation/destination locking and focus suspension. The original offline behavioral tests
