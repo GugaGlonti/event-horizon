@@ -1,4 +1,4 @@
-import type { StationDefinition } from './stationTypes';
+import type { StationBox, StationDefinition } from './stationTypes';
 export const SOLARA_STATION: StationDefinition = {
   id: 'solara-orbital',
   name: 'Solara Orbital',
@@ -33,6 +33,15 @@ export const SOLARA_STATION: StationDefinition = {
     },
   ],
   boxes: [
+    ...Array.from({ length: 16 }, (_, i): StationBox => {
+      const a = (i * Math.PI) / 8;
+      return {
+        center: [260 * Math.cos(a), 110, -230 + 260 * Math.sin(a)],
+        size: [24, 24, 102],
+        orientation: [0, -Math.sin(a / 2), 0, Math.cos(a / 2)],
+        role: 'hull',
+      };
+    }),
     { center: [0, 20, -230], size: [260, 240, 240], role: 'hull' },
     { center: [0, -48, 70], size: [180, 16, 340], role: 'hangar' },
     { center: [0, 78, 70], size: [180, 16, 340], role: 'hangar' },

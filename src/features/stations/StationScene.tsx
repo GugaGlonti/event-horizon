@@ -48,7 +48,7 @@ function Station({ station, session }: { station: StationDefinition; session: Fl
         if (!box) continue;
         matrix.compose(
           new Vector3().fromArray(box.center),
-          rotation,
+          rotation.fromArray(box.orientation ?? [0, 0, 0, 1]),
           new Vector3().fromArray(box.size),
         );
         hull.current.setMatrixAt(i, matrix);

@@ -113,3 +113,23 @@ describe('authoritative station operations', () => {
     expect(traceStation(f.world.system, point(0, 20, 600), point(0, 20, -600), 5)).not.toBeNull();
   });
 });
+
+import { StationSimulation } from '@/engine/stations/StationSimulation';
+import { SystemRuntime } from '@/engine/world/SystemRuntime';
+
+it('measures approach speed in the moving station frame', () => {
+  const f = fixture();
+  const moving = { ...f.station, orbit: { radius: 300, period: 1200, phase: 0, inclination: 0 } };
+  const system = new SystemRuntime({ ...f.world.system.definition, stations: [moving] });
+  const operations = new StationSimulation(system, f.world.simulation.ships),
+    pose = portPose(system, moving, f.port);
+  f.move('a', pose.approach);
+  f.move('b', pose.approach.clone().add(new Vector3(80, 0, 0)));
+  expect(operations.request('a', moving.id, f.port.id)).toBeNull();
+  operations.step(0.01);
+  const point = pose.position.clone().add(new Vector3(0, 0, 20));
+  f.move('a', point);
+  f.a.ship.controller.resolveMotion(point, pose.velocity.clone().add(new Vector3(0, 0, 2)));
+  f.a.ship.sync();
+  expect(operations.assist('a')).toBeNull();
+});

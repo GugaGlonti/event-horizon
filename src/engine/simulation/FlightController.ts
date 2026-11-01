@@ -261,7 +261,10 @@ export class FlightController {
         ? 1 +
           32 *
             MathUtils.clamp(
-              (sample.altitude - (sample.body?.atmosphere?.height ?? 0) - 2000) / 18000,
+              Math.min(
+                sample.transitClearance,
+                sample.altitude - (sample.body?.atmosphere?.height ?? 0) - 2000,
+              ) / 18000,
               0,
               1,
             )

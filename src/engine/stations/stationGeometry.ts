@@ -69,10 +69,16 @@ export function traceStation(
       .addScaledVector(pose.velocity, -dt)
       .applyQuaternion(inverse);
     for (const box of station.boxes) {
-      const from = local.clone().sub(new Vector3().fromArray(box.center));
+      const boxRotation = new Quaternion().fromArray(box.orientation ?? [0, 0, 0, 1]),
+        boxInverse = boxRotation.clone().invert();
+      const from = local
+        .clone()
+        .sub(new Vector3().fromArray(box.center))
+        .applyQuaternion(boxInverse);
+      const boxDelta = delta.clone().applyQuaternion(boxInverse);
       const half = box.size.map((v) => v / 2 + radius);
       const coords = from.toArray(),
-        motion = delta.toArray();
+        motion = boxDelta.toArray();
       let enter = 0,
         exit = 1,
         axis = -1,
@@ -117,6 +123,7 @@ export function traceStation(
       if (!valid || enter > 1 || exit < 0 || enter < 0 || axis < 0) continue;
       const normal = new Vector3()
         .fromArray([axis === 0 ? sign : 0, axis === 1 ? sign : 0, axis === 2 ? sign : 0])
+        .applyQuaternion(boxRotation)
         .applyQuaternion(pose.orientation);
       if (inside && delta.dot(new Vector3().copy(normal).applyQuaternion(inverse)) >= 0) continue;
       if (!hit || enter < hit.fraction)

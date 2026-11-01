@@ -27,6 +27,7 @@ export function validateSystem(system: StarSystemDefinition): void {
   if (ids.size !== system.bodies.length) fail('Duplicate celestial IDs.');
   if (system.bodies.filter((body) => body.kind === 'star').length !== 1)
     fail('Exactly one central star is required.');
+  const navigationIds = new Set(ids.keys());
   for (const body of system.bodies) {
     if (!body.id || !body.name.trim() || !kinds.has(body.kind) || !positive(body.radius))
       fail('Invalid celestial metadata.');
@@ -66,6 +67,8 @@ export function validateSystem(system: StarSystemDefinition): void {
         !Number.isFinite(zone.elevation)
       )
         fail(`Invalid landing zone for ${body.id}.`);
+      if (navigationIds.has(zone.id)) fail('Duplicate navigation contact ID.');
+      navigationIds.add(zone.id);
       zoneIds.add(zone.id);
     }
     if (
@@ -76,6 +79,18 @@ export function validateSystem(system: StarSystemDefinition): void {
         Math.abs(body.atmosphere.height - body.radius * (body.atmosphere.scale - 1)) > 0.01)
     )
       fail(`Invalid physical atmosphere for ${body.id}.`);
+    for (const point of body.pointsOfInterest ?? []) {
+      if (
+        !point.id ||
+        !point.name.trim() ||
+        navigationIds.has(point.id) ||
+        !Number.isFinite(point.latitude) ||
+        Math.abs(point.latitude) > Math.PI / 2 ||
+        !Number.isFinite(point.longitude)
+      )
+        fail('Invalid surface point.');
+      navigationIds.add(point.id);
+    }
     if (Boolean(body.position) === Boolean(body.orbit))
       fail(`${body.id} needs a position or an orbit, exclusively.`);
     if (body.position && !tuple(body.position, 3)) fail(`Invalid position for ${body.id}.`);
@@ -139,7 +154,7 @@ export function validateSystem(system: StarSystemDefinition): void {
     if (
       !station.id ||
       stationIds.has(station.id) ||
-      ids.has(station.id) ||
+      navigationIds.has(station.id) ||
       !station.name.trim() ||
       !tuple(station.position, 3) ||
       !tuple(station.orientation, 4) ||
@@ -148,6 +163,7 @@ export function validateSystem(system: StarSystemDefinition): void {
     )
       fail('Invalid station definition.');
     stationIds.add(station.id);
+    navigationIds.add(station.id);
     if (
       station.orbit &&
       (!positive(station.orbit.radius) ||
@@ -180,9 +196,22 @@ export function validateSystem(system: StarSystemDefinition): void {
       )
     )
       fail('Invalid station collision geometry.');
+    if (
+      station.boxes.some(
+        (box) =>
+          box.orientation &&
+          (!tuple(box.orientation, 4) || Math.abs(Math.hypot(...box.orientation) - 1) > 0.001),
+      )
+    )
+      fail('Invalid station box orientation.');
     if (station.services.some((service) => !['repair', 'shields', 'weapons'].includes(service)))
       fail('Invalid station service.');
   }
+  if (
+    (system.stations?.length ?? 0) > 8 ||
+    (system.stations ?? []).reduce((sum, station) => sum + station.ports.length, 0) > 32
+  )
+    fail('Station budget exceeded.');
   if (
     !system.spawns.length ||
     new Set(system.spawns.map((spawn) => spawn.id)).size !== system.spawns.length

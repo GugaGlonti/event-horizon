@@ -145,6 +145,7 @@ export function PlanetTerrain({
       busy = false;
     const worker = new Worker(new URL('./terrainWorker.ts', import.meta.url), { type: 'module' });
     const desired = new Map<string, TerrainPatch>();
+    let shown = new Set<string>();
     const add = (patch: TerrainPatch) => {
       desired.set(patchKey(patch), patch);
       if (patch.level > 0)
@@ -205,6 +206,19 @@ export function PlanetTerrain({
       };
       for (const root of terrainRoots()) descend(root);
       const keep = new Set(leaves.map((p) => patchKey(p.patch)));
+      for (const entry of leaves) {
+        const parent =
+          entry.patch.level > 0
+            ? patchKey({
+                face: entry.patch.face,
+                level: entry.patch.level - 1,
+                x: Math.floor(entry.patch.x / 2),
+                y: Math.floor(entry.patch.y / 2),
+              })
+            : '';
+        if (!shown.has(patchKey(entry.patch)) && shown.has(parent)) entry.born = performance.now();
+      }
+      shown = keep;
       for (const [key, entry] of cache)
         if (cache.size > 256 && !desired.has(key) && !keep.has(key)) {
           entry.geometry.dispose();

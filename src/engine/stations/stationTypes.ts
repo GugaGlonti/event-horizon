@@ -3,6 +3,7 @@ export interface StationBox {
   readonly center: Position3;
   readonly size: Position3;
   readonly role: 'hull' | 'hangar' | 'arm';
+  readonly orientation?: Rotation4;
 }
 export interface DockingPortDefinition {
   readonly id: string;

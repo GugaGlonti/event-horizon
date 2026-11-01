@@ -19,6 +19,7 @@ export class SurfaceSample {
   gravity = 0;
   zoneId: string | null = null;
   zoneDistance = Infinity;
+  transitClearance = Infinity;
 }
 /** Lightweight analytical authority. It never builds or inspects rendered terrain patches. */
 export class PlanetaryEnvironment {
@@ -33,6 +34,12 @@ export class PlanetaryEnvironment {
     out.acceleration.set(0, 0, 0);
     out.zoneId = null;
     out.zoneDistance = Infinity;
+    out.transitClearance = Infinity;
+    for (const station of this.world.definition.stations ?? []) {
+      const center = this.world.positions.get(station.id);
+      if (center)
+        out.transitClearance = Math.min(out.transitClearance, position.distanceTo(center) - 2000);
+    }
     let nearest = Infinity;
     for (const body of this.world.definition.bodies) {
       if (!body.gravity) continue;
