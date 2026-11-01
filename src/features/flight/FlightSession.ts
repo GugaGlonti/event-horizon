@@ -212,6 +212,7 @@ export class FlightSession {
     this.input = createFlightInput();
     this.telemetryElapsed = 0;
     if (resetCamera) this.resetVersion += 1;
+    this.publishPlanetary();
   }
 
   attach(target: HTMLElement) {
