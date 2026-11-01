@@ -357,7 +357,21 @@ export class MultiplayerWorld {
       effects: this.simulation.effects
         .filter((effect) => nearby(effect.position))
         .map((effect) => ({ ...effect, position: effect.position.toArray() })),
-      events: this.simulation.events.filter((event) => event.id > afterEvent),
+      events: this.simulation.events.filter((event) => {
+        if (event.id <= afterEvent) return false;
+        if (
+          event.shipId === id ||
+          ('sourceId' in event && event.sourceId === id) ||
+          ('targetId' in event && event.targetId === id)
+        )
+          return true;
+        const point = event.position,
+          center = pilot.ship.position;
+        return (
+          (point[0] - center.x) ** 2 + (point[1] - center.y) ** 2 + (point[2] - center.z) ** 2 <=
+          relevance ** 2
+        );
+      }),
       tracers: this.simulation.tracers
         .filter((trace) => nearby(trace.start))
         .map((trace) => ({ ...trace, start: trace.start.toArray(), end: trace.end.toArray() })),

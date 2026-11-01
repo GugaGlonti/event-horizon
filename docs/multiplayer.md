@@ -113,8 +113,8 @@ connection. The server owns all movement, weapon origins/configuration/cooldowns
 collisions, damage and death. There is no client position/hit/damage message.
 
 Snapshots include all near ships and combat targets at the configured rate, with distant ship states
-once per second and a bounded membership roster for reliable removals. Projectiles/effects are
-relevance-filtered; static world definitions remain bundled. This is a distance filter, not a complex
+once per second and a bounded membership roster for reliable removals. Projectiles, effects and combat events are
+relevance-filtered, retaining the recipient’s own combat outcomes; static world definitions remain bundled. This is a distance filter, not a complex
 spatial database. PvP shots and AI are shared. Confirmed effects have stable per-room IDs; audio
 consumes each once, and resets its cursor on a new room. Prediction replays only flight inputs,
 never weapon simulation or one-shot effects.

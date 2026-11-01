@@ -215,6 +215,12 @@ describe('authority and delayed prediction regressions', () => {
     expect(world.snapshot('a', 6000, true).ships).toHaveLength(2);
     b.ship.targetId = 'a';
     expect(world.snapshot('a', 6000).ships).toHaveLength(2);
+    b.ship.health.invulnerability = 0;
+    world.simulation.damage(b.ship, 1, null);
+    expect(world.snapshot('a', 6000).events).toHaveLength(0);
+    world.simulation.damage(b.ship, 1, 'a');
+    expect(world.snapshot('a', 6000).events).toHaveLength(1);
+    expect(world.snapshot('b', 6000).events).toHaveLength(2);
     world.removePlayer('b');
     expect(world.snapshot('a', 6000).roster).not.toContain('b');
   });
