@@ -420,6 +420,34 @@ describe('AI commands and fixed-step replay', () => {
 });
 
 describe('targeting and serializable gameplay events', () => {
+  it('selects the nearest hostile ahead, ignores nearer rear/side contacts and clears explicitly', () => {
+    const simulation = world();
+    target(simulation, new Vector3(0, 0, 30));
+    target(simulation, new Vector3(60, 0, 0));
+    const ahead = target(simulation, new Vector3(10, 0, -200));
+    target(simulation, new Vector3(0, 0, -400));
+    target(simulation, new Vector3(0, 0, -4000));
+    simulation.targetAhead();
+    expect(simulation.targetId).toBe(ahead.id);
+    simulation.clearTarget();
+    expect(simulation.targetId).toBeNull();
+    simulation.player.orientation.setFromAxisAngle(new Vector3(0, 1, 0), Math.PI);
+    simulation.targetAhead();
+    expect(simulation.ships.get(simulation.targetId ?? '')?.position.z).toBe(30);
+    simulation.clearEncounter();
+    simulation.targetAhead();
+    expect(simulation.targetId).toBeNull();
+  });
+
+  it('hides impossible, expired and degenerate intercepts including a linear intercept beyond range', () => {
+    const position = new Vector3(0, 0, -1000);
+    expect(leadTime(position, new Vector3(1000, 0, 0), 1000, 1)).toBe(0);
+    expect(leadTime(position, new Vector3(0, 0, 1000), 1000, 0.1)).toBe(0);
+    expect(leadTime(position, new Vector3(0, 0, 1000), 1000, 1)).toBeCloseTo(0.5);
+    expect(leadTime(position, new Vector3(), 0, 2)).toBe(0);
+    expect(leadTime(new Vector3(), new Vector3(), 1000, 2)).toBe(0);
+  });
+
   it('filters same-team and self hits for all weapons', () => {
     for (const weapon of [1, 2, 3, 4] as const) {
       const simulation = world();

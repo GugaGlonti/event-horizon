@@ -279,13 +279,20 @@ function CombatProjection({ session }: { session: FlightSession }) {
     camera.updateMatrixWorld();
     const { point, lead, relative, velocity, cameraDirection } = scratch;
     relative.subVectors(target.position, simulation.player.position);
-    velocity.subVectors(target.velocity, simulation.player.velocity);
     const weapon = simulation.player.weapon;
     const projectile =
       weapon === 4 ? simulation.player.config.flak : simulation.player.config.laser;
+    velocity
+      .copy(target.velocity)
+      .addScaledVector(simulation.player.velocity, -projectile.velocityInheritance);
     const time =
       weapon === 1 || weapon === 4
-        ? leadTime(relative, velocity, projectile.speed, projectile.lifetime)
+        ? leadTime(
+            relative,
+            velocity,
+            projectile.speed,
+            Math.min(projectile.lifetime, projectile.range / projectile.speed),
+          )
         : 0;
     lead.copy(target.position).addScaledVector(velocity, time).sub(session.origin.position);
     lead.project(camera);
@@ -312,11 +319,11 @@ function CombatProjection({ session }: { session: FlightSession }) {
         aft,
         edge,
         leadX:
-          weapon !== 2 && !aft && Math.abs(lead.x) < 0.9 && Math.abs(lead.y) < 0.7
+          (weapon === 3 || time > 0) && !aft && Math.abs(lead.x) < 0.9 && Math.abs(lead.y) < 0.7
             ? (lead.x * 0.5 + 0.5) * size.width
             : null,
         leadY:
-          weapon !== 2 && !aft && Math.abs(lead.x) < 0.9 && Math.abs(lead.y) < 0.7
+          (weapon === 3 || time > 0) && !aft && Math.abs(lead.x) < 0.9 && Math.abs(lead.y) < 0.7
             ? (-lead.y * 0.5 + 0.5) * size.height
             : null,
       },

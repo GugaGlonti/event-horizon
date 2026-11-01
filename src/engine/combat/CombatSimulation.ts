@@ -21,7 +21,7 @@ import {
 } from './combatTypes';
 import { impactDamage } from './damage';
 import { ShipAi } from './ShipAi';
-import { leadTime } from './targeting';
+import { leadTime, nearestAhead, type TargetingConfig, validTarget } from './targeting';
 import { flakDirection, missileCanLock } from './weapons';
 
 /** Authoritative gameplay state. No renderer, browser, stores, clocks or async work. */
@@ -54,9 +54,16 @@ export class CombatSimulation {
   private hitShip: CombatShip | null = null;
   private hitDetected = false;
   readonly aiConfig: AiConfig;
+  readonly targeting: TargetingConfig;
 
-  constructor(config: ShipConfig, aiConfig: AiConfig, controller?: FlightController) {
+  constructor(
+    config: ShipConfig,
+    aiConfig: AiConfig,
+    controller?: FlightController,
+    targeting: TargetingConfig = { range: 3500, aheadAngle: Math.PI / 3 },
+  ) {
     this.aiConfig = aiConfig;
+    this.targeting = targeting;
     this.player = new CombatShip('player', 'player', config, controller);
     this.ships.set(this.player.id, this.player);
   }
@@ -116,14 +123,20 @@ export class CombatSimulation {
   }
 
   cycleTarget() {
-    const nearby = [...this.ships.values()].filter(
-      (ship) =>
-        ship.team === 'hostile' &&
-        !ship.health.destroyed &&
-        ship.position.distanceToSquared(this.player.position) <= 3500 ** 2,
+    const nearby = [...this.ships.values()].filter((ship) =>
+      validTarget(ship, this.player, this.targeting.range),
     );
     const index = nearby.findIndex((ship) => ship.id === this.targetId);
     this.targetId = nearby[(index + 1) % nearby.length]?.id ?? null;
+  }
+
+  targetAhead() {
+    this.direction.set(0, 0, -1).applyQuaternion(this.player.orientation);
+    this.targetId = nearestAhead(this.ships.values(), this.player, this.direction, this.targeting);
+  }
+
+  clearTarget() {
+    this.targetId = null;
   }
 
   private event(shipId: string, position: Readonly<Vector3>, detail: CombatEventDetail) {
@@ -521,7 +534,7 @@ export class CombatSimulation {
       this.targetId &&
       (!this.ships.has(this.targetId) ||
         (this.ships.get(this.targetId)?.position.distanceTo(this.player.position) ?? Infinity) >
-          3500)
+          this.targeting.range)
     )
       this.targetId = null;
   }
@@ -543,6 +556,7 @@ export class CombatSimulation {
       kills: this.kills,
       targetId: this.targetId,
       aiConfig: { ...this.aiConfig },
+      targeting: { ...this.targeting },
       ships: [...this.ships.values()].map((ship) => ({
         id: ship.id,
         team: ship.team,

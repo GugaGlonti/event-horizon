@@ -110,7 +110,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
           {readout.status}
         </p>
         <p className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
-          SPACE / FIRE · N / TARGET
+          MOUSE / SPACE: FIRE · G: ACQUIRE · N: NEXT · H: CLEAR
         </p>
       </section>
       {readout.target && (
@@ -119,7 +119,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
           className="absolute top-52 right-4 w-[42%] text-right text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:w-52 tablet:text-xs [@media(max-height:650px)]:top-32"
         >
           <p className="text-instrument">
-            {readout.target.id} / {Math.round(readout.target.distance)} M
+            {readout.target.name} / {Math.round(readout.target.distance)} M
           </p>
           <p className="mt-2 text-phosphor-dim">{readout.target.state} / N: NEXT</p>
           <div className="mt-3">

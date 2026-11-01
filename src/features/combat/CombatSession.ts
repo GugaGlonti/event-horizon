@@ -7,7 +7,14 @@ import type { FlightInput } from '@/engine/simulation/flightTypes';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { useCombatStore } from '@/stores/combatStore';
 import { CombatAudio } from './CombatAudio';
-import { AI_CONFIG, ENCOUNTER_CONFIG, ENEMY_SHIP, PLAYER_SHIP, PRACTICE_TARGET } from './config';
+import {
+  AI_CONFIG,
+  ENCOUNTER_CONFIG,
+  ENEMY_SHIP,
+  PLAYER_SHIP,
+  PRACTICE_TARGET,
+  TARGETING_CONFIG,
+} from './config';
 
 /** Adapts world definitions and low-frequency UI to the pure gameplay simulation. */
 export class CombatSession {
@@ -23,7 +30,7 @@ export class CombatSession {
   status = 'B / Start patrol encounter';
 
   constructor(controller: FlightController, input: FlightInput) {
-    this.simulation = new CombatSimulation(PLAYER_SHIP, AI_CONFIG, controller);
+    this.simulation = new CombatSimulation(PLAYER_SHIP, AI_CONFIG, controller, TARGETING_CONFIG);
     this.command = { flight: input, fire: false, weapon: 1 };
   }
 
@@ -220,6 +227,7 @@ export class CombatSession {
         target: target
           ? {
               id: target.id,
+              name: `${target.config.name} ${target.id.split(':').at(-1)}`,
               distance: target.position.distanceTo(player.position),
               shields: target.health.shields / Math.max(1, target.config.defense.shields),
               hull: target.health.hull / target.config.defense.hull,

@@ -3,6 +3,7 @@ import type { AiState, WeaponSlot } from '@/engine/combat/combatTypes';
 
 export interface TargetReadout {
   readonly id: string;
+  readonly name: string;
   readonly distance: number;
   readonly shields: number;
   readonly hull: number;

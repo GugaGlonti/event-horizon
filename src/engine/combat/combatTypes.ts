@@ -48,6 +48,7 @@ export interface FlakConfig extends ProjectileConfig {
   readonly spreadAngle: number;
 }
 export interface ShipConfig {
+  readonly name: string;
   readonly mass: number;
   readonly radius: number;
   readonly flight: FlightConfig;

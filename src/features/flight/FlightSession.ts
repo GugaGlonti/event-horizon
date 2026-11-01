@@ -172,10 +172,12 @@ export class FlightSession {
       event.altKey ||
       tag === 'INPUT' ||
       tag === 'TEXTAREA' ||
+      tag === 'SELECT' ||
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
-    if (['KeyB', 'KeyN'].includes(event.code)) {
+    if (['KeyB', 'KeyN', 'KeyG', 'KeyH', 'Tab'].includes(event.code)) {
+      if (event.code === 'Tab' && tag === 'BUTTON') return;
       if (
         useFlightStore.getState().phase !== 'flying' ||
         this.exploration.jump.busy ||
@@ -186,7 +188,9 @@ export class FlightSession {
       event.preventDefault();
       if (event.code === 'KeyB') this.startEncounter();
       else {
-        this.combat.simulation.cycleTarget();
+        if (event.code === 'KeyG') this.combat.simulation.targetAhead();
+        else if (event.code === 'KeyH') this.combat.simulation.clearTarget();
+        else this.combat.simulation.cycleTarget();
         this.combat.publish();
       }
       return;

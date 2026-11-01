@@ -2,6 +2,7 @@ import type { AiConfig, ShipConfig } from '@/engine/combat/combatTypes';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 
 export const PLAYER_SHIP: ShipConfig = {
+  name: 'Kestrel',
   mass: 12,
   radius: 5,
   flight: FLIGHT_CONFIG,
@@ -57,6 +58,7 @@ export const PLAYER_SHIP: ShipConfig = {
   },
 };
 export const ENEMY_SHIP: ShipConfig = {
+  name: 'Corsair',
   missile: PLAYER_SHIP.missile,
   railgun: PLAYER_SHIP.railgun,
   flak: PLAYER_SHIP.flak,
@@ -78,6 +80,7 @@ export const ENEMY_SHIP: ShipConfig = {
 };
 export const PRACTICE_TARGET: ShipConfig = {
   ...ENEMY_SHIP,
+  name: 'Practice drone',
   defense: { shields: 30, hull: 50, regeneration: 0, regenerationDelay: 6 },
 };
 export const AI_CONFIG: AiConfig = {
@@ -96,6 +99,8 @@ export const AI_CONFIG: AiConfig = {
   retreatHull: 0.25,
 };
 export const ENCOUNTER_CONFIG = { enemies: 5, maximumEnemies: 10, asteroids: 8 } as const;
+
+export const TARGETING_CONFIG = { range: 3500, aheadAngle: Math.PI / 3 } as const;
 
 export const WEAPON_CHOICES = [
   { slot: 1, label: 'Gun' },

@@ -68,6 +68,37 @@ describe('integrated combat lifecycle', () => {
     expect(useExplorationStore.getState().overlay).toBeNull();
   });
 
+  it('selects, cycles and clears combat targets without conflicting with navigation or lift', () => {
+    session.startEncounter(true);
+    const id = session.combat.simulation.targetId;
+    key('KeyH');
+    expect(session.combat.simulation.targetId).toBeNull();
+    key('KeyG');
+    expect(session.combat.simulation.targetId).toBe(id);
+    key('KeyH');
+    const tab = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Tab' });
+    target.dispatchEvent(tab);
+    expect(tab.defaultPrevented).toBe(true);
+    expect(session.combat.simulation.targetId).toBe(id);
+    key('KeyL');
+    key('KeyH');
+    expect(session.combat.simulation.targetId).toBe(id);
+    const menuTab = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Tab' });
+    target.dispatchEvent(menuTab);
+    expect(menuTab.defaultPrevented).toBe(false);
+  });
+
+  it('publishes combat readouts at 10 Hz while active', () => {
+    let updates = 0;
+    const unsubscribe = useCombatStore.subscribe((state, previous) => {
+      if (state.readout !== previous.readout) updates++;
+    });
+    advance(1);
+    unsubscribe();
+    expect(updates).toBeGreaterThanOrEqual(9);
+    expect(updates).toBeLessThanOrEqual(10);
+  });
+
   it('starts and wins a practice encounter with real fire input, then starts a patrol', () => {
     session.startEncounter(true);
     key('Space');

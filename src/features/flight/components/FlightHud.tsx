@@ -293,13 +293,13 @@ export function FlightHud({ session }: { session: FlightSession }) {
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
         Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
-        raise throttle; release to slow down. S applies stronger braking. Space fires the selected
-        weapon. 1 selects the gun, 2 homing missiles, 3 the railgun, and 4 the flak scattergun. Hold
-        Space to charge the railgun. A/D strafe, R/V move up/down, Z reverses. N cycles hostile
-        targets; B starts a patrol encounter. Use Shift with W for boost, C for camera, F for
-        assistance, and Escape to pause. M opens the galaxy map; L opens the local system map. T
-        cycles navigation targets; X clears the target. Maps pause flight. Controls are available in
-        the flight briefing.
+        raise throttle; release to slow down. S applies stronger braking. Left mouse or Space fires
+        the selected weapon. 1 selects the gun, 2 homing missiles, 3 the railgun, and 4 the flak
+        scattergun. Hold Space to charge the railgun. A/D strafe, R/V move up/down, Z reverses. G
+        selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B starts a patrol
+        encounter. Use Shift with W for boost, C for camera, F for assistance, and Escape to pause.
+        M opens the galaxy map; L opens the local system map. T cycles navigation targets; X clears
+        the target. Maps pause flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>
