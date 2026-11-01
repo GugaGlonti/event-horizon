@@ -3,6 +3,8 @@
 Implementation and local verification: 2026-11-01 UTC / 2026-11-02 Asia/Tbilisi. This record separates
 implemented behavior, automated coverage and manual observations. It does not claim a continuous
 two-player end-to-end flight without fixtures or resets.
+Later [planetary approach tuning](planetary-approach.md) supersedes this record's descent timings and
+protocol version; the original measurements below remain historical.
 
 ## Audit and resulting state
 

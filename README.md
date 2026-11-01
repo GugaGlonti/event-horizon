@@ -113,6 +113,7 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | U                  | Take off when landed; undock when docked                       |
 | P / I              | Request/capture nearby docking; cancel clearance               |
 | O                  | Toggle bounded space transit drive                             |
+| J                  | Land assist at selected landing zone / cancel                  |
 | C                  | Switch chase/cockpit camera                                    |
 | F                  | Toggle flight assistance                                       |
 | M                  | Open/close galaxy map                                          |
@@ -152,11 +153,24 @@ W to accelerate forward again. Hold W with Shift to boost.
 ## Planetary flight and docking
 
 Start in Solara, use L or T to select **Pelagos Survey Base** or **Solara Orbital**. Normal flight
-remains 180 m/s; O enables faster transit in clear space and automatically slows near worlds and
-stations. Approach the survey zone, release W and brake drift with S. K deploys gear and enables
-assisted horizon leveling while pitch/roll are released. Use V to descend; gear translation jets
-slow to 2.2 m/s close to the ground. Land with vertical speed ≤3 m/s, ground speed ≤5 m/s, an upright
-ship and gentle terrain. U starts a powered takeoff. F disables gravity compensation/leveling.
+remains 180 m/s. O enables space transit and a terrain-aware planetary approach up to 1.4 km/s,
+braking toward ordinary speed near terrain and stations. Approach the survey zone, release W and
+brake drift with S. K deploys gear and enables assisted horizon leveling while pitch/roll are released.
+Near Pelagos, V/R command planet-relative descent/lift, up to 800 m/s at altitude. They progressively
+slow toward the surface; gear jets enter precision mode below 55 m and reach 2.2 m/s below 13 m
+(heights measured at the ship center). The shared 22 km descent test lands in **45.3 seconds**, with
+about 11 seconds over the final 200 m. Keep V held through touchdown. The HUD shows approximate
+descent ETA, descent speed limit, stopping distance and a brake warning. Airflow sound and thin cloud
+haze communicate atmospheric motion. Landing still requires vertical speed ≤3 m/s, ground speed
+≤5 m/s, an upright ship and gentle terrain. U starts powered takeoff.
+
+For optional final assistance, select **Pelagos Survey Base**, slow below 150 m/s, get below 2.5 km
+altitude and within 1 km horizontally, then release movement controls and press J. It deploys gear,
+levels, settles drift above the zone and descends continuously. J, manual movement, F, Escape,
+blur/visibility loss or maps cancel assistance; resume explicitly. The server validates the zone,
+range, speed and clearance in multiplayer. F disables gravity compensation/leveling. Gear disables
+O, while V/R retain altitude-aware speeds. The ETA assumes continued descent and can change when
+steering, braking or hovering. See [approach tuning and verification](docs/planetary-approach.md).
 
 At a station, request a free berth within 2.5 km using its HUD button or P. Follow the amber guide,
 fly through the hangar entrance or approach the external berth, then use P below 45 m, 3 m/s and 7°
@@ -412,9 +426,9 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The current milestone checks and measured browser/server results are recorded in
-[Milestones 6–7 acceptance](docs/milestones-6-7.md): **362 tests across 34 files**, lint, TypeScript and
-the production build passed. Historical evidence below remains dated to its run.
+The [planetary approach record](docs/planetary-approach.md) covers current pacing, controls and checks.
+[Milestones 6–7 acceptance](docs/milestones-6-7.md) retains the original implementation evidence.
+Historical evidence below remains dated to its run.
 
 Automated tests cover flight/input behavior plus definitions, invalid parents/cycles/duplicates,
 orbits, coordinate round-trips/rebases, target selection/bearings/distances, safe arrival selection,

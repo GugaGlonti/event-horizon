@@ -158,7 +158,12 @@ are next. Do not add economy, inventory, characters or weather without a task re
 - StationSimulation owns exclusive leases, capture, services and continuous undocking. Free leases on
   removal/destruction. Keep docked leases through reconnect grace; release approaching disconnects.
   Flight-locked ships cannot fire or steer. Repair only live docked ships through validated intentions.
-- Protocol v2 transports full surface/lock state, docking state and bounded shared occupancy. Keep
+- Planetary approach uses stopping-distance terrain/station lookahead. V/R are planet-relative near
+  landable worlds, with a shared altitude/gear speed envelope. Preserve ordinary space controls.
+  Landing assist is a validated selected-zone intention, not client-authored motion; keep it in full
+  snapshots/replay. Cancel on manual movement, every input-mode pause callback, maps and disconnect.
+  ETA is a 10 Hz estimate of continuing the shared descent profile, not guaranteed arrival time.
+- Protocol v3 transports full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
   positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
 - Navigation IDs span bodies, stations, zones and landmarks. Keep chart/HUD ranges and safe hyperspace
   corridors consistent with changed radii, physical atmospheres and station collision geometry.
@@ -169,7 +174,7 @@ are next. Do not add economy, inventory, characters or weather without a task re
   fields; do not pass an engine quaternion into it. Test actual renderer-math boundary conversions.
 - QA fixtures live only in scripts/planetaryVerification.ts / planetaryFixtures.ts, never game protocol
   or normal authority. Distinguish fixture-assisted browser checks from continuous manual flight.
-  Use LOAD_SCENARIO=low/station for representative load and record actual hardware/viewport limits.
+  Use LOAD_SCENARIO=low/station/descent for representative load and record actual hardware/viewport limits.
 
 ## Performance and resource lifetime
 

@@ -4,6 +4,8 @@ Milestones 6–7 retain the shared simulation and Node/Colyseus authority and ad
 terrain LOD, landing and station operations. See [planetary architecture and configuration](planetary-exploration.md)
 for scale, deterministic terrain, coordinates, docking, ownership and extension recipes, and
 [multiplayer architecture](multiplayer.md) for transport lifecycle and authority boundaries.
+The [approach tuning record](planetary-approach.md) describes faster descent, shared landing assistance
+and the later pacing/verification changes.
 
 ## Dependencies and ownership
 

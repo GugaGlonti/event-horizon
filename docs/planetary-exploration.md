@@ -15,8 +15,9 @@ velocities; axial spin is slowed. Pelagos is tidally fixed for the reference lan
 
 Pelagos has a 186 km reference radius, up to 1.4 km of relief, a 14 km atmosphere and 7.8 m/s² surface
 gravity. Its start is 22 km above the reference radius, facing the station approach. Normal cruise is
-180 m/s, boost 360 m/s. A descent through the full atmosphere therefore takes minutes at ordinary
-flight speeds. Curvature remains visible in orbit and increasingly flat near the ground.
+180 m/s, boost 360 m/s. Planet-relative V/R jets now reach 800 m/s aloft, while O extends into a
+terrain-aware 1.4 km/s approach. The reference 22 km descent takes 45.3 simulated seconds with
+deployed gear. Curvature remains visible in orbit and increasingly flat near the ground.
 
 Logical system coordinates remain JavaScript doubles in metres. `coordinates.ts` converts latitude/
 longitude, rotating body directions and local east/up/south tangent frames. `SystemRuntime` computes
@@ -70,11 +71,24 @@ Tuning is in `engine/planetary/config.ts`, passed optionally into `FlightControl
 - Atmospheric drag is density-dependent; dense air lowers nominal main-engine speed by 22% and
   reduces high-speed turning authority. This is arcade handling, not an aerodynamic simulator.
 - O enables transit: up to 33× the ordinary space-speed cap (5.94 km/s cruise, 11.88 km/s boost).
-  Acceleration remains bounded. Transit fades toward normal flight near atmospheres and stations,
+  Acceleration remains bounded. Near landable planets it becomes approach, capped at 1.4 km/s with
+  continuous stopping-distance braking. Forward terrain/station sweeps see ridges and structures;
+  close clearance restores ordinary speed. Transit fades near other atmospheres and stations,
   is unavailable with gear/docking clearance, and requires clearing nearby ships before activation.
 - K deploys gear. With assistance enabled and pitch/roll released, the craft gradually levels to the
-  local horizon. Translation jets slow below 120 m and reach 2.2 m/s below 20 m. Release main throttle,
-  use S to settle drift, then V to descend. R lifts in the ship's local up direction.
+  local horizon. Translation jets slow below 55 m and reach 2.2 m/s below 13 m center altitude.
+  Release main throttle, use S to settle drift, then hold V through touchdown. Near landable planets,
+  V/R use planet-relative down/up and the shared altitude-aware speed profile; elsewhere they retain
+  local translation. Descent reaches 800 m/s aloft, then slows against terrain clearance.
+- J starts optional final landing assistance at the selected zone, below 2.5 km altitude, within 1 km
+  horizontally and below 150 m/s, with F assistance enabled. It deploys gear, levels while preserving
+  heading, cancels drift over the zone and descends using the same gear/altitude envelope. Manual
+  movement, J, F, maps and all input pause paths cancel it. Traffic or invalid frames cancel it too.
+- The HUD publishes profile-based ETA, descent limit and stopping distance at 10 Hz. ETA assumes
+  continued descent and omits lateral travel/alignment holds. Smooth density/speed-driven airflow
+  uses one cached synthesized noise loop in the existing gesture-unlocked engine mix. It shares
+  engine mute/pause/ducking and bounded voice disposal. Thin shader cloud haze uses explicit world
+  time and logical body-relative offsets; reduced motion stops its autonomous drift.
 
 Landing phases are flying → approaching → landing → landed → taking-off → flying. Contact requires
 gear, a landable body, vertical speed ≤3 m/s, ground speed ≤5 m/s, up alignment within approximately
@@ -113,10 +127,12 @@ pilot retains its berth through reconnection grace. Permanent disconnect removes
 
 ## Multiplayer and travel
 
-Protocol version **2** adds strict ship intentions, grounded flight state, docking state and shared
+Protocol version **3** retains strict ship intentions, grounded flight state, docking state and shared
 port occupancy. Clients cannot send positions, landing outcomes, damage, repair values or port
 assignments. The server validates actions and owns gravity, collisions, capture, services and exits.
-Flight prediction restores the full authoritative surface/lock state and replays movement only.
+Flight prediction restores the full authoritative surface/lock/selected assist state and replays
+movement only. Landing-assist actions contain a zone ID or cancellation, never motion or landing
+outcomes. Paused/timed-out input cancels assistance on authority and prediction. v2 peers must update.
 Other pilots interpolate the existing double-precision poses and replicated gear state. The server
 never simulates render patches. Client/server builds must share the same catalogue and terrain seed.
 
@@ -151,7 +167,7 @@ combat load test. Durations/latency remain configurable through the existing loa
 
 `npm run verify:planetary` starts a **loopback-only QA server**, replacing the normal server for
 verification. Its terminal accepts `deep`, `orbit`, `entry`, `low`, `land`, `station`, `hangar`,
-`status`, `damage` and `exit`. These place authority-owned test fixtures for connected pilots; they are absent
+`descent`, `status`, `damage` and `exit`. These place authority-owned test fixtures for connected pilots; they are absent
 from the production server and game message schemas. Browser diagnostics show 0.5 s rolling FPS,
 frame time, calls/triangles, geometry/texture counts, patch/cache count and latest worker build time.
 GPU byte usage is not exposed. Fixtures are useful for repeatable views; they do not constitute proof
