@@ -67,7 +67,8 @@ Station geometry and terrain also obstruct weapon traces.
 
 Tuning is in `engine/planetary/config.ts`, passed optionally into `FlightController`:
 
-- Assistance compensates 90% of gravity; F exposes full gravity and disables gear leveling.
+- Stabilization compensates 90% of gravity; F exposes full gravity and disables gear leveling/damping.
+  Speed targets and envelopes belong to the selected travel mode and apply with F on or off.
 - Atmospheric drag is density-dependent; dense air lowers nominal main-engine speed by 22% and
   reduces high-speed turning authority. This is arcade handling, not an aerodynamic simulator.
 - O enables transit: up to 33× the ordinary space-speed cap (5.94 km/s cruise, 11.88 km/s boost).
@@ -77,8 +78,11 @@ Tuning is in `engine/planetary/config.ts`, passed optionally into `FlightControl
   is unavailable with gear/docking clearance, and requires clearing nearby ships before activation.
 - K deploys gear. With assistance enabled and pitch/roll released, the craft gradually levels to the
   local horizon. Translation jets slow below 55 m and reach 2.2 m/s below 13 m center altitude.
-  Release main throttle, use S to settle drift, then hold V through touchdown. Near landable planets,
-  V/R use planet-relative down/up and the shared altitude-aware speed profile; elsewhere they retain
+  Release main throttle, use S to settle drift, then V to descend. Near landable planets,
+  V/R select persistent surface coasting using planet-relative down/up and the shared altitude-aware
+  speed profile. Release retains radial momentum; stabilization damps tangent drift rather than
+  treating descent as sideways motion. Atmospheric drag, gravity and terrain/gear braking remain.
+  W/S leave coasting; O selects approach/transit with gear retracted. Elsewhere V/R retain
   local translation. Descent reaches 800 m/s aloft, then slows against terrain clearance.
 - J starts optional final landing assistance at the selected zone, below 2.5 km altitude, within 1 km
   horizontally and below 150 m/s, with F assistance enabled. It deploys gear, levels while preserving
@@ -127,12 +131,14 @@ pilot retains its berth through reconnection grace. Permanent disconnect removes
 
 ## Multiplayer and travel
 
-Protocol version **3** retains strict ship intentions, grounded flight state, docking state and shared
+Protocol version **4** retains strict ship intentions, grounded flight state, docking state and shared
 port occupancy. Clients cannot send positions, landing outcomes, damage, repair values or port
 assignments. The server validates actions and owns gravity, collisions, capture, services and exits.
 Flight prediction restores the full authoritative surface/lock/selected assist state and replays
 movement only. Landing-assist actions contain a zone ID or cancellation, never motion or landing
-outcomes. Paused/timed-out input cancels assistance on authority and prediction. v2 peers must update.
+outcomes. `travelMode` replaces the transit-only snapshot boolean and is restored before replay.
+Paused/timed-out input cancels landing assistance; radial coasting remains physical motion while the
+server runs, including in menus. Offline pause freezes it. v3 peers must update.
 Other pilots interpolate the existing double-precision poses and replicated gear state. The server
 never simulates render patches. Client/server builds must share the same catalogue and terrain seed.
 

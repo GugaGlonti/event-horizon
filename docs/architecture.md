@@ -6,6 +6,10 @@ for scale, deterministic terrain, coordinates, docking, ownership and extension 
 [multiplayer architecture](multiplayer.md) for transport lifecycle and authority boundaries.
 The [approach tuning record](planetary-approach.md) describes faster descent, shared landing assistance
 and the later pacing/verification changes.
+Travel mode owns speed regulation independently of F stabilization. Surface coasting persists after
+V/R release, damping only tangent drift while preserving radial momentum and terrain/gear braking.
+W/S select normal flight; O selects transit. The full mode is serialized for prediction/replay and
+cleared at reset, arrival, grounding and docking boundaries.
 
 ## Dependencies and ownership
 

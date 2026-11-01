@@ -159,11 +159,14 @@ are next. Do not add economy, inventory, characters or weather without a task re
   removal/destruction. Keep docked leases through reconnect grace; release approaching disconnects.
   Flight-locked ships cannot fire or steer. Repair only live docked ships through validated intentions.
 - Planetary approach uses stopping-distance terrain/station lookahead. V/R are planet-relative near
-  landable worlds, with a shared altitude/gear speed envelope. Preserve ordinary space controls.
+  landable worlds and select persistent surface coasting, with a shared altitude/gear speed envelope.
+  F owns stabilization/compensation, not speed targets. Release retains radial momentum; damp tangent
+  drift without erasing coasting. W/S leave surface mode; reset, relocation, docking and grounding
+  clear it. Keep terrain/station lookahead active while coasting. Preserve ordinary space controls.
   Landing assist is a validated selected-zone intention, not client-authored motion; keep it in full
   snapshots/replay. Cancel on manual movement, every input-mode pause callback, maps and disconnect.
   ETA is a 10 Hz estimate of continuing the shared descent profile, not guaranteed arrival time.
-- Protocol v3 transports full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
+- Protocol v4 transports travel mode plus full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
   positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
 - Navigation IDs span bodies, stations, zones and landmarks. Keep chart/HUD ranges and safe hyperspace
   corridors consistent with changed radii, physical atmospheres and station collision geometry.

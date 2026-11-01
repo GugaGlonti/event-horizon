@@ -27,7 +27,9 @@ No dependencies or assets were added.
    descent speed limit and a brake warning. Speed and atmospheric density drive a smooth airflow
    loop; thin shader cloud haze and existing terrain LOD/detail give visual motion cues.
 
-Keep V held through touchdown for manual landing. U starts the existing powered takeoff. If using J,
+Hold V to maintain the requested descent through drag; releasing now retains surface coasting.
+S brakes and leaves coasting; W returns to normal flight. F stabilization does not select a speed
+target or mode. U starts the existing powered takeoff. If using J,
 release V/W/S first: manual input has priority. Final capture still requires the existing safe gear,
 slope, attitude, vertical/horizontal speeds and nearby-ship clearance. Assistance grants no immunity.
 
@@ -48,7 +50,8 @@ and impacts still apply damage.
 
 Landing assist is a zone ID in complete flight snapshots, not a client-submitted trajectory. Shared
 controller code owns orientation, bounded velocity changes, terrain contact and capture. Protocol
-**v3** adds the selected-zone/cancel action and replicated assist state; clients and servers must
+**v4** retains the selected-zone/cancel action and replicated assist state and adds full travel mode;
+clients and servers must
 update together. Invalid IDs, excessive range/speed, unavailable ships and docking conflicts are
 rejected. Manual movement, paused/timed-out input and disconnect cancel the assist. Reconciliation
 restores/replays the complete state, preserving authority over landing outcomes.
@@ -65,7 +68,7 @@ no texture, mesh or render pass; it extends the existing sky shader using explic
 body-relative offsets. Reduced motion freezes autonomous cloud drift. Existing terrain subdivision
 and distance-faded surface detail remain in place.
 
-## Executed verification
+## Initial pacing verification
 
 `npm run check` passed **379 tests across 35 files**, Biome, TypeScript checking and the production
 build. Vite retains the existing large-chunk advisory. `npm run test:integration` also passed its five
@@ -113,3 +116,51 @@ Transport sizes exclude WebSocket/TCP headers. Raw values and reference descent 
 in [benchmark JSON](benchmarks/planetary-approach-2026-11-02.json). The short descending runs do not
 supersede the earlier station-load spike or establish production/WAN capacity. Broader hardware,
 latency, long-session resource and subjective sound checks remain verification limits.
+
+## Stabilization and speed-mode separation
+
+The subsequent flight-assist correction separates F stabilization from speed regulation:
+
+- `normal` retains the 180/360 m/s forward-flight targets and W-release braking with F either on or off.
+- `transit` selects O transit/planetary approach. F does not change its speed target or mode.
+- `surface` is selected by V/R near landable worlds when W/S are released. Releasing V/R preserves
+  planet-relative momentum. F damps tangent drift while preserving radial coasting. Gravity,
+  atmospheric drag and terrain/station/gear braking remain active with either stabilization setting.
+- W/S leave surface coasting. O selects transit with gear retracted. Gear changes adjust the surface
+  envelope without cancelling coasting. Reset, arrival, docking and grounding clear the mode.
+
+The HUD identifies NORMAL, APPROACH/TRANSIT or SURFACE COAST separately from F / STAB. The velocity
+instrument uses the selected mode's scale instead of always showing the normal 180/360 labels.
+Holding V still follows the measured 45.3 s reference descent; released coasting can take longer due
+to atmospheric drag. Turning F off exposes full gravity and angular drift; it does not unlock a
+different engine speed target. Coasting is physical motion: multiplayer menus neutralize controls
+while the server continues it. Offline pause freezes the simulation.
+
+Protocol **v4** serializes the complete `travelMode` instead of the former transit boolean. Prediction
+restores the mode before replaying released commands, so reconciliation cannot silently reintroduce
+normal flight braking. Clients still send bounded input/actions, not mode mutations or velocities.
+Client/server versions must update together.
+
+`npm run check` passed **390 tests across 35 files**, lint, TypeScript and production build. The
+separate real-socket suite passed six tests, including a second pilot observing released coasting
+above 350 m/s across both F settings, then NORMAL after S. Pure regressions also cover ascent,
+descent, terrain braking/landing with F on/off, ordinary throttle targets, gear/reset/arrival bounds,
+rejected client mode mutations and delayed prediction replay. The held reference descent remained
+45.317 s, peak 800 m/s, no impact, with 11.108 s over the last 200 m.
+
+Browser verification observed 800 m/s with V released and F / STAB ON after toggling F off/on.
+A released descent also continued into the final terrain/gear braking envelope with shields and
+hull at 100%. These are local gameplay observations, not WAN or broad hardware certification.
+
+The same local ten-second held-descent load scenario was rerun with v4; it is not a separate
+long-duration coasting benchmark. Node/server and clients share one process, zero added latency,
+transport sizes exclude WebSocket/TCP headers:
+
+| Clients | Actual Hz | Mean / max tick ms | Overruns | Down KiB/s/client | CPU, one core | RSS MiB | p95 input ack ms |
+| ------- | --------- | ------------------ | -------- | ----------------- | ------------- | ------- | ---------------- |
+| 2       | 30.00     | 0.707 / 4.111      | 0        | 34.3              | 8.5%          | 106.4   | 21               |
+| 8       | 30.00     | 1.285 / 5.360      | 0        | 114.0             | 11.1%         | 82.4    | 41               |
+| 16      | 29.99     | 2.392 / 15.668     | 0        | 220.4             | 15.7%         | 106.3   | 41               |
+
+See [raw v4 load measurements](benchmarks/flight-stabilization-2026-11-02.json). Short local results
+do not establish production capacity or supersede the earlier station-load spike.

@@ -1,0 +1,73 @@
+{
+  "dateLocal": "2026-11-02",
+  "timezone": "Asia/Tbilisi",
+  "protocol": 4,
+  "scope": "10-second held-descent local runs; server and bots share one process. Coasting correctness is covered separately by prediction, real-socket and browser checks. Not a WAN or production capacity claim.",
+  "load": {
+    "runtime": "v22.20.0",
+    "platform": "darwin",
+    "measurement": "Single process: server plus bots; binary transport payload sizes exclude WebSocket/TCP headers. JSON sizes are diagnostic.",
+    "results": [
+      {
+        "scenario": "descent",
+        "players": 2,
+        "seconds": 10,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 30,
+        "meanTickMs": 0.707,
+        "maxTickMs": 4.110790999999949,
+        "overruns": 0,
+        "cpuPercentOneCore": 8.5,
+        "rssMiB": 106.4,
+        "rssDeltaMiB": -34.3,
+        "meanBinaryMessageBytes": 1747,
+        "perClientDownKiBPerSecond": 34.3,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 2501,
+        "p95SnapshotJsonBytes": 2506,
+        "perClientJsonKiBPerSecond": 48.8,
+        "p95InputAckMs": 21
+      },
+      {
+        "scenario": "descent",
+        "players": 8,
+        "seconds": 10,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 30,
+        "meanTickMs": 1.285,
+        "maxTickMs": 5.360415999999532,
+        "overruns": 0,
+        "cpuPercentOneCore": 11.1,
+        "rssMiB": 82.4,
+        "rssDeltaMiB": -25.7,
+        "meanBinaryMessageBytes": 5807,
+        "perClientDownKiBPerSecond": 114,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 8527,
+        "p95SnapshotJsonBytes": 8539,
+        "perClientJsonKiBPerSecond": 166.5,
+        "p95InputAckMs": 41
+      },
+      {
+        "scenario": "descent",
+        "players": 16,
+        "seconds": 10,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 29.99,
+        "meanTickMs": 2.392,
+        "maxTickMs": 15.667583000002196,
+        "overruns": 0,
+        "cpuPercentOneCore": 15.7,
+        "rssMiB": 106.3,
+        "rssDeltaMiB": 19.6,
+        "meanBinaryMessageBytes": 11230,
+        "perClientDownKiBPerSecond": 220.4,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 16552,
+        "p95SnapshotJsonBytes": 16574,
+        "perClientJsonKiBPerSecond": 323.2,
+        "p95InputAckMs": 41
+      }
+    ]
+  }
+}

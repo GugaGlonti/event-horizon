@@ -115,7 +115,7 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | O                  | Toggle bounded space transit drive                             |
 | J                  | Land assist at selected landing zone / cancel                  |
 | C                  | Switch chase/cockpit camera                                    |
-| F                  | Toggle flight assistance                                       |
+| F                  | Toggle stabilization; speed mode remains unchanged             |
 | M                  | Open/close galaxy map                                          |
 | L                  | Open/close local system map                                    |
 | T / X              | Cycle/clear local navigation target                            |
@@ -143,7 +143,9 @@ markers hide while paused, in maps, during hyperspace, or when the combat instru
 
 **Controls** opens the briefing. **Reset flight** cancels any pending jump and returns the craft to a
 safe arrival in its current system, restoring engine reserve and clearing momentum. Camera and
-assistance preferences survive reset. Boost lasts about four seconds, recharges after a delay, and
+stabilization preferences survive reset. F controls angular/drift damping, gravity compensation and
+gear leveling; throttle targets and travel-mode speed limits apply with F on or off. Boost lasts
+about four seconds, recharges after a delay, and
 requires releasing Shift after depletion to rearm at 18% reserve. Assistance damps drift and angular
 momentum; without it, use counter-steering to settle rotation. Releasing W gradually lowers throttle
 and slows the ship; S applies stronger braking, then engages reverse once throttle reaches zero.
@@ -159,7 +161,10 @@ brake drift with S. K deploys gear and enables assisted horizon leveling while p
 Near Pelagos, V/R command planet-relative descent/lift, up to 800 m/s at altitude. They progressively
 slow toward the surface; gear jets enter precision mode below 55 m and reach 2.2 m/s below 13 m
 (heights measured at the ship center). The shared 22 km descent test lands in **45.3 seconds**, with
-about 11 seconds over the final 200 m. Keep V held through touchdown. The HUD shows approximate
+about 11 seconds over the final 200 m with V held. V/R select **SURFACE COAST**: releasing them
+retains planet-relative motion, with atmospheric drag, gravity and terrain/gear braking still active.
+F can stay on at these speeds. S brakes and leaves coasting; W returns to normal forward flight.
+O selects approach/transit when gear is retracted. The HUD shows the active speed mode, approximate
 descent ETA, descent speed limit, stopping distance and a brake warning. Airflow sound and thin cloud
 haze communicate atmospheric motion. Landing still requires vertical speed ≤3 m/s, ground speed
 ≤5 m/s, an upright ship and gentle terrain. U starts powered takeoff.
