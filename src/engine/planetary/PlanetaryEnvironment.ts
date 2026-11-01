@@ -124,7 +124,8 @@ export class PlanetaryEnvironment {
       const slopeBound =
         1 + (6 * body.terrain.relief * body.terrain.frequency * body.terrain.octaves) / body.radius;
       let t = broad;
-      for (let iteration = 0; iteration < 128 && t <= (earliest ?? 1); iteration++) {
+      let iteration = 0;
+      for (; iteration < 128 && t <= (earliest ?? 1); iteration++) {
         point.copy(start).addScaledVector(direction, t).sub(center);
         const distance = point.length();
         point.divideScalar(distance || 1).applyQuaternion(inverse);
@@ -135,6 +136,8 @@ export class PlanetaryEnvironment {
         }
         t += Math.max(1e-8, clearance / (length * slopeBound));
       }
+      // A nearly tangent sweep may exhaust the work budget. Hold at the last safe point.
+      if (iteration === 128 && t <= (earliest ?? 1)) earliest = t;
     }
     return earliest;
   }
