@@ -262,3 +262,21 @@ describe('authoritative arrival handoff', () => {
     expect(arrived.ship.transferring).toBe(false);
   });
 });
+
+it('neutralizes paused and timed-out thrust without silently enabling planetary assistance', () => {
+  const queue = new InputQueue();
+  queue.accept({
+    ...neutralInput(1),
+    paused: true,
+    assistance: false,
+    weapon: 3,
+    fire: true,
+    flight: { ...createFlightInput(), throttle: 1 },
+  });
+  const paused = queue.step(1 / 30);
+  expect(paused.assistance).toBe(false);
+  expect(paused.weapon).toBe(3);
+  expect(paused.fire).toBe(false);
+  expect(paused.flight.throttle).toBe(0);
+  expect(queue.step(1).assistance).toBe(false);
+});

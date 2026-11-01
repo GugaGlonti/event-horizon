@@ -244,6 +244,7 @@ export class MultiplayerSession {
     const input = {
       ...neutralInput(++this.sequence),
       weapon: this.combat.simulation.player.weapon,
+      assistance: this.prediction.controller.snapshot().assistance,
     };
     this.network.send(input);
   }

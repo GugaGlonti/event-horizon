@@ -49,7 +49,12 @@ export class InputQueue {
       this.ack = next.seq;
       this.idle = 0;
     } else this.idle += dt;
-    if (this.idle > 0.25 || this.current.paused) return neutralInput(this.ack);
+    if (this.idle > 0.25 || this.current.paused)
+      return {
+        ...neutralInput(this.ack),
+        assistance: this.current.assistance,
+        weapon: this.current.weapon,
+      };
     return this.current;
   }
   clear() {
