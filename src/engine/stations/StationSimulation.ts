@@ -125,7 +125,7 @@ export class StationSimulation {
     if (!state || !ship || !station || !port || state.phase !== 'docked')
       return 'Ship must be docked.';
     const pose = portPose(this.world, station, port);
-    const exit = pose.position.clone().lerp(pose.approach, 0.32);
+    const exit = pose.approach.clone();
     if (!this.clearance(id, pose.position, exit)) return 'Undocking corridor obstructed.';
     state.phase = 'undocking';
     state.timer = 0;
@@ -186,6 +186,13 @@ export class StationSimulation {
           new Quaternion()
             .fromArray(state.orientation ?? pose.orientation.toArray())
             .slerp(pose.orientation, smooth),
+          new Vector3()
+            .subVectors(
+              pose.position,
+              new Vector3().fromArray(state.start ?? pose.position.toArray()),
+            )
+            .multiplyScalar(3 * t * (1 - t))
+            .addScaledVector(pose.velocity, smooth),
         );
         if (t === 1) {
           state.phase = 'docked';
@@ -195,13 +202,20 @@ export class StationSimulation {
         ship.controller.lockPose(pose.position, pose.orientation, pose.velocity);
       else if (state.phase === 'undocking') {
         const t = Math.min(1, state.timer / 4),
-          point = pose.position.clone().lerp(pose.approach, 0.32 * t * t * (3 - 2 * t));
+          point = pose.position.clone().lerp(pose.approach, t * t * (3 - 2 * t));
         if (!this.clearance(id, ship.position, point)) {
-          state.phase = 'docked';
-          state.timer = 0;
+          state.timer = Math.max(0, state.timer - dt);
+          ship.controller.lockPose(ship.position, pose.orientation, pose.velocity);
           continue;
         }
-        ship.controller.lockPose(point, pose.orientation);
+        ship.controller.lockPose(
+          point,
+          pose.orientation,
+          new Vector3()
+            .subVectors(pose.approach, pose.position)
+            .multiplyScalar(1.5 * t * (1 - t))
+            .add(pose.velocity),
+        );
         if (t === 1) {
           this.remove(id);
           ship.controller.resolveMotion(

@@ -160,3 +160,26 @@ it('reports successful capture, services and undocking as successful intentions'
     expect(act({ kind: 'service', service })).toBeNull();
   expect(act({ kind: 'undock' })).toBeNull();
 });
+it('holds a blocked undocking path and releases controls only beyond the hangar mouth', () => {
+  const f = fixture();
+  f.operations.request('a', f.station.id, f.port.id);
+  f.operations.step(0.01);
+  f.move('a', f.pose.position.clone().add(new Vector3(0, 0, 10)));
+  f.operations.assist('a');
+  f.operations.step(2.1);
+  expect(f.operations.undock('a')).toBeNull();
+  f.operations.step(1);
+  const held = f.a.ship.position.clone();
+  expect(f.a.ship.velocity.length()).toBeGreaterThan(0);
+  f.move('b', f.pose.position.clone().lerp(f.pose.approach, 0.4));
+  f.operations.step(1);
+  f.operations.step(1);
+  expect(f.a.ship.position.toArray()).toEqual(held.toArray());
+  expect(f.operations.state('a').phase).toBe('undocking');
+  f.move('b', f.pose.approach.clone().add(new Vector3(80, 0, 0)));
+  for (let i = 0; i < 480; i++) f.operations.step(1 / 120);
+  expect(f.operations.state('a').phase).toBe('undocked');
+  expect(f.a.ship.position.z - stationPose(f.world.system, f.station).position.z).toBeGreaterThan(
+    250,
+  );
+});
