@@ -98,15 +98,24 @@ function Station({ station, session }: { station: StationDefinition; session: Fl
         </mesh>
         {station.ports.map((port) => (
           <group key={port.id} position={[...port.position]} quaternion={[...port.orientation]}>
-            <mesh position={[0, -4.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh
+              position={[0, port.kind === 'hangar' ? -5.85 : -4.8, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
               <ringGeometry args={[10, 11, 32]} />
               <meshBasicMaterial color="#8de8ec" />
             </mesh>
-            <mesh position={[-14, -4.7, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh
+              position={[-14, port.kind === 'hangar' ? -5.85 : -4.7, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
               <planeGeometry args={[2, 25]} />
               <meshBasicMaterial color="#eac76b" />
             </mesh>
-            <mesh position={[14, -4.7, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh
+              position={[14, port.kind === 'hangar' ? -5.85 : -4.7, 0]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
               <planeGeometry args={[2, 25]} />
               <meshBasicMaterial color="#eac76b" />
             </mesh>

@@ -75,7 +75,7 @@ export class StationSimulation {
   }
   private clearance(id: string, from: Readonly<Vector3>, to: Readonly<Vector3>) {
     return (
-      !traceStation(this.world, from, to, 6) &&
+      !traceStation(this.world, from, to, (this.ships.get(id)?.radius ?? 5) + 0.25) &&
       ![...this.ships.values()].some((other) => {
         if (other.id === id || other.health.destroyed) return false;
         const delta = new Vector3().subVectors(to, from),

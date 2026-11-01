@@ -11,9 +11,9 @@ export const SOLARA_STATION: StationDefinition = {
       id: 'hangar-1',
       name: 'Survey Hangar 1',
       kind: 'hangar',
-      position: [0, -35, 70],
+      position: [0, -34, 70],
       orientation: [0, 0, 0, 1],
-      approach: [0, -35, 440],
+      approach: [0, -34, 440],
     },
     {
       id: 'port-east',

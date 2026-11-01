@@ -133,3 +133,14 @@ it('measures approach speed in the moving station frame', () => {
   f.a.ship.sync();
   expect(operations.assist('a')).toBeNull();
 });
+it('keeps a real clearance margin above the hangar floor during a slightly drifting capture', () => {
+  const f = fixture();
+  f.operations.request('a', f.station.id, f.port.id);
+  f.operations.step(1 / 120);
+  const point = f.pose.position.clone().add(new Vector3(0, 0.0002, 39));
+  f.move('a', point);
+  expect(f.operations.assist('a')).toBeNull();
+  for (let i = 0; i < 241; i++) f.operations.step(1 / 120);
+  expect(f.operations.state('a').phase).toBe('docked');
+  expect(traceStation(f.world.system, f.pose.position, f.pose.position, 5.25)).toBeNull();
+});
