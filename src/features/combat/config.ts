@@ -84,10 +84,16 @@ export const AI_CONFIG: AiConfig = {
   detectionRange: 1800,
   disengageRange: 2800,
   attackRange: 950,
+  preferredDistance: 220,
   aimTolerance: 0.035,
   evadeDistance: 130,
   evadeDuration: 2.2,
   evadeOnHit: true,
+  reactionTime: 0.15,
+  aimError: 0.012,
+  aggressiveness: 0.65,
+  maneuverability: 0.85,
+  retreatHull: 0.25,
 };
 export const ENCOUNTER_CONFIG = { enemies: 5, maximumEnemies: 10, asteroids: 8 } as const;
 

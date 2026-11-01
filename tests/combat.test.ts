@@ -271,6 +271,62 @@ describe('lasers and entity lifetime', () => {
 });
 
 describe('AI commands and fixed-step replay', () => {
+  it('holds decisions until reaction time, retreats on critical hull damage and stops destroyed ships', () => {
+    const simulation = world(),
+      ai = new ShipAi();
+    const ship = simulation.spawn(ENEMY_SHIP, new Vector3(0, 0, 500), new Quaternion());
+    if (!ship) throw new Error('Expected hostile');
+    ai.step(ship, simulation.player, [], AI_CONFIG, dt);
+    expect(ship.aiState).toBe('attack');
+    simulation.player.position.set(0, 0, -1800);
+    ai.step(ship, simulation.player, [], AI_CONFIG, dt);
+    expect(ship.aiState).toBe('attack');
+    for (let tick = 0; tick < 18; tick++) ai.step(ship, simulation.player, [], AI_CONFIG, dt);
+    expect(ship.aiState).toBe('patrol');
+    ship.health.shields = 0;
+    simulation.damage(ship, 45);
+    ship.aiReaction = 0;
+    ai.step(ship, simulation.player, [], AI_CONFIG, dt);
+    expect(ship.aiState).toBe('retreat');
+    expect(ship.command.fire).toBe(false);
+    expect(ship.command.flight.throttle).toBeGreaterThan(0);
+    simulation.damage(ship, 100);
+    ai.step(ship, simulation.player, [], AI_CONFIG, dt);
+    expect(ship.aiState).toBe('destroyed');
+    expect(ship.command.fire).toBe(false);
+    expect(ship.command.flight.throttle).toBe(0);
+  });
+
+  it('uses seeded aim error and bounded acceleration/rotation through the shared flight controller', () => {
+    function replay() {
+      const simulation = world();
+      const ship = simulation.spawn(ENEMY_SHIP, new Vector3(50, 20, -700), new Quaternion());
+      if (!ship) throw new Error('Expected hostile');
+      const commands: number[][] = [];
+      for (let tick = 0; tick < 120; tick++) {
+        const orientation = ship.orientation.clone(),
+          velocity = ship.velocity.clone();
+        simulation.step(idle, dt);
+        expect(orientation.angleTo(ship.orientation)).toBeLessThanOrEqual(
+          Math.hypot(...ENEMY_SHIP.flight.maxAngularSpeed) * dt + 1e-7,
+        );
+        expect(ship.velocity.distanceTo(velocity)).toBeLessThanOrEqual(
+          (ENEMY_SHIP.flight.acceleration + ENEMY_SHIP.flight.lateralDamping * velocity.length()) *
+            dt +
+            1e-7,
+        );
+        expect(ship.velocity.length()).toBeLessThanOrEqual(ENEMY_SHIP.flight.maxSpeed);
+        commands.push([
+          ship.command.flight.pitch,
+          ship.command.flight.yaw,
+          Number(ship.command.fire),
+        ]);
+      }
+      return commands;
+    }
+    expect(replay()).toEqual(replay());
+  });
+
   it('patrols, detects, pursues, attacks, evades, disengages and returns home without changing poses', () => {
     const simulation = world(),
       ai = new ShipAi();
@@ -281,6 +337,7 @@ describe('AI commands and fixed-step replay', () => {
     ) as CombatShip;
     const update = (distance: number) => {
       simulation.player.position.copy(ship.position).add(new Vector3(0, 0, distance));
+      ship.aiReaction = 0;
       const pose = ship.position.clone();
       ai.step(ship, simulation.player, [], AI_CONFIG, dt);
       expect(ship.position.equals(pose)).toBe(true);

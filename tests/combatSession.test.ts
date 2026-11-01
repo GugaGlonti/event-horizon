@@ -287,6 +287,11 @@ describe('system encounters and complete dogfights', () => {
           disengageRange: 10000,
           evadeDistance: 80,
           evadeOnHit: false,
+          reactionTime: 0,
+          aimError: 0,
+          maneuverability: 1,
+          aggressiveness: 0.5,
+          retreatHull: 0,
         },
         dt,
       );

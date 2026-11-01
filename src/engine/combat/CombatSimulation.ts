@@ -105,6 +105,8 @@ export class CombatSimulation {
     player.weapon = 1;
     player.hitFlash = 0;
     player.barrel = 0;
+    player.aiState = 'patrol';
+    player.aiElapsed = player.aiTime = player.aiReaction = 0;
     player.heat = 0;
     player.overheated = false;
     player.health.sinceDamage = 0;
@@ -174,6 +176,7 @@ export class CombatSimulation {
     ship.hitFlash = 0.3;
     if (ship.health.destroyed) {
       ship.railgunCharge = 0;
+      ship.aiState = 'destroyed';
       ship.command.fire = false;
       this.event(ship.id, ship.position, { kind: 'destroyed', sourceId });
     }
@@ -564,6 +567,9 @@ export class CombatSimulation {
         hitFlash: ship.hitFlash,
         aiState: ship.aiState,
         aiElapsed: ship.aiElapsed,
+        aiTime: ship.aiTime,
+        aiReaction: ship.aiReaction,
+        aiPhase: ship.aiPhase,
         command: { ...ship.command, flight: { ...ship.command.flight } },
       })),
       projectiles: this.projectiles.map((shot) => ({

@@ -61,12 +61,25 @@ export interface AiConfig {
   readonly detectionRange: number;
   readonly disengageRange: number;
   readonly attackRange: number;
+  readonly preferredDistance: number;
   readonly aimTolerance: number;
   readonly evadeDistance: number;
   readonly evadeDuration: number;
   readonly evadeOnHit: boolean;
+  readonly reactionTime: number;
+  readonly aimError: number;
+  readonly aggressiveness: number;
+  readonly maneuverability: number;
+  readonly retreatHull: number;
 }
-export type AiState = 'patrol' | 'pursue' | 'attack' | 'evade' | 'disengage';
+export type AiState =
+  | 'patrol'
+  | 'pursue'
+  | 'attack'
+  | 'evade'
+  | 'retreat'
+  | 'disengage'
+  | 'destroyed';
 export interface ShipCommand {
   readonly flight: FlightInput;
   fire: boolean;
@@ -91,6 +104,9 @@ export class CombatShip {
   readonly command: ShipCommand = { flight: createFlightInput(), fire: false };
   aiState: AiState = 'patrol';
   aiElapsed = 0;
+  aiTime = 0;
+  aiReaction = 0;
+  readonly aiPhase: number;
   cooldown = 0;
   railgunCharge = 0;
   weapon: WeaponSlot = 1;
@@ -107,6 +123,9 @@ export class CombatShip {
     controller = new FlightController(config.flight),
   ) {
     this.id = id;
+    let seed = 2166136261;
+    for (const char of id) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619);
+    this.aiPhase = ((seed >>> 0) / 0xffffffff) * Math.PI * 2;
     this.team = team;
     this.config = config;
     this.controller = controller;
