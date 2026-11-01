@@ -3,6 +3,7 @@ import { CombatSimulation } from '@/engine/combat/CombatSimulation';
 import type { WeaponSlot } from '@/engine/combat/combatTypes';
 import { Encounter } from '@/engine/combat/Encounter';
 import { missileCanLock } from '@/engine/combat/weapons';
+import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightInput } from '@/engine/simulation/flightTypes';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
@@ -38,6 +39,8 @@ export class CombatSession {
 
   setWorld(world: SystemRuntime) {
     this.world = world;
+    this.simulation.environment = new PlanetaryEnvironment(world);
+    this.simulation.player.controller.environment = this.simulation.environment;
     this.simulation.clearEncounter();
     this.encounter.reset(world.definition.id);
     for (const body of world.definition.bodies) {

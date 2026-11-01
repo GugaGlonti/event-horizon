@@ -6,6 +6,7 @@ import {
   SphereSolver,
   sweepSphere,
 } from '@/engine/physics/spheres';
+import type { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import {
   type AiConfig,
@@ -26,6 +27,7 @@ import { flakDirection, missileCanLock } from './weapons';
 
 /** Authoritative gameplay state. No renderer, browser, stores, clocks or async work. */
 export class CombatSimulation {
+  environment: PlanetaryEnvironment | null = null;
   readonly ships = new Map<string, CombatShip>();
   readonly projectiles: Projectile[] = [];
   readonly effects: CombatEffect[] = [];
@@ -410,6 +412,12 @@ export class CombatSimulation {
     }
     for (const obstacle of this.obstacles) {
       if (
+        this.environment?.world.definition.bodies.some(
+          (body) => obstacle.id === `body:${body.id}` && body.terrain,
+        )
+      )
+        continue;
+      if (
         !collides(
           COLLISION_LAYERS.projectile,
           COLLISION_LAYERS.ship | COLLISION_LAYERS.environment,
@@ -433,6 +441,12 @@ export class CombatSimulation {
         this.hitShip = null;
         this.hitDetected = true;
       }
+    }
+    const terrainHit = this.environment?.trace(start, end, radius);
+    if (terrainHit !== null && terrainHit !== undefined && terrainHit <= this.hitFraction) {
+      this.hitFraction = terrainHit;
+      this.hitShip = null;
+      this.hitDetected = true;
     }
   }
 
@@ -548,12 +562,25 @@ export class CombatSimulation {
         } else ship.command.fire = false;
       }
       const input = commands || ship !== this.player ? ship.command.flight : command.flight;
+      ship.controller.environment = ship.stationary ? null : this.environment;
       ship.controller.step(input, dt);
       ship.sync();
+      if (ship.controller.impactSpeed > 0)
+        this.damage(ship, impactDamage(ship.controller.impactSpeed, ship.config.mass));
+      // Terrain has already swept the full segment. Feed its corrected velocity into the sphere solver.
+      if (ship.controller.environment)
+        ship.velocity.subVectors(ship.position, ship.previous).divideScalar(dt);
       ship.position.copy(ship.previous);
       this.bodies.push(ship);
     }
-    this.bodies.push(...this.obstacles);
+    for (const obstacle of this.obstacles) {
+      if (
+        !this.environment?.world.definition.bodies.some(
+          (body) => obstacle.id === `body:${body.id}` && body.terrain,
+        )
+      )
+        this.bodies.push(obstacle);
+    }
     this.solver.solve(this.bodies, dt, this.collision);
     for (const ship of this.ships.values()) {
       ship.controller.resolveMotion(ship.position, ship.velocity);

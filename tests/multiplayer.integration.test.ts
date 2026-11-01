@@ -70,7 +70,11 @@ describe('real authoritative room protocol', () => {
     a.send('input', { ...neutralInput(1), position: [999, 999, 999] });
     await until<WorldSnapshot>(a, 'snapshot', (s) => s.tick > snapB.tick + 1);
     expect(pilotA.inputs.ack).toBe(0);
-    expect(pilotA.ship.controller.snapshot().position).toEqual(before.position);
+    expect(
+      new Vector3()
+        .fromArray(pilotA.ship.controller.snapshot().position)
+        .distanceTo(new Vector3().fromArray(before.position)),
+    ).toBeLessThan(1);
     // Fixture positioning belongs to server, never to a client message.
     pilotB.ship.controller.relocate(
       pilotA.ship.position.clone().add({ x: 0, y: 0, z: -180 }),

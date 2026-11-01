@@ -76,3 +76,93 @@ describe('planetary scale and deterministic surface', () => {
     expect(gravityAcceleration(pelagos, required(pelagos.gravity).influenceRadius)).toBe(0);
   });
 });
+
+import { PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
+import { FLIGHT_CONFIG } from '@/engine/simulation/config';
+import { FlightController } from '@/engine/simulation/FlightController';
+import { createFlightInput } from '@/engine/simulation/flightTypes';
+import { SystemRuntime } from '@/engine/world/SystemRuntime';
+
+function nearSurface(altitude = 15) {
+  const world = new SystemRuntime(required(SYSTEMS[0]));
+  const controller = new FlightController(FLIGHT_CONFIG);
+  controller.environment = new PlanetaryEnvironment(world);
+  const zone = required(pelagos.landingZones?.[0]);
+  const up = surfaceDirection(zone.latitude, zone.longitude);
+  const center = required(world.positions.get(pelagos.id));
+  const position = center.clone().addScaledVector(up, pelagos.radius + zone.elevation + altitude);
+  controller.relocate(position, tangentFrame(up));
+  return { controller, up, position, world };
+}
+describe('shared planetary flight', () => {
+  it('applies gravity without assist and provides bounded hover assistance', () => {
+    const a = nearSurface(2000),
+      b = nearSurface(2000);
+    a.controller.setAssistance(false);
+    for (let i = 0; i < 120; i++) {
+      a.controller.step(createFlightInput(), 1 / 120);
+      b.controller.step(createFlightInput(), 1 / 120);
+    }
+    expect(a.controller.copyVelocity(new Vector3()).dot(a.up)).toBeLessThan(-0.05);
+    expect(Math.abs(b.controller.copyVelocity(new Vector3()).dot(b.up))).toBeLessThan(
+      Math.abs(a.controller.copyVelocity(new Vector3()).dot(a.up)),
+    );
+  });
+  it('blocks high-speed terrain tunneling even when the segment exits the opposite side', () => {
+    const { controller, up, position } = nearSurface(100);
+    const end = position.clone().addScaledVector(up, -500000);
+    const hit = controller.environment?.trace(position, end, 5);
+    expect(hit).not.toBeNull();
+    expect(hit ?? 1).toBeLessThan(0.001);
+    const sample = new SurfaceSample();
+    controller.environment?.sample(position.clone().lerp(end, hit ?? 0), sample);
+    expect(sample.altitude).toBeCloseTo(5, 1);
+  });
+  it('lands with gear, safe speed and orientation, then physically builds takeoff thrust', () => {
+    const { controller, up, position } = nearSurface(5.01);
+    controller.landingGear = true;
+    controller.resolveMotion(position, up.clone().multiplyScalar(-1));
+    const input = createFlightInput();
+    for (let i = 0; i < 150; i++) controller.step(input, 1 / 120);
+    expect(controller.surface.phase).toBe('landed');
+    const landed = controller.snapshot();
+    controller.step({ ...input, throttle: 1, boost: true }, 1 / 120);
+    expect(controller.snapshot().position).toEqual(landed.position);
+    expect(controller.requestTakeoff()).toBe(true);
+    controller.step(input, 0.1);
+    expect(controller.snapshot().position).toEqual(landed.position);
+    for (let i = 0; i < 400; i++) controller.step(input, 1 / 120);
+    expect(controller.surface.phase).toBe('flying');
+    expect(
+      new Vector3()
+        .fromArray(controller.snapshot().position)
+        .sub(new Vector3().fromArray(landed.position))
+        .dot(up),
+    ).toBeGreaterThan(25);
+  });
+  it('rejects unsafe orientation as an impact, preserving flight state', () => {
+    const { controller, up, position } = nearSurface(5.01);
+    controller.landingGear = true;
+    controller.relocate(
+      position,
+      new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), up.clone().negate()),
+    );
+    controller.resolveMotion(position, up.clone().multiplyScalar(-4));
+    controller.step(createFlightInput(), 1 / 120);
+    expect(controller.surface.phase).not.toBe('landing');
+    expect(controller.impactSpeed).toBeGreaterThan(0);
+  });
+  it('restores landing state and reproduces terrain contacts after reconciliation', () => {
+    const a = nearSurface(5.01),
+      b = nearSurface(5.01);
+    a.controller.landingGear = true;
+    a.controller.resolveMotion(a.position, a.up.clone().multiplyScalar(-1));
+    a.controller.step(createFlightInput(), 1 / 120);
+    b.controller.restore(a.controller.snapshot());
+    for (let i = 0; i < 120; i++) {
+      a.controller.step(createFlightInput(), 1 / 120);
+      b.controller.step(createFlightInput(), 1 / 120);
+    }
+    expect(b.controller.snapshot()).toEqual(a.controller.snapshot());
+  });
+});

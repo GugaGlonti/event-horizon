@@ -8,7 +8,14 @@ import { GAME_CONFIG } from '@/features/flight/config';
 function setup(width = 1440, height = 900, limit: number = GAME_CONFIG.planetMarkers.limit) {
   const definition = SYSTEMS.find((system) => system.id === 'solara');
   if (!definition) throw new Error('Missing fixture.');
-  const world = new SystemRuntime(definition);
+  const world = new SystemRuntime({
+    ...definition,
+    bodies: definition.bodies.map((body) => {
+      const { atmosphere: _atmosphere, ...rest } = body;
+      return { ...rest, radius: body.radius / (body.kind === 'star' ? 800 : 300), landable: false };
+    }),
+    spawns: definition.spawns.map((spawn) => ({ ...spawn, offset: [0, 0, 1900] })),
+  } as typeof definition);
   for (const position of world.positions.values()) position.set(1e6, 0, -1e6);
   const camera = new PerspectiveCamera(62, width / height, 0.1, 65000);
   const ship = new Vector3();

@@ -1,4 +1,3 @@
-import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { validateCatalog } from '@/engine/world/validateSystem';
 import type {
   CelestialDefinition,
@@ -169,9 +168,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
         id: 'pelagos-approach',
         bodyId: 'pelagos',
         offset: [-124800, 0, 166400],
-        orientation: new Quaternion()
-          .setFromUnitVectors(new Vector3(0, 0, -1), new Vector3(0.6, 0, -0.8))
-          .toArray(),
+        orientation: [0, 0, 0, 1],
       },
     ],
     arrivalId: 'pelagos-approach',

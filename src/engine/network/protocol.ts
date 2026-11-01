@@ -158,6 +158,14 @@ const flightStateSchema = z.strictObject({
   boosting: z.boolean(),
   assistance: z.boolean(),
   distance: scalar,
+  surface: z.strictObject({
+    phase: z.enum(['flying', 'approaching', 'landing', 'landed', 'taking-off']),
+    bodyId: id.nullable(),
+    timer: scalar,
+    anchor: vec.nullable(),
+  }),
+  landingGear: z.boolean(),
+  transit: z.boolean(),
 });
 const team = z.enum(['player', 'hostile']);
 const slot = z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]);

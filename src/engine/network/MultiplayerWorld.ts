@@ -14,6 +14,7 @@ import {
   routeArrival,
   travelDirection,
 } from '@/engine/navigation/hyperspaceRoute';
+import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 import { InputQueue, neutralInput } from './InputQueue';
@@ -46,6 +47,7 @@ export class MultiplayerWorld {
     const definition = SYSTEMS.find((system) => system.id === systemId);
     if (!definition) throw new Error('Unknown star system.');
     this.system = new SystemRuntime(definition);
+    this.simulation.environment = new PlanetaryEnvironment(this.system);
     this.simulation.ships.clear();
     this.simulation.pvp = true;
     this.encounter.reset(systemId);
