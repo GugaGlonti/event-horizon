@@ -17,7 +17,7 @@ import {
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 import { InputQueue, neutralInput } from './InputQueue';
-import type { ShipState, WorldSnapshot } from './protocol';
+import type { FlightState, ShipState, WorldSnapshot } from './protocol';
 
 export interface Pilot {
   id: string;
@@ -65,13 +65,14 @@ export class MultiplayerWorld {
         });
     }
   }
-  private safe(point: Vector3) {
+  private safe(point: Vector3, ignoreId?: string) {
     return (
       this.simulation.obstacles.every(
         (body) => point.distanceTo(body.position) > body.radius + 120,
       ) &&
       [...this.simulation.ships.values()].every(
-        (ship) => ship.health.destroyed || point.distanceTo(ship.position) > 80,
+        (ship) =>
+          ship.id === ignoreId || ship.health.destroyed || point.distanceTo(ship.position) > 80,
       )
     );
   }
@@ -94,12 +95,20 @@ export class MultiplayerWorld {
   addPlayer(
     id: string,
     name: string,
-    health?: { shields: number; hull: number; kills: number; deaths: number },
+    health?: {
+      shields: number;
+      hull: number;
+      kills: number;
+      deaths: number;
+      flight?: FlightState;
+      sinceDamage?: number;
+    },
     sourceId?: string,
   ) {
     if (this.pilots.has(id)) throw new Error('Duplicate player.');
     const pose = this.safePose(sourceId);
     const ship = new CombatShip(id, 'player', PLAYER_SHIP);
+    if (health?.flight) ship.controller.restore(health.flight);
     ship.controller.relocate(pose.position, pose.orientation, sourceId ? 100 : 0);
     ship.sync();
     ship.previous.copy(ship.position);
@@ -108,6 +117,7 @@ export class MultiplayerWorld {
     if (health) {
       ship.health.shields = health.shields;
       ship.health.hull = health.hull;
+      ship.health.sinceDamage = health.sinceDamage ?? 0;
     }
     const pilot: Pilot = {
       id,
@@ -122,6 +132,30 @@ export class MultiplayerWorld {
     this.pilots.set(id, pilot);
     this.simulation.ships.set(id, ship);
     return pilot;
+  }
+  releasePlayer(id: string) {
+    const pilot = this.pilots.get(id);
+    if (!pilot) return false;
+    if (!pilot.ship.transferring) {
+      pilot.inputs.clear();
+      return true;
+    }
+    const ship = pilot.ship,
+      point = new Vector3();
+    for (let i = 0; i < 256; i++) {
+      point
+        .copy(ship.position)
+        .add(new Vector3((i % 8) * 90, Math.floor(i / 64) * 140, (Math.floor(i / 8) % 8) * 90));
+      if (!this.safe(point, id)) continue;
+      ship.controller.resolveMotion(point, ship.velocity);
+      ship.sync();
+      ship.previous.copy(ship.position);
+      ship.previousOrientation.copy(ship.orientation);
+      ship.transferring = false;
+      pilot.inputs.clear();
+      return true;
+    }
+    return false;
   }
   removePlayer(id: string) {
     this.pilots.delete(id);
@@ -302,7 +336,7 @@ export class MultiplayerWorld {
       playerId: id,
       ack: pilot.inputs.ack,
       tickRate: this.tickRate,
-      players: this.pilots.size,
+      players: [...this.pilots.values()].filter((pilot) => pilot.connected).length,
       kills: pilot.kills,
       deaths: pilot.deaths,
       tickMs: 0,

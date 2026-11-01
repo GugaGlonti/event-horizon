@@ -42,6 +42,7 @@ const guestStorage = {
 export class NetworkSession {
   room: Room<unknown> | null = null;
   latest: WorldSnapshot | null = null;
+  onTravelExpired: (() => void) | null = null;
   private generation = 0;
   private timers = new Set<ReturnType<typeof setTimeout>>();
   private pendingTravel: {
@@ -155,6 +156,7 @@ export class NetworkSession {
       const parsed = errorSchema.safeParse(value);
       if (!parsed.success || this.room !== room) return;
       useMultiplayerStore.setState({ error: parsed.data.message });
+      if (parsed.data.code === 'TRAVEL_EXPIRED') this.onTravelExpired?.();
       if (parsed.data.code === 'TRAVEL') {
         this.pendingTravel?.reject(new Error(parsed.data.message));
         this.pendingTravel = null;

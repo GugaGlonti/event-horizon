@@ -91,6 +91,8 @@ export class StarSystemRoom extends Room {
       id,
       ticket ? ticket.name : join.name,
       source && {
+        flight: source.ship.controller.snapshot(),
+        sinceDamage: source.ship.health.sinceDamage,
         shields: source.ship.health.shields,
         hull: source.ship.health.hull,
         kills: source.kills,
@@ -151,14 +153,14 @@ export class StarSystemRoom extends Room {
       case 'ready':
         for (const [key, ticket] of this.tickets)
           if (ticket.id === peer.id && ticket.source === this) this.tickets.delete(key);
-        pilot.ship.transferring = false;
-        pilot.inputs.clear();
+        if (!this.world.releasePlayer(peer.id))
+          this.error(client, 'ARRIVAL', 'Arrival is occupied. Holding safely; retry when clear.');
         break;
       case 'cancel-travel':
         for (const [key, ticket] of this.tickets)
           if (ticket.id === peer.id && ticket.source === this) this.tickets.delete(key);
-        pilot.ship.transferring = false;
-        pilot.inputs.clear();
+        if (!this.world.releasePlayer(peer.id))
+          this.error(client, 'ARRIVAL', 'Arrival is occupied. Holding safely; retry when clear.');
         break;
       case 'travel': {
         if (!this.world.canTravel(peer.id, action.data.destination)) {
@@ -198,8 +200,14 @@ export class StarSystemRoom extends Room {
         this.tickets.delete(key);
         const pilot = this.world.pilots.get(ticket.id);
         if (pilot) {
-          pilot.ship.transferring = false;
-          pilot.inputs.clear();
+          this.world.releasePlayer(pilot.id);
+          for (const client of this.clients)
+            if (this.peers.get(client.sessionId)?.id === pilot.id)
+              this.error(
+                client,
+                'TRAVEL_EXPIRED',
+                'Travel permit expired. Holding in the source system.',
+              );
         }
       }
     this.snapshotClock += this.config.snapshotRate;

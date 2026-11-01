@@ -130,6 +130,8 @@ export class FlightSession {
         this.snapPose();
       },
     );
+    this.multiplayer.network.onTravelExpired = () =>
+      this.exploration.cancelJump('Travel permit expired. Holding safely in the current system.');
     this.exploration.prepareNetworkDestination = async (_id, signal) => {
       if (!this.multiplayer.enabled || !this.travelPermit) return;
       await new Promise<void>((resolve, reject) => {
