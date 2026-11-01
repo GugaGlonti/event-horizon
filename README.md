@@ -2,11 +2,15 @@
 
 A browser-based space flight, exploration, and PvE combat game, built one system at a time.
 
-**Milestone 5 — Multiplayer PvP & Cooperative PvE.** Fly the Kestrel through Solara, Vesper
-and Aether alone or with other guest pilots. A Node/Colyseus server owns movement, shared AI,
-weapons, damage, respawns and system transfers. Shared flight prediction and remote interpolation
-keep browser controls responsive. The existing maps, cameras, floating origin, procedural worlds
-and cinematic hyperspace remain in use. Terrain and landing are the next milestone.
+**Milestones 6 & 7 — Planetary Exploration, Space Stations & Docking.** Fly from space through
+Pelagos's 14 km atmosphere to deterministic terrain, land, take off, enter Solara Orbital's hangar,
+repair and undock. Vesper Outpost offers a second docking destination. Shared gravity, collisions,
+landing, services and port occupancy run on the existing multiplayer authority. Offline flight,
+PvP/PvE, both cameras, maps, floating origin and cinematic hyperspace remain integrated.
+
+See [planetary scale, controls, architecture and extension instructions](docs/planetary-exploration.md)
+and the [Milestones 6–7 verification record](docs/milestones-6-7.md). No dependencies were added for
+these milestones. The next planned milestone is Missions, Contracts & Player Progression.
 
 ## Start multiplayer
 
@@ -40,7 +44,7 @@ npm run dev
 ```
 
 Open Vite's printed Local URL (normally `http://127.0.0.1:5173`). Choose **Keyboard flight** or **Fly
-with mouse**. You start stationary near Pelagos in Solara, facing its blue hemisphere. Hold W to raise
+with mouse**. You start stationary near Pelagos in Solara, near its orbital station, 22 km above the reference surface. Hold W to raise
 throttle gradually from 0% to 100%; release W to ease back toward a stop. Hold S for stronger braking.
 T selects the next contact, including the moon Lyra. L opens
 the local system map; M opens the galaxy map. Select Vesper and choose **Engage hyperdrive**.
@@ -105,6 +109,10 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | B                  | Start a five-ship patrol encounter when the sector is clear    |
 | N / Tab            | Cycle nearby hostile targets during flight                     |
 | G / H              | Select nearest hostile ahead / clear combat target             |
+| K                  | Deploy/retract landing gear; assisted horizon leveling         |
+| U                  | Take off when landed; undock when docked                       |
+| P / I              | Request/capture nearby docking; cancel clearance               |
+| O                  | Toggle bounded space transit drive                             |
 | C                  | Switch chase/cockpit camera                                    |
 | F                  | Toggle flight assistance                                       |
 | M                  | Open/close galaxy map                                          |
@@ -124,7 +132,7 @@ for legibility. The flight HUD shows the target's name/type, surface distance, c
 ship-relative directional marker, including when the destination is behind you. X clears the target
 and exposes the nearest contact.
 
-While flying, edge arrows identify up to three off-screen planets within **30 km of their surface**.
+While flying, edge arrows identify up to three off-screen planets within **300 km of their surface**.
 Each shows its name and surface distance; **AFT** marks a planet behind the camera. The selected
 planet is amber, and other nearby planets use phosphor green. Arrows follow the actual chase/cockpit
 view, stay clear of the compass and instrument bank, and separate nearby labels. Crowded compact
@@ -140,6 +148,26 @@ momentum; without it, use counter-steering to settle rotation. Releasing W gradu
 and slows the ship; S applies stronger braking, then engages reverse once throttle reaches zero.
 Both work with assistance on or off and override boost. Release S to slow reverse movement, or hold
 W to accelerate forward again. Hold W with Shift to boost.
+
+## Planetary flight and docking
+
+Start in Solara, use L or T to select **Pelagos Survey Base** or **Solara Orbital**. Normal flight
+remains 180 m/s; O enables faster transit in clear space and automatically slows near worlds and
+stations. Approach the survey zone, release W and brake drift with S. K deploys gear and enables
+assisted horizon leveling while pitch/roll are released. Use V to descend; gear translation jets
+slow to 2.2 m/s close to the ground. Land with vertical speed ≤3 m/s, ground speed ≤5 m/s, an upright
+ship and gentle terrain. U starts a powered takeoff. F disables gravity compensation/leveling.
+
+At a station, request a free berth within 2.5 km using its HUD button or P. Follow the amber guide,
+fly through the hangar entrance or approach the external berth, then use P below 45 m, 3 m/s and 7°
+alignment error for final capture. I cancels clearance. Docked services repair hull, recharge shields
+and cool weapons for free; firing and flight input are locked. U undocks once the corridor is clear.
+Landing/docking preserve damage; services update authoritative state. Other guests see shared port
+occupancy. Menus keep the server running. Planetary and docking instruments publish at 10 Hz.
+
+Pelagos is the only landable world. There is no vegetation, weather, walking, ground NPC population,
+economy or inventory. Multiplayer guests remain in memory. The terrain and station implementations
+reuse the existing flight controller and network architecture.
 
 ## Combat sandbox
 
@@ -168,8 +196,7 @@ Patrol craft have 45 shield / 55 hull and slower, weaker guns. The default gun h
 two configured hardpoints alternate by default, with synchronized firing available in configuration.
 Each bolt adds 7.5% heat; cooling removes 14%/s. Reaching 100% locks the cannons until heat falls to
 30%. Heat persists across weapon changes and freezes with gameplay during pauses/jumps; reset and
-player respawn clear it. The HUD displays heat, overheat, and incoming damage. Friendly fire is
-disabled. Ships, asteroids, planets, moons and stars are solid spherical boundaries; lasers stop at the first solid
+player respawn clear it. The HUD displays heat, overheat, and incoming damage. Friendly fire is disabled offline; multiplayer enables PvP. Ships, asteroids and non-landable celestial bodies use solid spheres; Pelagos uses terrain sweeps and stations use oriented box sweeps; lasers stop at the first solid
 contact. Impact damage scales with mass and closing speed; low-speed contacts are harmless. Rings,
 atmospheres and reference beacons remain visual effects.
 
@@ -338,6 +365,8 @@ src/engine/
   input/                  Active-flight keyboard and pointer-lock adapter
   simulation/             Fixed-step flight physics and scalar telemetry
   physics/                Continuous sphere sweeps and mass-weighted impact response
+  planetary/              Shared terrain queries, reference frames, gravity and flight tuning
+  stations/               Definitions, oriented sweeps, exclusive docking and services
   combat/                 Shared ships/commands, health, lasers, targeting and deterministic AI
   world/                  Serializable definitions, validation, analytical orbits, render origin
   navigation/             Pure target/bearing calculations and hyperspace state machine
@@ -352,7 +381,8 @@ src/features/
     components/           Galaxy/local maps, target HUD, journey status
     rendering/            System scene composition and GPU hyperspace effect
   flight/                 Input/session lifetime, interpolation, camera, HUD, tuning
-  planets/                Reusable celestial geometry, surface/atmosphere/ring shaders
+  planets/                Worker terrain LOD, atmospheres, landing presentation and telemetry
+  stations/               Modular facilities and docking guidance
   spacecraft/             Original Kestrel model, independent of physics
   space/                  Seeded stars, nebula backdrop, periodic dust and approach beacons
 server/                   Colyseus system rooms, guest/travel lifecycle and fixed authority loop
@@ -361,7 +391,7 @@ src/stores/               Discrete choices and detached read models, published a
 ```
 
 Logical positions use JavaScript double-precision metres within a system; time is in seconds and
-angles in radians. Astronomy is compressed for playable travel times. Local forward is **-Z**, up
+angles in radians. Astronomy uses gameplay scaling: 138–405 km planets and 25.5–54 km moons. Local forward is **-Z**, up
 **+Y**, right **+X**. A body's position is relative to its parent; moon orbits are evaluated from an
 explicit shared simulation time, independently of the order of definitions or frame history.
 
@@ -381,6 +411,10 @@ use quaternion interpolation and bounded extrapolation. Flight/combat HUD teleme
 See [architecture and extension guide](docs/architecture.md), including how to add a system or moon.
 
 ## Verification and limitations
+
+The current milestone checks and measured browser/server results are recorded in
+[Milestones 6–7 acceptance](docs/milestones-6-7.md): **362 tests across 34 files**, lint, TypeScript and
+the production build passed. Historical evidence below remains dated to its run.
 
 Automated tests cover flight/input behavior plus definitions, invalid parents/cycles/duplicates,
 orbits, coordinate round-trips/rebases, target selection/bearings/distances, safe arrival selection,
@@ -408,7 +442,7 @@ coverage and formal GPU frame-time profiling remain manual verification limits. 
 and exact regeneration timing are covered by headless tests. See the
 [dated acceptance record](docs/milestone-4.md) for ownership, evidence and remaining verification limits.
 
-- Arcade flight and compressed distances; no gravity, terrain or landing. Spherical colliders are
+- Arcade flight with gravity, atmospheric handling and one landable reference world. Spherical colliders are
   conservative around ship wings and asteroid edges. There is no contact torque, friction, mesh
   damage or rigid-body debris. Dense pileups use a conservative bounded solver that may drop the
   rest of a tick's travel. Moving projectiles/ships/moons use linear sweeps within a 120 Hz tick.
@@ -425,7 +459,7 @@ and exact regeneration timing are covered by headless tests. See the
   the public MP3 previews. Broader environmental sound and post-processing remain future work.
 - Rendering continues while paused. Pixel ratio is bounded; geometry, buffers, and scratch vectors
   are reused. Approximately 60 FPS is a target, not a guarantee across hardware. Wider profiling and
-  adaptive quality/LOD remain future work.
+  adaptive quality remain future work; terrain LOD is bounded and worker-generated.
 - Vite retains its large-chunk advisory for Three.js application/scene bundles. Unsupported WebGL
   browsers receive a fallback; automatic graphics-context recovery is not implemented.
 - Multiplayer is an in-memory guest prototype, tested locally up to 16 clients. Snapshot bandwidth
@@ -444,7 +478,9 @@ and exact regeneration timing are covered by headless tests. See the
   HUD, audio, JSON snapshots and gameplay events
 - [x] Milestone 5 — Multiplayer PvP & Cooperative PvE: authoritative rooms, prediction, interpolation,
   shared AI/combat, guest reconnection and cinematic cross-system transfers
-- [ ] Milestone 6 — Planetary Atmospheres, Terrain & Landing
-- [ ] Later — Larger battles, squadrons, missions, persistent multiplayer progression, wider hardware support
+- [x] Milestone 6 — Planetary scale, atmospheric entry/flight, terrain LOD, gravity, landing/takeoff
+- [x] Milestone 7 — Solara Orbital, Vesper Outpost, hangar, authoritative docking and services
+- [ ] Next — Missions, Contracts & Player Progression
+- [ ] Later — Larger battles, squadrons, persistent progression, wider hardware support
 
 Licensed under [MIT](LICENSE).
