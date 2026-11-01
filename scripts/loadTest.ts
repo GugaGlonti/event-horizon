@@ -3,7 +3,9 @@ import { neutralInput } from '@/engine/network/InputQueue';
 import { ROOM_NAME, type WorldSnapshot } from '@/engine/network/protocol';
 import { serverConfig } from '../server/config';
 import { createGameServer } from '../server/createServer';
+import { placeVerificationPilots, verificationScenarios } from './planetaryFixtures';
 
+const scenario = verificationScenarios.find((s) => s === process.env.LOAD_SCENARIO);
 const seconds = Math.max(3, Math.min(120, Number(process.env.LOAD_SECONDS) || 10));
 const latency = Math.max(0, Math.min(1000, Number(process.env.LOAD_LATENCY_MS) || 0));
 const populations = process.argv
@@ -76,6 +78,7 @@ try {
     }
     rooms[0]?.send('action', { kind: 'encounter', practice: false });
     const authority = [...game.rooms].find((room) => room.roomId === rooms[0]?.roomId);
+    if (authority && scenario) placeVerificationPilots(authority.world, scenario);
     const before = authority ? { ...authority.metrics } : null;
     const cpu = process.cpuUsage(),
       start = performance.now(),
@@ -89,7 +92,12 @@ try {
             ...neutralInput(seq),
             paused: false,
             fire: true,
-            flight: { ...neutralInput().flight, throttle: 0.5, yaw: Math.sin(seq / 80 + i) * 0.25 },
+            flight: {
+              ...neutralInput().flight,
+              throttle: scenario === 'low' || scenario === 'land' ? 0 : 0.5,
+              strafe: scenario === 'low' ? 0.08 : 0,
+              yaw: Math.sin(seq / 80 + i) * 0.25,
+            },
           };
           sent[i]?.set(seq, performance.now());
           if ((sent[i]?.size ?? 0) > 120) sent[i]?.delete(seq - 120);
@@ -112,6 +120,7 @@ try {
     sizes.sort((a, b) => a - b);
     ackDelays.sort((a, b) => a - b);
     results.push({
+      scenario: scenario ?? 'space-combat',
       players: count,
       seconds: Number(elapsed.toFixed(2)),
       simulatedOneWayLatencyMs: latency,

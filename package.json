@@ -22,7 +22,8 @@
     "server": "tsx --env-file-if-exists=.env server/main.ts",
     "server:dev": "tsx watch --env-file-if-exists=.env server/main.ts",
     "test:integration": "vitest run tests/multiplayer.integration.test.ts",
-    "test:load": "tsx scripts/loadTest.ts"
+    "test:load": "tsx scripts/loadTest.ts",
+    "verify:planetary": "tsx scripts/planetaryVerification.ts"
   },
   "dependencies": {
     "@colyseus/core": "^0.18.24",
