@@ -135,13 +135,7 @@ export class CombatAudio {
   private updateEnemies(frame: CombatAudioFrame, cabin: boolean, engine: AudioBuffer | null) {
     this.candidates.length = 0;
     for (const ship of frame.ships.values()) {
-      if (
-        ship === frame.player ||
-        ship.stationary ||
-        ship.health.destroyed ||
-        ship.team !== 'hostile'
-      )
-        continue;
+      if (ship === frame.player || ship.stationary || ship.health.destroyed) continue;
       const distance = ship.position.distanceToSquared(frame.player.position);
       if (distance >= 1100 ** 2) continue;
       const score = distance * (this.enemies.has(ship.id) ? 0.85 : 1);
@@ -266,6 +260,11 @@ export class CombatAudio {
     } catch {
       this.stop();
     }
+  }
+  resetEvents() {
+    this.stop();
+    this.cursor = 0;
+    this.frame = null;
   }
   stop() {
     if (this.frame)

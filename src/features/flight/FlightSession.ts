@@ -1,11 +1,13 @@
 import { Quaternion, Vector3 } from 'three';
 import { FlightAudioMix } from '@/engine/audio/FlightAudioMix';
 import { FlightInputManager } from '@/engine/input/FlightInputManager';
+import type { JoinOptions, TravelPermit } from '@/engine/network/protocol';
 import { FixedStepLoop } from '@/engine/simulation/FixedStepLoop';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { RenderOrigin } from '@/engine/world/RenderOrigin';
-import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { SYSTEMS } from '@/engine/world/systems';
 import { CombatSession } from '@/features/combat/CombatSession';
 import { ExplorationSession } from '@/features/exploration/ExplorationSession';
 import { EngineAudio } from '@/features/flight/audio/EngineAudio';
@@ -16,6 +18,7 @@ import {
 import { loadEngineAssets } from '@/features/flight/audio/engineAssets';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
+import { MultiplayerSession } from '@/features/multiplayer/MultiplayerSession';
 import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -28,6 +31,9 @@ export class FlightSession {
   readonly renderPosition = new Vector3();
   readonly origin = new RenderOrigin();
   readonly orientation = new Quaternion();
+  readonly multiplayer: MultiplayerSession;
+  private awaitingRespawn = false;
+  private travelPermit: TravelPermit | null = null;
   readonly exploration: ExplorationSession;
   readonly journey = new HyperspaceFlight();
   private readonly audioMix = new FlightAudioMix();
@@ -59,7 +65,12 @@ export class FlightSession {
         this.journey.begin(this.position, this.orientation, direction);
       },
       onCommit: (system) => {
+        const snapshot = this.multiplayer?.network.latest;
+        if (this.multiplayer?.enabled && snapshot) this.exploration.synchronizeTime(snapshot.time);
         this.journey.arrive(system);
+        const arrival = snapshot?.ships.find((ship) => ship.id === snapshot.playerId);
+        if (this.multiplayer?.enabled && arrival)
+          this.journey.setArrival(arrival.flight.position, arrival.flight.orientation);
         this.journey.sample(this.exploration.jump, this.position, this.orientation);
         this.controller.relocate(this.position, this.orientation);
         this.snapPose(false);
@@ -69,11 +80,26 @@ export class FlightSession {
         this.combat.setWorld(this.exploration.world);
         this.journey.finish(this.position, this.orientation);
         this.controller.relocate(this.position, this.orientation, JUMP_MOTION.exitSpeed);
+        if (this.multiplayer?.enabled) this.multiplayer.restoreArrival();
+        this.travelPermit = null;
         this.snapPose(false);
         useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
         this.startKeyboard();
       },
       onError: (message) => {
+        if (this.multiplayer?.enabled) {
+          this.multiplayer.network.cancelTravel();
+          const snapshot = this.multiplayer.network.latest;
+          if (snapshot && snapshot.systemId !== this.exploration.world.definition.id) {
+            const definition = SYSTEMS.find((system) => system.id === snapshot.systemId);
+            if (definition)
+              this.exploration.adoptWorld(
+                new SystemRuntime(definition, snapshot.time),
+                snapshot.time,
+              );
+          }
+          this.travelPermit = null;
+        }
         this.combat.setWorld(this.exploration.world);
         if (this.journey.active) {
           this.journey.active = false;
@@ -81,9 +107,56 @@ export class FlightSession {
           this.snapPose(false);
           useFlightStore.getState().publishTelemetry(this.controller.getTelemetry());
         }
+        if (this.multiplayer?.enabled) {
+          this.multiplayer.restoreArrival();
+          this.snapPose();
+        }
         useFlightStore.getState().setNotice(message);
       },
     });
+    this.multiplayer = new MultiplayerSession(
+      this.controller,
+      this.combat,
+      () => this.exploration.jump.busy,
+      (snapshot) => {
+        const definition = SYSTEMS.find((system) => system.id === snapshot.systemId);
+        if (definition) {
+          this.exploration.adoptWorld(new SystemRuntime(definition, snapshot.time), snapshot.time);
+          this.combat.setWorld(this.exploration.world);
+        }
+        const own = snapshot.ships.find((ship) => ship.id === snapshot.playerId);
+        if (own) this.controller.restore(own.flight);
+        if (own?.transferring) this.multiplayer.restoreArrival();
+        this.snapPose();
+      },
+    );
+    this.exploration.prepareNetworkDestination = async (_id, signal) => {
+      if (!this.multiplayer.enabled || !this.travelPermit) return;
+      await new Promise<void>((resolve, reject) => {
+        const poll = () => {
+          if (signal.aborted) {
+            reject(new Error('Journey cancelled.'));
+            return;
+          }
+          if (this.exploration.jump.phase === 'HYPERSPACE') {
+            resolve();
+            return;
+          }
+          setTimeout(poll, 30);
+        };
+        poll();
+      });
+      signal.throwIfAborted();
+      await this.multiplayer.network.transfer(this.travelPermit);
+      if (signal.aborted && this.multiplayer.enabled) {
+        const snapshot = this.multiplayer.network.latest;
+        const definition = SYSTEMS.find((system) => system.id === snapshot?.systemId);
+        if (snapshot && definition)
+          this.exploration.adoptWorld(new SystemRuntime(definition, snapshot.time), snapshot.time);
+        this.multiplayer.restoreArrival();
+        this.snapPose();
+      }
+    };
     this.arrive(this.exploration.world);
     this.combat.reset(this.exploration.world);
     this.exploration.syncPose(this.position, this.orientation);
@@ -122,6 +195,7 @@ export class FlightSession {
       target,
       {
         onMode: (mode) => {
+          if (mode === null) this.multiplayer.pause();
           if (mode === null) this.engineAudio.stop();
           if (mode === null) {
             this.combat.audio.stop();
@@ -154,6 +228,7 @@ export class FlightSession {
       window.removeEventListener('blur', this.suspendJourney);
       document.removeEventListener('visibilitychange', this.onVisibility);
       manager.dispose();
+      this.multiplayer.disconnect();
       this.exploration.dispose();
       this.engineAudio.dispose();
       this.combat.dispose();
@@ -259,6 +334,7 @@ export class FlightSession {
     }
   };
   pause = () => {
+    this.multiplayer?.pause();
     this.engineAudio.stop();
     this.combat.audio.stop();
     this.combat.cancelWeaponCharge();
@@ -266,8 +342,31 @@ export class FlightSession {
     this.loop.reset();
     useFlightStore.getState().setInputMode(null);
   };
+  connectMultiplayer = (name: string) => {
+    this.pause();
+    this.exploration.cancelJump();
+    this.exploration.authorizeJump = async () => {
+      const destination = useExplorationStore.getState().destinationId as
+        | JoinOptions['systemId']
+        | null;
+      if (!destination) return false;
+      this.travelPermit = await this.multiplayer.network.travel(destination);
+      return true;
+    };
+    this.multiplayer.connect(name, this.exploration.world.definition.id as JoinOptions['systemId']);
+  };
+  disconnectMultiplayer = () => {
+    this.pause();
+    this.multiplayer.disconnect();
+    this.exploration.authorizeJump = null;
+    this.reset();
+  };
   reset = () => {
     this.pause();
+    if (this.multiplayer.enabled) {
+      this.multiplayer.network.action({ kind: 'respawn' });
+      return;
+    }
     this.exploration.cancelJump();
     this.exploration.closeMap();
     this.controller.reset();
@@ -306,9 +405,16 @@ export class FlightSession {
   }
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
-    this.combat.startEncounter(practice);
+    if (this.multiplayer.enabled) this.multiplayer.network.action({ kind: 'encounter', practice });
+    else this.combat.startEncounter(practice);
   };
   respawn = () => {
+    if (this.multiplayer.enabled) {
+      this.pause();
+      this.awaitingRespawn = true;
+      this.multiplayer.network.action({ kind: 'respawn' });
+      return;
+    }
     this.reset();
     this.startKeyboard();
   };
@@ -342,7 +448,32 @@ export class FlightSession {
   advance(delta: number, reducedMotion = false) {
     const state = useFlightStore.getState();
     const flying = state.phase === 'flying' && !this.exploration.jump.busy;
-    if (flying) {
+    if (this.multiplayer.enabled) {
+      if (flying) this.input = this.manager?.sample(delta) ?? this.input;
+      this.multiplayer.advance(
+        delta,
+        this.input,
+        this.manager?.firing ?? false,
+        !flying,
+        state.assistance,
+      );
+      if (!this.exploration.jump.busy) {
+        this.multiplayer.present(this.position, this.orientation);
+        const snapshot = this.multiplayer.network.latest;
+        if (snapshot) this.exploration.synchronizeTime(snapshot.time);
+      }
+      this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
+      if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
+        this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
+        state.publishTelemetry(this.controller.getTelemetry());
+      }
+      if (this.awaitingRespawn && !this.combat.simulation.player.health.destroyed) {
+        this.awaitingRespawn = false;
+        this.snapPose();
+        this.startKeyboard();
+      }
+      if (this.combat.simulation.player.health.destroyed && flying) this.pause();
+    } else if (flying) {
       this.input = this.manager?.sample(delta) ?? this.input;
       const alpha = this.loop.advance(delta, this.step);
       this.combat.simulation.alpha = alpha;

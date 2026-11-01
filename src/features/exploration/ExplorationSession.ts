@@ -99,7 +99,29 @@ export class ExplorationSession {
     if (!enabled) this.audio.stop();
   };
 
+  authorizeJump: (() => Promise<boolean>) | null = null;
+  prepareNetworkDestination: ((id: string, signal: AbortSignal) => Promise<void>) | null = null;
+  private authorizing = false;
   beginJump = () => {
+    if (this.authorizeJump) {
+      if (this.authorizing || this.jump.busy) return false;
+      this.authorizing = true;
+      const generation = this.generation;
+      void this.authorizeJump()
+        .then((allowed) => {
+          this.authorizing = false;
+          if (allowed && !this.disposed && generation === this.generation) this.startJump();
+        })
+        .catch((error: unknown) => {
+          this.authorizing = false;
+          if (!this.disposed && generation === this.generation)
+            this.fail(error instanceof Error ? error.message : 'Travel denied.');
+        });
+      return true;
+    }
+    return this.startJump();
+  };
+  private startJump = () => {
     if (this.disposed) return false;
     const state = useExplorationStore.getState();
     if (
@@ -140,7 +162,9 @@ export class ExplorationSession {
     this.preparation = preparation;
     if (destination)
       void Promise.resolve()
-        .then(() => {
+        .then(async () => {
+          preparation.signal.throwIfAborted();
+          await this.prepareNetworkDestination?.(destination, preparation.signal);
           preparation.signal.throwIfAborted();
           return this.loader(destination, preparation.signal);
         })
@@ -203,6 +227,18 @@ export class ExplorationSession {
     if (this.jump.phase === 'EXITING' && this.world.definition.id === systemId)
       this.jump.arrivalReady = true;
   };
+
+  adoptWorld(system: SystemRuntime, time: number) {
+    this.world = system;
+    this.clock = time;
+    this.world.update(time);
+    this.navigation.select(system.definition.defaultTargetId, system);
+    this.publish();
+  }
+  synchronizeTime(time: number) {
+    this.clock = time;
+    this.world.update(time);
+  }
 
   advanceWorld(dt: number) {
     this.clock += dt;

@@ -28,6 +28,7 @@ export class CombatSession {
   private readonly direction = new Vector3();
   private readonly orientation = new Quaternion();
   private readonly command: { flight: FlightInput; fire: boolean; weapon: WeaponSlot };
+  targetNames: ReadonlyMap<string, string> | null = null;
   status = 'Patrol inbound / B to engage now';
 
   constructor(controller: FlightController, input: FlightInput) {
@@ -65,6 +66,10 @@ export class CombatSession {
     this.audio.stop();
     this.status = 'Encounter left behind';
     this.publish();
+  }
+
+  get requestedWeapon() {
+    return this.command.weapon;
   }
 
   selectWeapon(slot: WeaponSlot) {
@@ -245,11 +250,14 @@ export class CombatSession {
         target: target
           ? {
               id: target.id,
-              name: `${target.config.name} ${target.id.split(':').at(-1)}`,
+              name:
+                this.targetNames?.get(target.id) ??
+                `${target.config.name} ${target.id.split(':').at(-1)}`,
               distance: target.position.distanceTo(player.position),
               shields: target.health.shields / Math.max(1, target.config.defense.shields),
               hull: target.health.hull / target.config.defense.hull,
-              state: target.stationary ? 'practice' : target.aiState,
+              state:
+                target.team === 'player' ? 'pvp' : target.stationary ? 'practice' : target.aiState,
             }
           : null,
       },

@@ -7,7 +7,7 @@ export interface TargetReadout {
   readonly distance: number;
   readonly shields: number;
   readonly hull: number;
-  readonly state: AiState | 'practice';
+  readonly state: AiState | 'practice' | 'pvp';
 }
 export interface CombatReadout {
   readonly weapon: WeaponSlot;
