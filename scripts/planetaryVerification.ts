@@ -33,6 +33,16 @@ input.on('line', (line) => {
       );
       continue;
     }
+    if (command === 'damage') {
+      for (const pilot of world.pilots.values()) {
+        pilot.ship.health.hull = 40;
+        pilot.ship.health.shields = 10;
+        pilot.ship.health.sinceDamage = 0;
+        pilot.ship.heat = 0.7;
+      }
+      console.info('Damaged QA ships for service verification.');
+      continue;
+    }
     const scenario = verificationScenarios.find((s) => s === command);
     if (!scenario || !placeVerificationPilots(world, scenario)) continue;
     console.info(

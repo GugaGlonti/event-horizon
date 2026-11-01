@@ -144,3 +144,19 @@ it('keeps a real clearance margin above the hangar floor during a slightly drift
   expect(f.operations.state('a').phase).toBe('docked');
   expect(traceStation(f.world.system, f.pose.position, f.pose.position, 5.25)).toBeNull();
 });
+
+import { performGameplayAction } from '@/engine/simulation/shipActions';
+
+it('reports successful capture, services and undocking as successful intentions', () => {
+  const f = fixture(),
+    act = (action: Parameters<typeof performGameplayAction>[2]) =>
+      performGameplayAction(f.world.simulation, 'a', action);
+  expect(act({ kind: 'dock', stationId: f.station.id, portId: f.port.id })).toBeNull();
+  f.operations.step(1 / 120);
+  f.move('a', f.pose.position.clone().add(new Vector3(0, 0.0002, 20)));
+  expect(act({ kind: 'capture' })).toBeNull();
+  for (let i = 0; i < 241; i++) f.operations.step(1 / 120);
+  for (const service of ['repair', 'shields', 'weapons'] as const)
+    expect(act({ kind: 'service', service })).toBeNull();
+  expect(act({ kind: 'undock' })).toBeNull();
+});

@@ -58,14 +58,16 @@ export function performGameplayAction(
         return 'Takeoff clearance obstructed.';
       return ship.controller.requestTakeoff() ? null : 'Takeoff requires a landed ship.';
     case 'dock':
-      return stations?.request(id, action.stationId, action.portId) ?? null;
+      return stations
+        ? stations.request(id, action.stationId, action.portId)
+        : 'Docking unavailable.';
     case 'capture':
-      return stations?.assist(id) ?? 'Docking unavailable.';
+      return stations ? stations.assist(id) : 'Docking unavailable.';
     case 'cancel-docking':
       return stations?.cancel(id) ? null : 'Undock to release this berth.';
     case 'undock':
-      return stations?.undock(id) ?? 'Docking unavailable.';
+      return stations ? stations.undock(id) : 'Docking unavailable.';
     case 'service':
-      return stations?.service(id, action.service) ?? 'Docking unavailable.';
+      return stations ? stations.service(id, action.service) : 'Docking unavailable.';
   }
 }
