@@ -10,6 +10,8 @@ import type { FlightController } from '@/engine/simulation/FlightController';
 import {
   type AiConfig,
   type CombatEffect,
+  type CombatEvent,
+  type CombatEventDetail,
   CombatShip,
   type Obstacle,
   type Projectile,
@@ -27,6 +29,7 @@ export class CombatSimulation {
   readonly ships = new Map<string, CombatShip>();
   readonly projectiles: Projectile[] = [];
   readonly effects: CombatEffect[] = [];
+  readonly events: CombatEvent[] = [];
   readonly tracers: RailgunTrace[] = [];
   readonly obstacles: Obstacle[] = [];
   readonly player: CombatShip;
@@ -36,6 +39,7 @@ export class CombatSimulation {
   alpha = 0;
   impact = 0;
   private sequence = 0;
+  private eventSequence = 0;
   private readonly solver = new SphereSolver();
   private readonly ai = new ShipAi();
   private readonly bodies: SphereBody[] = [];
@@ -72,6 +76,7 @@ export class CombatSimulation {
     ship.home.copy(ship.position);
     ship.stationary = stationary;
     this.ships.set(ship.id, ship);
+    this.event(ship.id, ship.position, { kind: 'spawned', sourceId: null });
     return ship;
   }
 
@@ -80,12 +85,14 @@ export class CombatSimulation {
     this.bodies.length = 0;
     this.projectiles.length = 0;
     this.effects.length = 0;
+    this.events.length = 0;
     this.tracers.length = 0;
     this.obstacles.length = 0;
     this.targetId = null;
     this.impact = 0;
     this.kills = 0;
     this.player.railgunCharge = 0;
+    this.player.command.fire = false;
   }
 
   respawn() {
@@ -97,6 +104,7 @@ export class CombatSimulation {
     player.cooldown = 0;
     player.weapon = 1;
     player.hitFlash = 0;
+    player.health.sinceDamage = 0;
     player.sync();
     player.previous.copy(player.position);
     player.previousOrientation.copy(player.orientation);
@@ -111,6 +119,17 @@ export class CombatSimulation {
     );
     const index = nearby.findIndex((ship) => ship.id === this.targetId);
     this.targetId = nearby[(index + 1) % nearby.length]?.id ?? null;
+  }
+
+  private event(shipId: string, position: Readonly<Vector3>, detail: CombatEventDetail) {
+    if (this.events.length >= 128) this.events.shift();
+    this.events.push({
+      id: ++this.eventSequence,
+      time: this.time,
+      shipId,
+      position: [position.x, position.y, position.z],
+      ...detail,
+    });
   }
 
   private effect(
@@ -136,11 +155,25 @@ export class CombatSimulation {
     });
   }
 
-  damage(ship: CombatShip, amount: number) {
+  damage(ship: CombatShip, amount: number, sourceId: string | null = null) {
+    // Slot IDs survive respawn; an old object must never damage or destroy its replacement.
+    if (this.ships.get(ship.id) !== ship) return;
     const shield = ship.health.shields > 0;
+    const beforeShield = ship.health.shields,
+      beforeHull = ship.health.hull;
     if (!ship.health.damage(amount)) return;
+    this.event(ship.id, ship.position, {
+      kind: 'damage',
+      sourceId,
+      shields: beforeShield - ship.health.shields,
+      hull: beforeHull - ship.health.hull,
+    });
     ship.hitFlash = 0.3;
-    if (ship.health.destroyed) ship.railgunCharge = 0;
+    if (ship.health.destroyed) {
+      ship.railgunCharge = 0;
+      ship.command.fire = false;
+      this.event(ship.id, ship.position, { kind: 'destroyed', sourceId });
+    }
     if (ship === this.player) this.impact = Math.min(1, this.impact + amount / 50);
     this.effect(
       ship.health.destroyed ? 'explosion' : shield ? 'shield' : 'impact',
@@ -157,7 +190,7 @@ export class CombatSimulation {
   private collision = (a: SphereBody, b: SphereBody, speed: number) => {
     for (const body of [a, b]) {
       const ship = this.ships.get(body.id);
-      if (ship) this.damage(ship, impactDamage(speed, ship.config.mass));
+      if (ship) this.damage(ship, impactDamage(speed, ship.config.mass), body === a ? b.id : a.id);
     }
   };
 
@@ -181,6 +214,7 @@ export class CombatSimulation {
       const railgun = ship.config.railgun;
       ship.cooldown = railgun.interval;
       ship.railgunCharge = 0;
+      this.event(ship.id, this.point, { kind: 'fired', weapon: ship.weapon });
       this.end.copy(this.point).addScaledVector(this.direction, railgun.range);
       this.trace(this.point, this.end, ship.id, ship.team, railgun.radius, 0);
       this.end.lerpVectors(this.point, this.end, this.hitFraction);
@@ -194,7 +228,13 @@ export class CombatSimulation {
         age: 0,
         lifetime: railgun.duration,
       });
-      if (this.hitShip) this.damage(this.hitShip, railgun.damage);
+      if (this.hitDetected)
+        this.event(ship.id, this.end, {
+          kind: 'impact',
+          sourceId: ship.id,
+          targetId: this.hitShip?.id ?? null,
+        });
+      if (this.hitShip) this.damage(this.hitShip, railgun.damage, ship.id);
       if (this.hitDetected) this.effect('impact', this.end, ship.team);
       this.effect('railgun-shot', this.point, ship.team);
       return;
@@ -221,6 +261,7 @@ export class CombatSimulation {
         });
       }
       this.effect('flak-shot', this.point, ship.team);
+      this.event(ship.id, this.point, { kind: 'fired', weapon: ship.weapon });
       return;
     }
     const config = ship.weapon === 2 ? ship.config.missile : ship.config.laser;
@@ -256,6 +297,7 @@ export class CombatSimulation {
       });
     else this.projectiles.push({ ...state, kind: 'gun' });
     this.effect(ship.weapon === 2 ? 'missile-launch' : 'shot', this.point, ship.team);
+    this.event(ship.id, this.point, { kind: 'fired', weapon: ship.weapon });
   }
 
   /** Shared nearest-hit query. A zero motion fraction traces an instantaneous rail shot. */
@@ -355,7 +397,12 @@ export class CombatSimulation {
       shot.position.lerp(this.end, this.hitFraction);
       shot.life -= dt;
       if (this.hitDetected) {
-        if (this.hitShip) this.damage(this.hitShip, shot.damage);
+        this.event(shot.owner, shot.position, {
+          kind: 'impact',
+          sourceId: shot.owner,
+          targetId: this.hitShip?.id ?? null,
+        });
+        if (this.hitShip) this.damage(this.hitShip, shot.damage, shot.owner);
         this.effect(shot.kind === 'missile' ? 'detonation' : 'impact', shot.position, shot.team);
       }
       if (this.hitDetected || shot.life <= 1e-9) this.projectiles.splice(index, 1);
@@ -368,6 +415,9 @@ export class CombatSimulation {
       this.player.railgunCharge = 0;
       this.player.weapon = command.weapon;
     }
+    Object.assign(this.player.command.flight, command.flight);
+    this.player.command.fire = command.fire;
+    this.player.command.weapon = this.player.weapon;
     this.time += dt;
     this.impact *= Math.exp(-8 * dt);
     for (let index = this.effects.length - 1; index >= 0; index--) {
@@ -436,5 +486,64 @@ export class CombatSimulation {
     position.lerpVectors(ship.previous, ship.position, this.alpha);
     this.rotation.slerpQuaternions(ship.previousOrientation, ship.orientation, this.alpha);
     orientation.copy(this.rotation);
+  }
+
+  /** JSON data only. This is a transport boundary, not a networking or reconciliation layer. */
+  snapshot() {
+    return {
+      version: 1 as const,
+      time: this.time,
+      sequence: this.sequence,
+      eventSequence: this.eventSequence,
+      kills: this.kills,
+      targetId: this.targetId,
+      aiConfig: { ...this.aiConfig },
+      ships: [...this.ships.values()].map((ship) => ({
+        id: ship.id,
+        team: ship.team,
+        config: structuredClone(ship.config),
+        flight: ship.controller.snapshot(),
+        previous: ship.previous.toArray(),
+        previousOrientation: ship.previousOrientation.toArray(),
+        home: ship.home.toArray(),
+        stationary: ship.stationary,
+        health: {
+          shields: ship.health.shields,
+          hull: ship.health.hull,
+          sinceDamage: ship.health.sinceDamage,
+          invulnerability: ship.health.invulnerability,
+        },
+        weapon: ship.weapon,
+        cooldown: ship.cooldown,
+        railgunCharge: ship.railgunCharge,
+        barrel: ship.barrel,
+        hitFlash: ship.hitFlash,
+        aiState: ship.aiState,
+        aiElapsed: ship.aiElapsed,
+        command: { ...ship.command, flight: { ...ship.command.flight } },
+      })),
+      projectiles: this.projectiles.map((shot) => ({
+        ...shot,
+        position: shot.position.toArray(),
+        previous: shot.previous.toArray(),
+        velocity: shot.velocity.toArray(),
+        ...(shot.kind === 'missile'
+          ? { heading: shot.heading.toArray(), inheritedVelocity: shot.inheritedVelocity.toArray() }
+          : {}),
+      })),
+      obstacles: this.obstacles.map((obstacle) => ({
+        ...obstacle,
+        position: obstacle.position.toArray(),
+        previous: obstacle.previous.toArray(),
+        velocity: obstacle.velocity.toArray(),
+      })),
+      effects: this.effects.map((effect) => ({ ...effect, position: effect.position.toArray() })),
+      tracers: this.tracers.map((trace) => ({
+        ...trace,
+        start: trace.start.toArray(),
+        end: trace.end.toArray(),
+      })),
+      events: this.events.map((event) => ({ ...event, position: [...event.position] })),
+    };
   }
 }

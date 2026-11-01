@@ -78,6 +78,23 @@ export class FlightController {
     return out.copy(this.velocity);
   }
 
+  /** Detached authoritative state for transport/debugging; never sampled at render frequency. */
+  snapshot() {
+    return {
+      position: this.position.toArray(),
+      velocity: this.velocity.toArray(),
+      orientation: this.orientation.toArray(),
+      angularVelocity: this.angularVelocity.toArray(),
+      throttle: this.throttle,
+      boostCharge: this.boostCharge,
+      boostDelay: this.boostDelay,
+      boostExhausted: this.boostExhausted,
+      boosting: this.boosting,
+      assistance: this.assistance,
+      distance: this.distance,
+    };
+  }
+
   /** Collision solver handoff; never resets engine reserve or orientation. */
   resolveMotion(position: Readonly<Vector3>, velocity: Readonly<Vector3>) {
     this.position.copy(position);

@@ -359,3 +359,59 @@ describe('AI commands and fixed-step replay', () => {
     expect(simulation.effects).toHaveLength(0);
   });
 });
+
+describe('targeting and serializable gameplay events', () => {
+  it('filters same-team and self hits for all weapons', () => {
+    for (const weapon of [1, 2, 3, 4] as const) {
+      const simulation = world();
+      const owner = simulation.spawn(ENEMY_SHIP, new Vector3(0, 0, 200), new Quaternion());
+      if (!owner) throw new Error('Expected hostile');
+      const friend = target(simulation, new Vector3(0, 0, 100));
+      owner.weapon = weapon;
+      ticks(simulation, 1.3);
+      expect(
+        simulation.events.some((event) => event.kind === 'fired' && event.shipId === owner.id),
+      ).toBe(true);
+      expect(friend.health.hull).toBe(PRACTICE_TARGET.defense.hull);
+      expect(friend.health.shields).toBe(PRACTICE_TARGET.defense.shields);
+      expect(owner.health.hull).toBe(ENEMY_SHIP.defense.hull);
+      expect(owner.health.shields).toBe(ENEMY_SHIP.defense.shields);
+    }
+  });
+
+  it('emits attributed damage/destruction once and provides detached JSON snapshots', () => {
+    const simulation = world(),
+      ship = target(simulation);
+    simulation.step({ ...idle, fire: true }, dt);
+    ticks(simulation, 0.3);
+    expect(
+      simulation.events.some((event) => event.kind === 'fired' && event.shipId === 'player'),
+    ).toBe(true);
+    expect(
+      simulation.events.some((event) => event.kind === 'impact' && event.targetId === ship.id),
+    ).toBe(true);
+    expect(
+      simulation.events.some(
+        (event) => event.kind === 'damage' && event.sourceId === 'player' && event.shields === 16,
+      ),
+    ).toBe(true);
+    simulation.damage(ship, 1000, 'player');
+    simulation.damage(ship, 1000, 'player');
+    expect(
+      simulation.events.filter((event) => event.kind === 'destroyed' && event.shipId === ship.id),
+    ).toHaveLength(1);
+    const snapshot = simulation.snapshot();
+    expect(JSON.parse(JSON.stringify(snapshot))).toEqual(snapshot);
+    const before = snapshot.ships[0]?.flight.position.slice();
+    simulation.player.controller.relocate(new Vector3(999, 0, 0), new Quaternion());
+    expect(snapshot.ships[0]?.flight.position).toEqual(before);
+    expect(snapshot.ships[0]?.config).not.toBe(PLAYER_SHIP);
+    for (let index = 0; index < 200; index++) {
+      simulation.player.health.shields = 100;
+      simulation.damage(simulation.player, 1, ship.id);
+    }
+    expect(simulation.events.length).toBeLessThanOrEqual(128);
+    simulation.clearEncounter();
+    expect(simulation.events).toHaveLength(0);
+  });
+});

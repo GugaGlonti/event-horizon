@@ -182,6 +182,10 @@ describe('charged central railgun', () => {
     expect(localStart.z).toBeCloseTo(-6);
     expect(enemy.health.shields).toBe(0);
     expect(enemy.health.hull).toBe(80);
+    expect(world.events.findIndex((event) => event.kind === 'fired')).toBeLessThan(
+      world.events.findIndex((event) => event.kind === 'impact'),
+    );
+
     expect(world.player.railgunCharge).toBe(0);
     expect(world.player.cooldown).toBe(1.6);
     expect(world.projectiles).toHaveLength(0);

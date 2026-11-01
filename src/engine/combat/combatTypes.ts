@@ -174,3 +174,21 @@ export interface CombatEffect {
   age: number;
   readonly lifetime: number;
 }
+
+/** Bounded, explicit gameplay events; effects/audio are separate presentation consumers. */
+export type CombatEventDetail =
+  | { readonly kind: 'spawned' | 'destroyed'; readonly sourceId: string | null }
+  | { readonly kind: 'fired'; readonly weapon: WeaponSlot }
+  | { readonly kind: 'impact'; readonly sourceId: string; readonly targetId: string | null }
+  | {
+      readonly kind: 'damage';
+      readonly sourceId: string | null;
+      readonly shields: number;
+      readonly hull: number;
+    };
+export type CombatEvent = {
+  readonly id: number;
+  readonly time: number;
+  readonly shipId: string;
+  readonly position: readonly [number, number, number];
+} & CombatEventDetail;
