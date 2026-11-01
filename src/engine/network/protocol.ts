@@ -3,7 +3,7 @@ import type { CombatEvent } from '@/engine/combat/combatTypes';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { DockingState } from '@/engine/stations/stationTypes';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 export const ROOM_NAME = 'star-system';
 const axis = z.number().finite().min(-1).max(1);
 const id = z.string().min(1).max(80);
@@ -42,6 +42,7 @@ export const inputSchema = z.strictObject({
 export const gameplayActionSchemas = [
   z.strictObject({ kind: z.literal('landing-gear'), enabled: z.boolean() }),
   z.strictObject({ kind: z.literal('transit'), enabled: z.boolean() }),
+  z.strictObject({ kind: z.literal('landing-assist'), zoneId: id.nullable() }),
   z.strictObject({ kind: z.literal('takeoff') }),
   z.strictObject({ kind: z.literal('dock'), stationId: id, portId: id.optional() }),
   z.strictObject({ kind: z.literal('capture') }),
@@ -111,7 +112,7 @@ export interface EffectState {
   lifetime: number;
 }
 export interface WorldSnapshot {
-  v: 2;
+  v: 3;
   tick: number;
   time: number;
   systemId: string;
@@ -146,7 +147,7 @@ export interface TravelPermit {
   expiresIn: number;
 }
 export interface Welcome {
-  v: 2;
+  v: 3;
   playerId: string;
   systemId: string;
   instanceId: string;
@@ -180,6 +181,7 @@ const flightStateSchema = z.strictObject({
     orientation: quat.nullable(),
   }),
   landingGear: z.boolean(),
+  landingAssist: id.nullable(),
   transit: z.boolean(),
   flightLocked: z.boolean(),
 });

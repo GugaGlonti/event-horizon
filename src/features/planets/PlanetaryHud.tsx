@@ -75,6 +75,23 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
               {planet.zoneName} / {formatDistance(planet.zoneDistance)}
             </button>
           )}
+          {planet.phase !== 'landed' && planet.phase !== 'taking-off' && (
+            <div className="mt-2">
+              <InstrumentButton
+                variant="hud"
+                aria-pressed={Boolean(planet.landingAssist)}
+                disabled={!planet.landingAssist && Boolean(planet.assistReason)}
+                onClick={session.toggleLandingAssist}
+              >
+                J / {planet.landingAssist ? 'Cancel land assist' : 'Land assist'}
+              </InstrumentButton>
+              <p className="mt-1 text-phosphor-dim">
+                {planet.landingAssist
+                  ? 'Landing assist / manual input cancels'
+                  : planet.assistReason}
+              </p>
+            </div>
+          )}
         </>
       )}
       {nearStation && (

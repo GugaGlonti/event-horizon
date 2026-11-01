@@ -32,7 +32,7 @@ function until<T>(
 }
 async function join(name: string, systemId = 'solara', ticket?: string) {
   const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(ROOM_NAME, {
-    v: 2,
+    v: 3,
     name,
     systemId,
     instanceId: 'public',
@@ -42,6 +42,7 @@ async function join(name: string, systemId = 'solara', ticket?: string) {
   room.onMessage('welcome', () => {});
   room.onMessage('error', () => {});
   room.onMessage('pong', () => {});
+  room.onMessage('snapshot', () => {});
   return room;
 }
 beforeAll(async () => {
@@ -296,6 +297,54 @@ describe('real authoritative room protocol', () => {
     await a.leave();
     await b.leave();
   }, 22000);
+  it('validates landing assistance centrally and replicates manual cancellation', async () => {
+    const a = await join('Assist Alpha'),
+      b = await join('Assist Bravo');
+    const initial = await until<WorldSnapshot>(a, 'snapshot', (s) => s.players === 2);
+    const room = [...game.rooms].find((r) => r.roomId === a.roomId),
+      pilot = room?.world.pilots.get(initial.playerId),
+      body = room?.world.system.definition.bodies.find((p) => p.landable),
+      zone = body?.landingZones?.[0],
+      center = body && room?.world.system.positions.get(body.id);
+    if (!room || !pilot || !body || !zone || !center) throw new Error('assist fixture');
+    const up = surfaceDirection(zone.latitude, zone.longitude);
+    pilot.ship.controller.relocate(
+      center.clone().addScaledVector(up, body.radius + zone.elevation + 120),
+      tangentFrame(up),
+    );
+    pilot.ship.sync();
+    let seq = 1,
+      override = false;
+    const commands = setInterval(
+      () =>
+        a.send('input', {
+          ...neutralInput(seq++),
+          paused: false,
+          flight: { ...neutralInput().flight, yaw: override ? 1 : 0 },
+        }),
+      33,
+    );
+    try {
+      const denied = until<{ message: string }>(a, 'error');
+      a.send('action', { kind: 'landing-assist', zoneId: 'unknown-zone' });
+      expect((await denied).message).toMatch(/Select/);
+      await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack > 0);
+      a.send('action', { kind: 'landing-assist', zoneId: zone.id });
+      await until<WorldSnapshot>(b, 'snapshot', (s) =>
+        s.ships.some((ship) => ship.id === pilot.id && ship.flight.landingAssist === zone.id),
+      );
+      expect(pilot.ship.controller.landingGear).toBe(true);
+      override = true;
+      await until<WorldSnapshot>(b, 'snapshot', (s) =>
+        s.ships.some((ship) => ship.id === pilot.id && ship.flight.landingAssist === null),
+      );
+    } finally {
+      clearInterval(commands);
+      await a.leave();
+      await b.leave();
+    }
+  });
+
   it('reconnects within grace without creating a duplicate and recovers cancelled transfers', async () => {
     const a = await join('Reconnect');
     const initial = await until<WorldSnapshot>(a, 'snapshot');

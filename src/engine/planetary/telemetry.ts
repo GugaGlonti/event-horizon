@@ -3,7 +3,7 @@ import type { FlightController } from '@/engine/simulation/FlightController';
 import { tangentFrame } from './coordinates';
 import { SurfaceSample } from './PlanetaryEnvironment';
 
-export function planetaryTelemetry(controller: FlightController) {
+export function planetaryTelemetry(controller: FlightController, targetId: string | null = null) {
   const position = new Vector3(),
     orientation = new Quaternion();
   controller.copyTransform(position, orientation);
@@ -37,6 +37,8 @@ export function planetaryTelemetry(controller: FlightController) {
     phase: controller.surface.phase,
     gear: controller.landingGear,
     transit: controller.transit,
+    landingAssist: controller.landingAssist,
+    assistReason: targetId ? controller.landingAssistReason(targetId) : 'Select a landing zone.',
     zoneId: zone?.id ?? null,
     zoneName: zone?.name ?? '',
     zoneDistance: Math.hypot(sample.zoneDistance, sample.altitude),

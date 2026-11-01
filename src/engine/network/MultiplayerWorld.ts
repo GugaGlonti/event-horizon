@@ -193,6 +193,7 @@ export class MultiplayerWorld {
       pilot.ship.transferring ||
       pilot.travelCooldown > 0 ||
       pilot.ship.controller.surface.phase !== 'flying' ||
+      pilot.ship.controller.landingAssist ||
       this.simulation.stations?.state(id).phase !== 'undocked'
     )
       return false;
@@ -253,6 +254,7 @@ export class MultiplayerWorld {
         ship = pilot.ship;
       const active = pilot.connected && !ship.transferring && !ship.health.destroyed;
       const command = active ? input : neutralInput();
+      if (command.paused) ship.controller.landingAssist = null;
       if (!input.paused && pilot.connected && !ship.health.destroyed) hasActive = true;
       ship.controller.setAssistance(command.assistance);
       ship.targetId = command.targetId;
@@ -346,7 +348,7 @@ export class MultiplayerWorld {
     const nearby = (position: Vector3) =>
       position.distanceToSquared(pilot.ship.position) <= relevance ** 2;
     return {
-      v: 2,
+      v: 3,
       tick: this.tick,
       time: this.time,
       systemId: this.system.definition.id,

@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { neutralInput } from '@/engine/network/InputQueue';
+import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
+import { predict } from '@/engine/network/Prediction';
+import { actionSchema, snapshotSchema } from '@/engine/network/protocol';
 import { approachSpeedLimit, descentSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG } from '@/engine/planetary/config';
 import { surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
@@ -59,6 +63,72 @@ describe('planetary approach envelope', () => {
     low.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
     expect(low.controller.speed).toBeGreaterThan(890);
     expect(low.controller.speed).toBeLessThan(900);
+  });
+});
+
+describe('optional landing assistance', () => {
+  it('validates a nearby selected zone and continuously levels, settles drift and lands', () => {
+    const f = fixture(1800);
+    f.controller.relocate(f.point.clone().add(new Vector3(0, 55, 0)), new Quaternion());
+    expect(f.controller.requestLandingAssist('forged')).toMatch(/Select/);
+    expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
+    expect(f.controller.landingGear).toBe(true);
+    let time = 0;
+    while (time < 45 && f.controller.surface.phase !== 'landed') {
+      f.world.update(time);
+      f.controller.step(createFlightInput(), 1 / 120);
+      time += 1 / 120;
+    }
+    expect(f.controller.surface.phase).toBe('landed');
+    expect(f.controller.landingAssist).toBeNull();
+    expect(f.controller.impactSpeed).toBe(0);
+    expect(time).toBeGreaterThan(5);
+    expect(f.controller.copyVelocity(new Vector3()).length()).toBeLessThan(0.01);
+  });
+  it('rejects distant, fast, obstructed or unassisted capture and gives manual inputs priority', () => {
+    const distant = fixture(22000);
+    expect(distant.controller.requestLandingAssist(distant.zone.id)).not.toBeNull();
+    const f = fixture(100);
+    f.controller.setAssistance(false);
+    expect(f.controller.requestLandingAssist(f.zone.id)).toMatch(/Enable/);
+    f.controller.setAssistance(true);
+    f.controller.landingClearance = false;
+    expect(f.controller.requestLandingAssist(f.zone.id)).toMatch(/obstructed/);
+    f.controller.landingClearance = true;
+    f.controller.resolveMotion(f.point, f.up.clone().multiplyScalar(-200));
+    expect(f.controller.requestLandingAssist(f.zone.id)).toMatch(/Slow/);
+    f.controller.resolveMotion(f.point, new Vector3());
+    expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
+    f.controller.step({ ...createFlightInput(), yaw: 1 }, 1 / 120);
+    expect(f.controller.landingAssist).toBeNull();
+    expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
+    f.controller.landingClearance = false;
+    f.controller.step(createFlightInput(), 1 / 120);
+    expect(f.controller.landingAssist).toBeNull();
+  });
+  it('reconciles the complete assist state and cancels on paused intentions', () => {
+    const a = fixture(100),
+      b = fixture(100);
+    a.controller.requestLandingAssist(a.zone.id);
+    b.controller.restore(a.controller.snapshot());
+    const command = { ...neutralInput(1), paused: false };
+    for (let i = 0; i < 10; i++) {
+      predict(a.controller, command, 30);
+      predict(b.controller, command, 30);
+    }
+    expect(a.controller.snapshot()).toEqual(b.controller.snapshot());
+    predict(b.controller, { ...command, paused: true }, 30);
+    expect(b.controller.landingAssist).toBeNull();
+    const world = new MultiplayerWorld('solara');
+    world.addPlayer('p', 'Pilot');
+    expect(snapshotSchema.safeParse(world.snapshot('p', 6000)).success).toBe(true);
+    expect(actionSchema.safeParse({ kind: 'landing-assist', zoneId: a.zone.id }).success).toBe(
+      true,
+    );
+    expect(
+      actionSchema.safeParse({ kind: 'landing-assist', zoneId: a.zone.id, position: [0, 0, 0] })
+        .success,
+    ).toBe(false);
   });
 });
 

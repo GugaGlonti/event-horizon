@@ -116,7 +116,7 @@ export class StarSystemRoom extends Room {
   }
   private sendWelcome(client: Client, id: string) {
     client.send('welcome', {
-      v: 2,
+      v: 3,
       playerId: id,
       systemId: this.world.system.definition.id,
       instanceId: this.world.instanceId,
@@ -141,6 +141,7 @@ export class StarSystemRoom extends Room {
     switch (action.data.kind) {
       case 'landing-gear':
       case 'transit':
+      case 'landing-assist':
       case 'takeoff':
       case 'dock':
       case 'capture':

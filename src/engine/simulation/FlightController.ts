@@ -29,6 +29,7 @@ export class FlightController {
   environment: PlanetaryEnvironment | null = null;
   readonly surface = createSurfaceState();
   landingGear = false;
+  landingAssist: string | null = null;
   transit = false;
   flightLocked = false;
   impactSpeed = 0;
@@ -79,6 +80,7 @@ export class FlightController {
   reset() {
     Object.assign(this.surface, createSurfaceState());
     this.landingGear = this.transit = false;
+    this.landingAssist = null;
     this.flightLocked = false;
     this.position.set(0, 0, 0);
     this.velocity.set(0, 0, 0);
@@ -123,6 +125,7 @@ export class FlightController {
         anchor: this.surface.anchor ? ([...this.surface.anchor] as [number, number, number]) : null,
       },
       landingGear: this.landingGear,
+      landingAssist: this.landingAssist,
       transit: this.transit,
       flightLocked: this.flightLocked,
     };
@@ -143,6 +146,7 @@ export class FlightController {
     this.distance = state.distance;
     Object.assign(this.surface, state.surface);
     this.landingGear = state.landingGear;
+    this.landingAssist = state.landingAssist;
     this.transit = state.transit;
     this.flightLocked = state.flightLocked;
   }
@@ -180,6 +184,7 @@ export class FlightController {
     this.boosting = false;
     Object.assign(this.surface, createSurfaceState());
     this.transit = false;
+    this.landingAssist = null;
     this.flightLocked = false;
   }
 
@@ -189,6 +194,7 @@ export class FlightController {
     velocity?: Readonly<Vector3>,
   ) {
     this.flightLocked = true;
+    this.landingAssist = null;
     this.position.copy(position);
     this.orientation.copy(orientation);
     if (velocity) this.velocity.copy(velocity);
@@ -203,6 +209,81 @@ export class FlightController {
     this.surface.phase = 'taking-off';
     this.surface.timer = 0;
     return true;
+  }
+
+  landingAssistReason(zoneId: string) {
+    if (!this.environment) return 'No planetary environment.';
+    const sample = this.environment.sample(this.position, this.surfaceSample);
+    const zone = sample.body?.landingZones?.find((zone) => zone.id === zoneId);
+    if (!sample.body?.landable || !zone) return 'Select a landing zone on this planet.';
+    if (this.flightLocked || !['flying', 'approaching'].includes(this.surface.phase))
+      return 'Take off or undock before using landing assistance.';
+    if (!this.assistance) return 'Enable flight assistance / F.';
+    if (!this.landingClearance) return 'Landing area obstructed by traffic.';
+    const target = this.environment.world.positions.get(zone.id);
+    if (
+      !target ||
+      this.position.distanceTo(target) >
+        Math.hypot(
+          this.planetaryConfig.landingAssistAltitude,
+          this.planetaryConfig.landingAssistRange,
+        )
+    )
+      return 'Approach the selected landing zone.';
+    this.translation.subVectors(target, this.position);
+    this.translation.addScaledVector(sample.up, -this.translation.dot(sample.up));
+    if (
+      sample.altitude > this.planetaryConfig.landingAssistAltitude ||
+      this.translation.length() > this.planetaryConfig.landingAssistRange
+    )
+      return 'Land assist requires altitude below 2.5 km and zone range below 1 km.';
+    if (
+      this.landingAssist !== zoneId &&
+      this.velocity.clone().sub(sample.velocity).length() > this.planetaryConfig.landingAssistSpeed
+    )
+      return 'Slow below 150 m/s for landing assistance.';
+    return null;
+  }
+
+  requestLandingAssist(zoneId: string | null) {
+    if (zoneId === null) {
+      this.landingAssist = null;
+      return null;
+    }
+    const reason = this.landingAssistReason(zoneId);
+    if (reason) return reason;
+    this.landingAssist = zoneId;
+    this.landingGear = true;
+    this.transit = false;
+    return null;
+  }
+
+  private assistedLanding(sample: SurfaceSample, dt: number) {
+    const target = this.landingAssist && this.environment?.world.positions.get(this.landingAssist);
+    if (!target) return;
+    this.translation.subVectors(target, this.position);
+    this.translation.addScaledVector(sample.up, -this.translation.dot(sample.up));
+    const distance = this.translation.length();
+    this.translation.multiplyScalar(0.8).clampLength(0, 60);
+    const level = tangentFrame(sample.up);
+    this.forward
+      .set(0, 0, -1)
+      .applyQuaternion(this.orientation)
+      .applyQuaternion(level.clone().invert());
+    tangentFrame(sample.up, Math.atan2(-this.forward.x, -this.forward.z), level);
+    this.orientation.slerp(level, 1 - Math.exp(-2.5 * dt));
+    const aligned =
+      this.forward.set(0, 1, 0).applyQuaternion(this.orientation).dot(sample.up) > 0.995;
+    const speed = descentSpeedLimit(sample.altitude - 5, this.planetaryConfig);
+    const descent = aligned && distance < 10 ? -speed : 0;
+    this.translation.add(sample.velocity).addScaledVector(sample.up, descent);
+    this.lateral
+      .subVectors(this.translation, this.velocity)
+      .clampLength(0, this.planetaryConfig.descentAcceleration * dt);
+    this.velocity.add(this.lateral);
+    this.throttle = 0;
+    this.boosting = false;
+    this.angularVelocity.set(0, 0, 0);
   }
 
   private grounded(dt: number) {
@@ -255,6 +336,26 @@ export class FlightController {
     const sample = this.surfaceSample;
     field?.sample(this.position, sample);
     if (field && this.grounded(dt)) return;
+    if (this.landingAssist) {
+      const override =
+        input.throttle ||
+        input.brake ||
+        input.boost ||
+        input.reverse ||
+        Math.abs(input.pitch) +
+          Math.abs(input.yaw) +
+          Math.abs(input.roll) +
+          Math.abs(input.strafe) +
+          Math.abs(input.lift) >
+          0.001;
+      if (override || this.landingAssistReason(this.landingAssist)) this.landingAssist = null;
+      else {
+        this.motionStart.copy(this.position);
+        this.assistedLanding(sample, dt);
+        this.finishMotion(field, sample, dt);
+        return;
+      }
+    }
     const surfaceLift = Boolean(
       field && sample.body?.landable && sample.altitude < 60000 && input.lift,
     );
@@ -533,6 +634,10 @@ export class FlightController {
         Math.expm1(-density * this.planetaryConfig.drag * dt),
       );
     }
+    this.finishMotion(field, sample, dt);
+  }
+
+  private finishMotion(field: PlanetaryEnvironment | null, sample: SurfaceSample, dt: number) {
     this.position.addScaledVector(this.velocity, dt);
     if (field) {
       const hit = field.trace(this.motionStart, this.position, 5);
@@ -552,6 +657,7 @@ export class FlightController {
           up.dot(sample.normal) >= 0.96 &&
           sample.up.dot(sample.normal) >= 0.985;
         if (safe) {
+          this.landingAssist = null;
           this.surface.phase = 'landing';
           this.surface.bodyId = sample.body?.id ?? null;
           this.surface.timer = 0;
@@ -569,6 +675,7 @@ export class FlightController {
             .toArray();
           this.grounded(0);
         } else {
+          this.landingAssist = null;
           this.impactSpeed = Math.abs(vertical) > 3 ? Math.max(13, Math.abs(vertical)) : 0;
           if (vertical < 0) this.velocity.addScaledVector(sample.normal, -vertical * 1.08);
           this.position.addScaledVector(sample.normal, 0.05);

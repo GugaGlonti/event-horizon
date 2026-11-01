@@ -48,7 +48,9 @@ export class FlightSession {
         this.exploration.navigation.targetId,
       ),
     });
-    usePlanetaryStore.setState({ readout: planetaryTelemetry(this.controller) });
+    usePlanetaryStore.setState({
+      readout: planetaryTelemetry(this.controller, this.exploration.navigation.targetId),
+    });
   }
   readonly controller = new FlightController(FLIGHT_CONFIG);
   readonly position = new Vector3();
@@ -155,7 +157,9 @@ export class FlightSession {
       },
     );
     this.exploration.canDepart = () =>
-      this.controller.flightLocked || this.controller.surface.phase !== 'flying'
+      this.controller.flightLocked ||
+      this.controller.surface.phase !== 'flying' ||
+      this.controller.landingAssist
         ? 'Take off or undock before engaging hyperdrive.'
         : null;
     this.multiplayer.network.onTravelExpired = () =>
@@ -282,7 +286,7 @@ export class FlightSession {
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
-    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyO'].includes(event.code)) {
+    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyO', 'KeyJ'].includes(event.code)) {
       if (
         useFlightStore.getState().phase !== 'flying' ||
         this.exploration.jump.busy ||
@@ -298,6 +302,7 @@ export class FlightSession {
         this.shipAction({ kind: 'transit', enabled: !this.controller.transit });
       if (event.code === 'KeyI') this.shipAction({ kind: 'cancel-docking' });
       if (event.code === 'KeyP') this.requestDocking();
+      if (event.code === 'KeyJ') this.toggleLandingAssist();
       return;
     }
     if (['KeyB', 'KeyN', 'KeyG', 'KeyH', 'Tab'].includes(event.code)) {
@@ -383,6 +388,11 @@ export class FlightSession {
     }
   };
   pause = () => {
+    if (this.controller.landingAssist) {
+      if (this.multiplayer?.enabled)
+        this.multiplayer.network.action({ kind: 'landing-assist', zoneId: null });
+      this.controller.landingAssist = null;
+    }
     this.multiplayer?.pause();
     this.engineAudio.stop();
     this.combat.audio.stop();
@@ -465,6 +475,16 @@ export class FlightSession {
     const docking = this.stationReadout;
     if (['approaching', 'aligning'].includes(docking.phase)) this.shipAction({ kind: 'capture' });
     else if (docking.stationId) this.shipAction({ kind: 'dock', stationId: docking.stationId });
+  };
+  toggleLandingAssist = () => {
+    if (!this.controller.landingAssist && !this.exploration.navigation.targetId) {
+      useFlightStore.getState().setNotice('Select a landing zone first.');
+      return;
+    }
+    this.shipAction({
+      kind: 'landing-assist',
+      zoneId: this.controller.landingAssist ? null : this.exploration.navigation.targetId,
+    });
   };
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;

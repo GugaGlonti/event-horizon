@@ -2,6 +2,7 @@ import type { CombatSimulation } from '@/engine/combat/CombatSimulation';
 export type GameplayAction =
   | { kind: 'landing-gear'; enabled: boolean }
   | { kind: 'transit'; enabled: boolean }
+  | { kind: 'landing-assist'; zoneId: string | null }
   | { kind: 'takeoff' }
   | { kind: 'dock'; stationId: string; portId?: string | undefined }
   | { kind: 'capture' }
@@ -25,8 +26,13 @@ export function performGameplayAction(
       )
         return 'Gear is locked during landing or docking.';
       ship.controller.landingGear = action.enabled;
+      if (!action.enabled) ship.controller.landingAssist = null;
       if (action.enabled) ship.controller.transit = false;
       return null;
+    case 'landing-assist':
+      if (stations && stations.state(id).phase !== 'undocked')
+        return 'Cancel docking before landing assistance.';
+      return ship.controller.requestLandingAssist(action.zoneId);
     case 'transit':
       if (
         ship.controller.landingGear ||
@@ -58,6 +64,7 @@ export function performGameplayAction(
         return 'Takeoff clearance obstructed.';
       return ship.controller.requestTakeoff() ? null : 'Takeoff requires a landed ship.';
     case 'dock':
+      if (ship.controller.landingAssist) return 'Cancel landing assistance before docking.';
       return stations
         ? stations.request(id, action.stationId, action.portId)
         : 'Docking unavailable.';

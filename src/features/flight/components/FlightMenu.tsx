@@ -28,6 +28,7 @@ const controls = [
   ['K / U', 'Landing gear / takeoff or undock'],
   ['P / I', 'Request or capture docking / cancel'],
   ['O', 'Toggle bounded space transit'],
+  ['J', 'Land assist at selected zone / cancel'],
   ['ESC', 'Pause / release mouse'],
 ] as const;
 
