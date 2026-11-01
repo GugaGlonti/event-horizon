@@ -12,6 +12,13 @@ import { StationScene } from '@/features/stations/StationScene';
 
 export function SystemScene({ session }: { session: FlightSession }) {
   const world = session.exploration.world;
+  const terrainReadiness = useMemo(
+    () =>
+      new Map(
+        world.definition.bodies.filter((body) => body.terrain).map((body) => [body.id, false]),
+      ),
+    [world],
+  );
   const geometry = useMemo(() => new SphereGeometry(1, 64, 40), []);
   const light = useRef<DirectionalLight>(null);
   const direction = useMemo(() => new Vector3(), []);
@@ -19,7 +26,8 @@ export function SystemScene({ session }: { session: FlightSession }) {
   // Primitive geometry attachments are shared external resources. This component owns disposal.
   useEffect(() => () => geometry.dispose(), [geometry]);
   useFrame(() => {
-    session.exploration.markArrivalReady(world.definition.id);
+    if ([...terrainReadiness.values()].every(Boolean))
+      session.exploration.markArrivalReady(world.definition.id);
     if (!light.current || !star) return;
     direction
       .copy(world.positions.get(star.id) ?? direction)
@@ -47,7 +55,12 @@ export function SystemScene({ session }: { session: FlightSession }) {
       {world.definition.bodies
         .filter((body) => body.terrain)
         .map((body) => (
-          <PlanetTerrain key={body.id} body={body} session={session} />
+          <PlanetTerrain
+            key={body.id}
+            body={body}
+            session={session}
+            onReady={() => terrainReadiness.set(body.id, true)}
+          />
         ))}
       {world.definition.bodies
         .filter((body) => body.landingZones?.length)

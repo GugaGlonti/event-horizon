@@ -114,10 +114,13 @@ function Patch({
 export function PlanetTerrain({
   body,
   session,
+  onReady,
 }: {
   body: CelestialDefinition;
   session: FlightSession;
+  onReady: () => void;
 }) {
+  const ready = useRef(false);
   const [visible, setVisible] = useState<CachedPatch[]>([]);
   const cache = useMemo(() => new Map<string, CachedPatch>(), []);
   const target = useRef(terrainRoots());
@@ -237,10 +240,19 @@ export function PlanetTerrain({
       worker.terminate();
       for (const entry of cache.values()) entry.geometry.dispose();
       cache.clear();
+      terrainMetrics.patches = terrainMetrics.cache = terrainMetrics.generationMs = 0;
     };
   }, [body, cache]);
   useEffect(() => () => material.dispose(), [material]);
+  const coveredFaces = useMemo(
+    () => new Set(visible.map((entry) => entry.patch.face)).size,
+    [visible],
+  );
   useFrame(({ camera }, dt) => {
+    if (!ready.current && coveredFaces === 6) {
+      ready.current = true;
+      onReady();
+    }
     const world = session.exploration.world,
       center = world.positions.get(body.id);
     if (!center) return;
