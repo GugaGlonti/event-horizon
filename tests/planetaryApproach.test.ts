@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { neutralInput } from '@/engine/network/InputQueue';
 import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
-import { predict } from '@/engine/network/Prediction';
+import { Prediction, predict } from '@/engine/network/Prediction';
 import { actionSchema, snapshotSchema } from '@/engine/network/protocol';
 import { approachSpeedLimit, descentEta, descentSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG } from '@/engine/planetary/config';
@@ -12,6 +12,7 @@ import { planetaryTelemetry } from '@/engine/planetary/telemetry';
 import { FLIGHT_CONFIG } from '@/engine/simulation/config';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
+import { performGameplayAction } from '@/engine/simulation/shipActions';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 
@@ -64,6 +65,113 @@ describe('planetary approach envelope', () => {
     low.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
     expect(low.controller.speed).toBeGreaterThan(890);
     expect(low.controller.speed).toBeLessThan(900);
+  });
+});
+
+describe('stabilization and speed modes', () => {
+  it.each([-1, 1])('retains %s radial travel after V/R release while F is toggled', (lift) => {
+    const f = fixture(30000);
+    for (let i = 0; i < 1020; i++) f.controller.step({ ...createFlightInput(), lift }, 1 / 120);
+    expect(f.controller.travelMode).toBe('surface');
+    for (const assisted of [false, true]) {
+      f.controller.setAssistance(assisted);
+      for (let i = 0; i < 240; i++) f.controller.step(createFlightInput(), 1 / 120);
+      expect(f.controller.copyVelocity(new Vector3()).dot(f.up) * lift).toBeGreaterThan(750);
+      expect(f.controller.travelMode).toBe('surface');
+    }
+  });
+  it.each([true, false])(
+    'keeps terrain braking with stabilization %s and safely lands a released descent',
+    (stabilized) => {
+      const f = fixture(12000);
+      f.controller.setAssistance(stabilized);
+      f.controller.landingGear = true;
+      for (let i = 0; i < 1020; i++)
+        f.controller.step({ ...createFlightInput(), lift: -1 }, 1 / 120);
+      expect(f.controller.speed).toBeGreaterThan(700);
+      let time = 0,
+        impact = 0;
+      while (time < 90 && f.controller.surface.phase !== 'landed') {
+        f.controller.step(createFlightInput(), 1 / 120);
+        impact = Math.max(impact, f.controller.impactSpeed);
+        time += 1 / 120;
+      }
+      expect(f.controller.surface.phase).toBe('landed');
+      expect(impact).toBe(0);
+      expect(f.controller.travelMode).toBe('normal');
+    },
+  );
+  it('retains O approach speeds when stabilization is toggled', () => {
+    const f = fixture(30000);
+    f.controller.transit = true;
+    for (let i = 0; i < 1200; i++)
+      f.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
+    for (const stabilized of [false, true]) {
+      f.controller.setAssistance(stabilized);
+      for (let i = 0; i < 240; i++)
+        f.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
+      expect(f.controller.speed).toBeGreaterThan(700);
+      expect(f.controller.travelMode).toBe('transit');
+    }
+  });
+  it.each([{ throttle: 1 }, { brake: true, reverse: true }])(
+    'leaves coasting only on an explicit forward/brake command %j',
+    (control) => {
+      const f = fixture(30000);
+      for (let i = 0; i < 900; i++)
+        f.controller.step({ ...createFlightInput(), lift: -1 }, 1 / 120);
+      const speed = f.controller.speed;
+      f.controller.step({ ...createFlightInput(), ...control }, 1 / 120);
+      expect(f.controller.travelMode).toBe('normal');
+      expect(f.controller.speed).toBeGreaterThan(speed * 0.95);
+      expect(f.controller.speed).toBeLessThan(speed);
+    },
+  );
+  it('keeps gear independent of surface travel and clears the mode on reference handoffs', () => {
+    const world = new MultiplayerWorld('solara'),
+      pilot = world.addPlayer('p', 'Pilot');
+    pilot.ship.controller.travelMode = 'surface';
+    expect(
+      performGameplayAction(world.simulation, pilot.id, { kind: 'landing-gear', enabled: true }),
+    ).toBeNull();
+    expect(pilot.ship.controller.travelMode).toBe('surface');
+    const f = fixture(61000);
+    f.controller.travelMode = 'surface';
+    f.controller.step(createFlightInput(), 1 / 120);
+    expect(f.controller.travelMode).toBe('normal');
+    f.controller.travelMode = 'surface';
+    f.controller.reset();
+    expect(f.controller.travelMode).toBe('normal');
+    f.controller.travelMode = 'surface';
+    f.controller.relocate(f.point, tangentFrame(f.up));
+    expect(f.controller.travelMode).toBe('normal');
+  });
+  it('restores the selected mode before delayed prediction replays released controls', () => {
+    const a = fixture(30000),
+      b = fixture(30000),
+      prediction = new Prediction(b.controller);
+    const delayed: { state: ReturnType<FlightController['snapshot']>; ack: number }[] = [];
+    for (let seq = 1; seq <= 180; seq++) {
+      const command = {
+        ...neutralInput(seq),
+        paused: false,
+        assistance: seq < 100,
+        flight: { ...createFlightInput(), lift: seq <= 90 ? -1 : 0 },
+      };
+      predict(a.controller, command, 30);
+      prediction.apply(command);
+      delayed.push({ state: a.controller.snapshot(), ack: seq });
+      if (delayed.length > 4) {
+        const snapshot = delayed.shift();
+        if (snapshot) prediction.reconcile(snapshot.state, snapshot.ack);
+      }
+    }
+    prediction.reconcile(a.controller.snapshot(), 180);
+    expect(b.controller.snapshot()).toEqual(a.controller.snapshot());
+    expect(b.controller.travelMode).toBe('surface');
+    predict(b.controller, { ...neutralInput(181), paused: true }, 30);
+    expect(b.controller.travelMode).toBe('surface');
+    expect(b.controller.speed).toBeGreaterThan(250);
   });
 });
 

@@ -3,7 +3,7 @@ import type { CombatEvent } from '@/engine/combat/combatTypes';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { DockingState } from '@/engine/stations/stationTypes';
 
-export const PROTOCOL_VERSION = 3;
+export const PROTOCOL_VERSION = 4;
 export const ROOM_NAME = 'star-system';
 const axis = z.number().finite().min(-1).max(1);
 const id = z.string().min(1).max(80);
@@ -112,7 +112,7 @@ export interface EffectState {
   lifetime: number;
 }
 export interface WorldSnapshot {
-  v: 3;
+  v: 4;
   tick: number;
   time: number;
   systemId: string;
@@ -147,7 +147,7 @@ export interface TravelPermit {
   expiresIn: number;
 }
 export interface Welcome {
-  v: 3;
+  v: 4;
   playerId: string;
   systemId: string;
   instanceId: string;
@@ -182,7 +182,7 @@ const flightStateSchema = z.strictObject({
   }),
   landingGear: z.boolean(),
   landingAssist: id.nullable(),
-  transit: z.boolean(),
+  travelMode: z.enum(['normal', 'transit', 'surface']),
   flightLocked: z.boolean(),
 });
 const team = z.enum(['player', 'hostile']);

@@ -1,4 +1,6 @@
 /** Metres, seconds, radians. Local forward is -Z, up is +Y, right is +X. */
+export type TravelMode = 'normal' | 'transit' | 'surface';
+
 export interface FlightInput {
   pitch: number;
   yaw: number;

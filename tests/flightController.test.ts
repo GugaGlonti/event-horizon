@@ -19,6 +19,20 @@ function pose(controller: FlightController) {
 }
 
 describe('arcade flight simulation', () => {
+  it('uses the same throttle speed targets with stabilization on or off', () => {
+    const a = new FlightController(FLIGHT_CONFIG),
+      b = new FlightController(FLIGHT_CONFIG);
+    a.restore({ ...a.snapshot(), velocity: [0, 0, -160], throttle: 0.5 });
+    b.restore({ ...a.snapshot(), assistance: false });
+    for (let i = 0; i < 240; i++) {
+      a.step({ ...createFlightInput(), throttle: 0.5 }, dt);
+      b.step({ ...createFlightInput(), throttle: 0.5 }, dt);
+      expect(a.speed).toBeCloseTo(b.speed, 10);
+    }
+    expect(a.speed).toBeCloseTo(104);
+    expect(a.travelMode).toBe('normal');
+    expect(b.travelMode).toBe('normal');
+  });
   it('resets a moving and rotated ship without carrying over boost or momentum', () => {
     const ship = new FlightController(FLIGHT_CONFIG);
     fly(ship, 3, { throttle: 1, boost: true, roll: 0.5 });

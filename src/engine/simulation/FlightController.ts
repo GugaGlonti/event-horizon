@@ -9,7 +9,7 @@ import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
 import { createSurfaceState } from '@/engine/planetary/planetTypes';
 import { terrainHeight } from '@/engine/planetary/terrain';
-import type { FlightConfig, FlightInput, FlightTelemetry } from './flightTypes';
+import type { FlightConfig, FlightInput, FlightTelemetry, TravelMode } from './flightTypes';
 
 function approach(current: number, target: number, amount: number) {
   return current + MathUtils.clamp(target - current, -amount, amount);
@@ -34,7 +34,7 @@ export class FlightController {
   readonly surface = createSurfaceState();
   landingGear = false;
   landingAssist: string | null = null;
-  transit = false;
+  travelMode: TravelMode = 'normal';
   flightLocked = false;
   impactSpeed = 0;
   landingClearance = true;
@@ -75,6 +75,13 @@ export class FlightController {
   }
   get isBoosting() {
     return this.boosting;
+  }
+
+  get transit() {
+    return this.travelMode === 'transit';
+  }
+  set transit(enabled: boolean) {
+    this.travelMode = enabled ? 'transit' : 'normal';
   }
 
   setAssistance(enabled: boolean) {
@@ -130,7 +137,7 @@ export class FlightController {
       },
       landingGear: this.landingGear,
       landingAssist: this.landingAssist,
-      transit: this.transit,
+      travelMode: this.travelMode,
       flightLocked: this.flightLocked,
     };
   }
@@ -151,7 +158,7 @@ export class FlightController {
     Object.assign(this.surface, state.surface);
     this.landingGear = state.landingGear;
     this.landingAssist = state.landingAssist;
-    this.transit = state.transit;
+    this.travelMode = state.travelMode;
     this.flightLocked = state.flightLocked;
   }
 
@@ -198,6 +205,7 @@ export class FlightController {
     velocity?: Readonly<Vector3>,
   ) {
     this.flightLocked = true;
+    this.travelMode = 'normal';
     this.landingAssist = null;
     this.position.copy(position);
     this.orientation.copy(orientation);
@@ -294,6 +302,7 @@ export class FlightController {
     const sample = this.surfaceSample;
     if (!sample.body || !this.surface.anchor) return false;
     if (!['landing', 'landed', 'taking-off'].includes(this.surface.phase)) return false;
+    this.travelMode = 'normal';
     sample.local.fromArray(this.surface.anchor);
     sample.up.copy(sample.local).applyQuaternion(sample.rotation);
     this.position
@@ -360,12 +369,15 @@ export class FlightController {
         return;
       }
     }
-    const surfaceLift = Boolean(
-      field && sample.body?.landable && sample.altitude < 60000 && input.lift,
-    );
+    const nearSurface = Boolean(field && sample.body?.landable && sample.altitude < 60000);
+    // Movement selects the speed regime; F only changes stabilization/compensation.
+    if (!nearSurface || input.throttle > 0 || input.brake || input.reverse) {
+      if (this.travelMode === 'surface') this.travelMode = 'normal';
+    } else if (input.lift) this.travelMode = 'surface';
+    const surfaceTravel = this.travelMode === 'surface';
     // Unassisted gravity is not erased by the space controller's automatic engine braking.
     const fallingSpeed =
-      field && sample.gravity > 0 && !this.assistance && !input.brake && !surfaceLift
+      field && sample.gravity > 0 && !this.assistance && !input.brake && !surfaceTravel
         ? this.velocity.dot(sample.up)
         : 0;
     if (fallingSpeed) this.velocity.addScaledVector(sample.up, -fallingSpeed);
@@ -411,17 +423,23 @@ export class FlightController {
     }
     const speedFactor = transitFactor * (1 - density * this.planetaryConfig.densitySpeedReduction);
     let surfaceJetSpeed = 0;
-    if (field && surfaceLift) {
-      const corridor =
-        input.lift < 0
-          ? field.flightClearance(
-              this.position,
-              this.rotationAxis.copy(sample.up).negate(),
-              this.planetaryConfig.descentMaxSpeed ** 2 /
-                (2 * this.planetaryConfig.descentBraking) +
-                100,
-            )
-          : Infinity;
+    if (field && surfaceTravel) {
+      this.translation.copy(this.velocity).sub(sample.velocity);
+      const descending = input.lift < 0 || this.translation.dot(sample.up) < -0.5;
+      const lookahead = Math.max(
+        this.planetaryConfig.descentMaxSpeed ** 2 / (2 * this.planetaryConfig.descentBraking) + 100,
+        this.translation.lengthSq() / (2 * this.planetaryConfig.descentBraking) +
+          this.translation.length() * 2,
+      );
+      const corridor = descending
+        ? field.flightClearance(
+            this.position,
+            this.translation.lengthSq() > 1
+              ? this.translation.normalize()
+              : this.translation.copy(sample.up).negate(),
+            lookahead,
+          )
+        : Infinity;
       surfaceJetSpeed = surfaceDescentSpeed(
         Math.min(sample.altitude - 5, corridor),
         this.landingGear,
@@ -505,6 +523,12 @@ export class FlightController {
       this.orientation.slerp(level, 1 - Math.exp(-1.6 * dt));
     }
 
+    if (surfaceTravel) {
+      this.coastSurface(input, sample, surfaceJetSpeed, dt);
+      this.finishMotion(field, sample, dt);
+      return;
+    }
+
     this.forward.set(0, 0, -1).applyQuaternion(this.orientation);
     const forwardSpeed = this.velocity.dot(this.forward);
     // A held brake/reverse command becomes reverse thrust only after stored power reaches zero.
@@ -519,13 +543,7 @@ export class FlightController {
       // Translation jets can hold a lateral/reverse command while main throttle is released.
       const speed = translating && !braking ? Math.abs(forwardSpeed) : this.speed;
       const deceleration = braking ? config.brakeDeceleration : config.deceleration;
-      if (surfaceLift && !braking) {
-        if (this.assistance) {
-          this.lateral.copy(this.velocity).sub(sample.velocity);
-          this.lateral.addScaledVector(sample.up, -this.lateral.dot(sample.up));
-          this.velocity.sub(this.lateral.clampLength(0, deceleration * dt));
-        }
-      } else if (speed > 0) {
+      if (speed > 0) {
         if (translating && !braking)
           this.velocity.addScaledVector(
             this.forward,
@@ -545,9 +563,7 @@ export class FlightController {
         this.throttle * (this.boosting ? config.boostMaxSpeed : config.maxSpeed) * speedFactor;
       const thrust = MathUtils.clamp(
         targetSpeed - forwardSpeed,
-        this.assistance
-          ? -(planetaryApproach ? this.planetaryConfig.approachBraking : config.deceleration) * dt
-          : 0,
+        -(planetaryApproach ? this.planetaryConfig.approachBraking : config.deceleration) * dt,
         (this.boosting ? config.boostAcceleration : config.acceleration) *
           Math.sqrt(transitFactor) *
           dt,
@@ -555,7 +571,7 @@ export class FlightController {
       this.velocity.addScaledVector(this.forward, thrust);
     }
     // Boost exit sheds excess speed progressively; normal thrust cannot exceed maxSpeed.
-    let speedLimit = planetaryApproach
+    const speedLimit = planetaryApproach
       ? Math.max(
           config.maxSpeed * speedFactor,
           previousSpeed - this.planetaryConfig.approachBraking * dt,
@@ -566,16 +582,10 @@ export class FlightController {
               config.maxSpeed,
               previousSpeed / speedFactor - config.boostDeceleration * (this.transit ? 16 : 1) * dt,
             )) * speedFactor;
-    if (surfaceLift)
-      speedLimit = Math.max(
-        speedLimit,
-        surfaceJetSpeed,
-        previousSpeed - this.planetaryConfig.descentBraking * dt,
-      );
     this.velocity.clampLength(0, speedLimit);
     if (!braking) {
       this.translation
-        .set(input.strafe, surfaceLift ? 0 : input.lift, 0)
+        .set(input.strafe, input.lift, 0)
         .clampLength(0, 1)
         .multiplyScalar(
           this.landingGear && field
@@ -589,33 +599,75 @@ export class FlightController {
         .addScaledVector(this.forward, -this.velocity.dot(this.forward));
       if (reversing) this.lateral.copy(this.velocity);
       this.translation.sub(this.lateral).clampLength(0, config.strafeAcceleration * dt);
-      if (input.strafe || (!surfaceLift && input.lift) || reversing)
-        this.velocity.add(this.translation);
-      if (surfaceLift) {
-        const radial = this.velocity.dot(sample.up) - sample.velocity.dot(sample.up);
-        this.velocity.addScaledVector(
-          sample.up,
-          MathUtils.clamp(
-            input.lift * surfaceJetSpeed - radial,
-            -this.planetaryConfig.descentAcceleration * dt,
-            this.planetaryConfig.descentAcceleration * dt,
-          ),
-        );
-      }
+      if (input.strafe || input.lift || reversing) this.velocity.add(this.translation);
       this.velocity.clampLength(0, speedLimit);
     }
     if (field && sample.body) {
       if (fallingSpeed) this.velocity.addScaledVector(sample.up, fallingSpeed);
-      // Hover assistance cancels most gravity with an explicit residual; disabling it exposes full gravity.
-      const compensation = this.assistance ? this.planetaryConfig.gravityCompensation : 0;
-      this.velocity.addScaledVector(sample.acceleration, (1 - compensation) * dt);
-      this.lateral.copy(this.velocity).sub(sample.velocity);
-      this.velocity.addScaledVector(
-        this.lateral,
-        Math.expm1(-density * this.planetaryConfig.drag * dt),
-      );
+      this.environmentForces(sample, dt);
     }
     this.finishMotion(field, sample, dt);
+  }
+
+  private environmentForces(sample: SurfaceSample, dt: number) {
+    const compensation = this.assistance ? this.planetaryConfig.gravityCompensation : 0;
+    this.velocity.addScaledVector(sample.acceleration, (1 - compensation) * dt);
+    this.lateral.copy(this.velocity).sub(sample.velocity);
+    this.velocity.addScaledVector(
+      this.lateral,
+      Math.expm1(-sample.density * this.planetaryConfig.drag * dt),
+    );
+  }
+
+  /** Planet-relative coasting retains radial momentum; stabilization only damps tangent drift. */
+  private coastSurface(
+    input: Readonly<FlightInput>,
+    sample: SurfaceSample,
+    limit: number,
+    dt: number,
+  ) {
+    this.throttle = 0;
+    this.boosting = false;
+    this.lateral.copy(this.velocity).sub(sample.velocity);
+    const radial = this.lateral.dot(sample.up);
+    this.lateral.addScaledVector(sample.up, -radial);
+    if (input.strafe) {
+      const jet = this.landingGear
+        ? gearTranslationSpeed(sample.altitude, this.config.strafeMaxSpeed, this.planetaryConfig)
+        : this.config.strafeMaxSpeed;
+      this.translation.set(input.strafe * jet, 0, 0).applyQuaternion(this.orientation);
+      this.translation.sub(this.lateral).clampLength(0, this.config.strafeAcceleration * dt);
+      this.velocity.add(this.translation);
+    } else if (this.assistance) {
+      this.velocity.addScaledVector(this.lateral, Math.expm1(-this.config.lateralDamping * dt));
+    }
+    if (input.lift)
+      this.velocity.addScaledVector(
+        sample.up,
+        MathUtils.clamp(
+          input.lift * limit - radial,
+          -this.planetaryConfig.descentAcceleration * dt,
+          this.planetaryConfig.descentAcceleration * dt,
+        ),
+      );
+    this.environmentForces(sample, dt);
+    const current = this.velocity.dot(sample.up) - sample.velocity.dot(sample.up);
+    const governed = approach(
+      current,
+      MathUtils.clamp(current, -limit, limit),
+      this.planetaryConfig.descentBraking * dt,
+    );
+    this.velocity.addScaledVector(sample.up, governed - current);
+    this.lateral.copy(this.velocity).sub(sample.velocity).addScaledVector(sample.up, -governed);
+    const ground = this.lateral.length();
+    const groundLimit = this.landingGear
+      ? gearTranslationSpeed(sample.altitude, this.config.maxSpeed, this.planetaryConfig)
+      : this.config.maxSpeed;
+    if (ground > groundLimit)
+      this.velocity.addScaledVector(
+        this.lateral,
+        -Math.min(ground - groundLimit, this.config.boostDeceleration * dt) / ground,
+      );
   }
 
   private finishMotion(field: PlanetaryEnvironment | null, sample: SurfaceSample, dt: number) {

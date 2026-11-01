@@ -32,7 +32,7 @@ function until<T>(
 }
 async function join(name: string, systemId = 'solara', ticket?: string) {
   const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(ROOM_NAME, {
-    v: 3,
+    v: 4,
     name,
     systemId,
     instanceId: 'public',
@@ -344,6 +344,62 @@ describe('real authoritative room protocol', () => {
       await b.leave();
     }
   });
+
+  it('replicates released surface coasting across stabilization changes and explicit braking', async () => {
+    const a = await join('Coast Alpha'),
+      b = await join('Coast Bravo');
+    const initial = await until<WorldSnapshot>(a, 'snapshot', (s) => s.players === 2);
+    let seq = 1,
+      lift = -1,
+      assisted = true,
+      brake = false;
+    const commands = setInterval(
+      () =>
+        a.send('input', {
+          ...neutralInput(seq++),
+          paused: false,
+          assistance: assisted,
+          flight: { ...neutralInput().flight, lift, brake, reverse: brake },
+        }),
+      33,
+    );
+    const own = (s: WorldSnapshot) => s.ships.find((ship) => ship.id === initial.playerId);
+    try {
+      await until<WorldSnapshot>(
+        b,
+        'snapshot',
+        (s) => {
+          const ship = own(s);
+          return ship?.flight.travelMode === 'surface' && Math.hypot(...ship.flight.velocity) > 400;
+        },
+        6500,
+      );
+      lift = 0;
+      assisted = false;
+      const released = await until<WorldSnapshot>(
+        a,
+        'snapshot',
+        (s) => own(s)?.flight.assistance === false,
+      );
+      const coast = await until<WorldSnapshot>(b, 'snapshot', (s) => s.tick > released.tick + 10);
+      expect(own(coast)?.flight.travelMode).toBe('surface');
+      expect(Math.hypot(...(own(coast)?.flight.velocity ?? [0, 0, 0]))).toBeGreaterThan(350);
+      assisted = true;
+      const stabilized = await until<WorldSnapshot>(
+        b,
+        'snapshot',
+        (s) => s.tick > coast.tick + 10 && own(s)?.flight.assistance === true,
+      );
+      expect(own(stabilized)?.flight.travelMode).toBe('surface');
+      expect(Math.hypot(...(own(stabilized)?.flight.velocity ?? [0, 0, 0]))).toBeGreaterThan(350);
+      brake = true;
+      await until<WorldSnapshot>(b, 'snapshot', (s) => own(s)?.flight.travelMode === 'normal');
+    } finally {
+      clearInterval(commands);
+      await a.leave();
+      await b.leave();
+    }
+  }, 10000);
 
   it('reconnects within grace without creating a duplicate and recovers cancelled transfers', async () => {
     const a = await join('Reconnect');

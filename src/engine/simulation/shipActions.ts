@@ -27,7 +27,7 @@ export function performGameplayAction(
         return 'Gear is locked during landing or docking.';
       ship.controller.landingGear = action.enabled;
       if (!action.enabled) ship.controller.landingAssist = null;
-      if (action.enabled) ship.controller.transit = false;
+      if (action.enabled && ship.controller.transit) ship.controller.transit = false;
       return null;
     case 'landing-assist':
       if (stations && stations.state(id).phase !== 'undocked')

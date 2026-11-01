@@ -31,6 +31,7 @@ describe('shared multiplayer rules', () => {
     expect(joinSchema.safeParse({ v: 99, name: 'Pilot', systemId: 'solara' }).success).toBe(false);
     for (const invalid of [
       { ...moving(1), position: [0, 0, 0] },
+      { ...moving(1), travelMode: 'surface' },
       { ...moving(1), flight: { ...moving(1).flight, yaw: Infinity } },
       { ...moving(1), weapon: 5 },
       { ...moving(1), seq: -1 },

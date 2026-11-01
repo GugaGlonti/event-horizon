@@ -30,7 +30,7 @@ try {
     for (let i = 0; i < count; i++) {
       const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(
         ROOM_NAME,
-        { v: 3, name: `Load-${i}`, systemId: 'solara', instanceId: 'public' },
+        { v: 4, name: `Load-${i}`, systemId: 'solara', instanceId: 'public' },
       );
       const receive = room.connection.events.onmessage;
       room.connection.events.onmessage = (event: { data: unknown }) => {

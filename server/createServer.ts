@@ -116,7 +116,7 @@ export class StarSystemRoom extends Room {
   }
   private sendWelcome(client: Client, id: string) {
     client.send('welcome', {
-      v: 3,
+      v: 4,
       playerId: id,
       systemId: this.world.system.definition.id,
       instanceId: this.world.instanceId,

@@ -348,7 +348,7 @@ export class MultiplayerWorld {
     const nearby = (position: Vector3) =>
       position.distanceToSquared(pilot.ship.position) <= relevance ** 2;
     return {
-      v: 3,
+      v: 4,
       tick: this.tick,
       time: this.time,
       systemId: this.system.definition.id,

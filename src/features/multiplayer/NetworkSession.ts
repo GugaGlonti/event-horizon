@@ -251,7 +251,7 @@ export class NetworkSession {
     try {
       const { Client } = await import('@colyseus/sdk');
       const room = await new Client(this.endpoint).joinOrCreate<unknown>(ROOM_NAME, {
-        v: 3,
+        v: 4,
         name: useMultiplayerStore.getState().name,
         systemId: permit.destination,
         instanceId: 'public',
