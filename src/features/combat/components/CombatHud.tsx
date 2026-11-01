@@ -44,7 +44,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
       />
       <section
         aria-label="Combat systems"
-        className="absolute top-52 left-4 max-w-[47%] text-[10px] tracking-wider tablet:top-36 tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs [@media(max-height:650px)]:top-28"
+        className="absolute top-52 left-4 max-w-[43%] text-[10px] tracking-wider tablet:top-36 tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs [@media(max-height:650px)]:top-28"
       >
         <p className="mb-2 text-phosphor-dim [@media(max-height:650px)]:mb-1">
           DEFENSE {readout.invulnerable ? '/ PROTECTED' : '/ LIVE'}

@@ -25,7 +25,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
   return (
     <section
       aria-label="Planetary and docking guidance"
-      className="pointer-events-auto absolute max-h-[calc(100svh-390px)] overflow-y-auto pr-1 top-52 right-4 w-[46%] max-w-72 text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
+      className="pointer-events-auto absolute max-h-[calc(100svh-390px)] overflow-y-auto pr-1 top-52 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
     >
       {surface && (!nearStation || station.phase === 'undocked') && (
         <>
@@ -159,7 +159,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
         </div>
       )}
       {import.meta.env.DEV && debug && (
-        <p className="mt-2 text-[10px] text-phosphor-dim">
+        <p className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
           RTT {Math.round(rtt)} ms / {tickRate} Hz / corrections {corrections} /{' '}
           {stats.fps.toFixed(0)} FPS / {stats.frameMs.toFixed(1)} ms / {stats.drawCalls} calls /{' '}
           {stats.triangles} tris / {stats.geometries} geo / {stats.textures} tex / terrain{' '}

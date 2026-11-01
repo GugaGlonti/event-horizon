@@ -224,6 +224,7 @@ export class NetworkSession {
       }, true);
   }
   action(action: ClientAction) {
+    if (this.active && action.kind !== 'ping') useMultiplayerStore.setState({ error: null });
     this.room?.send('action', action);
   }
   travel(destination: JoinOptions['systemId']) {

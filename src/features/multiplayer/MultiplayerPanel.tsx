@@ -119,20 +119,25 @@ export function MultiplayerHud({ session }: { session: FlightSession }) {
     return null;
   return (
     <div className="pointer-events-none absolute inset-0 z-30 font-mono text-[10px] uppercase text-phosphor">
-      <div className="absolute top-32 left-4 max-w-[calc(100%-2rem)] tablet:top-22 tablet:left-8">
-        <p role="status">
-          {name} / {status} / {players} pilots / K {kills} D {deaths}
-        </p>
-        <InstrumentButton
-          variant="hud"
-          className="pointer-events-auto min-h-6 px-0 py-1 text-[10px]"
-          onClick={session.disconnectMultiplayer}
-          aria-label="Disconnect multiplayer"
-        >
-          Disconnect
-        </InstrumentButton>
+      <div className="absolute top-14 left-4 w-[calc(100%-2rem)] tablet:top-22 tablet:left-8 tablet:w-auto">
+        <div className="flex items-center gap-3">
+          <p role="status" className="min-w-0 flex-1 truncate">
+            {name} / {status} / {players} pilots / K {kills} D {deaths}
+          </p>
+          <InstrumentButton
+            variant="hud"
+            className="pointer-events-auto min-h-5 shrink-0 px-0 py-0.5 text-[10px]"
+            onClick={session.disconnectMultiplayer}
+            aria-label="Disconnect multiplayer"
+          >
+            Disconnect
+          </InstrumentButton>
+        </div>
         {error && (
-          <p role="alert" className="mt-1 max-w-sm text-instrument normal-case">
+          <p
+            role="alert"
+            className="fixed inset-x-4 bottom-12 max-w-sm bg-space/90 px-3 py-2 text-instrument normal-case"
+          >
             {error}
           </p>
         )}
