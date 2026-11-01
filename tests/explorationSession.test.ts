@@ -210,3 +210,48 @@ describe('exploration transactions', () => {
     expect(events.onRestore).not.toHaveBeenCalled();
   });
 });
+
+describe('network-approved journey preparation', () => {
+  it('locks the requested destination and cancels pending approval when the chart closes', async () => {
+    const { session, events } = create();
+    let approve!: (allowed: boolean) => void;
+    session.authorizeJump = () =>
+      new Promise<boolean>((resolve) => {
+        approve = resolve;
+      });
+    session.openMap('galaxy');
+    session.selectDestination('vesper');
+    session.beginJump();
+    session.selectDestination('aether');
+    expect(useExplorationStore.getState().destinationId).toBe('vesper');
+    session.closeMap();
+    approve(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.jump.phase).toBe('IDLE');
+    expect(events.onDepart).not.toHaveBeenCalled();
+    expect(events.onError).toHaveBeenCalledOnce();
+  });
+  it('holds an approval arriving after focus loss until the pilot explicitly resumes', async () => {
+    const { session } = create();
+    let approve!: (allowed: boolean) => void;
+    session.authorizeJump = () =>
+      new Promise<boolean>((resolve) => {
+        approve = resolve;
+      });
+    session.selectDestination('vesper');
+    session.beginJump();
+    session.suspend();
+    approve(true);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(session.isSuspended).toBe(true);
+    tick(session, 8);
+    expect(session.jump.phase).toBe('CHARGING');
+    expect(session.jump.elapsed).toBe(0);
+    session.resumeJourney();
+    await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+    tick(session, 12);
+    expect(session.world.definition.id).toBe('vesper');
+  });
+});

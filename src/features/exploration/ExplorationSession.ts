@@ -73,17 +73,19 @@ export class ExplorationSession {
   }
 
   openMap = (view: MapView) => {
-    if (this.jump.busy) return false;
+    if (this.jump.busy || this.authorizing) return false;
     this.callbacks.onPause();
     useExplorationStore.setState({ overlay: view, error: null });
     this.publish();
     return true;
   };
   closeMap = () => {
+    if (this.authorizing)
+      this.cancelJump('Travel request cancelled. Holding in the current system.');
     useExplorationStore.setState({ overlay: null });
   };
   selectDestination = (id: string) => {
-    if (!this.jump.busy && SYSTEMS.some((system) => system.id === id))
+    if (!this.jump.busy && !this.authorizing && SYSTEMS.some((system) => system.id === id))
       useExplorationStore.setState({ destinationId: id, error: null });
   };
   selectTarget = (id: string | null) => {
@@ -109,8 +111,14 @@ export class ExplorationSession {
       const generation = this.generation;
       void this.authorizeJump()
         .then((allowed) => {
+          const suspended = this.suspended;
           this.authorizing = false;
-          if (allowed && !this.disposed && generation === this.generation) this.startJump();
+          if (allowed && !this.disposed && generation === this.generation) {
+            this.startJump();
+            this.suspended = suspended;
+            if (suspended) this.audio.update(this.jump, true);
+            this.publish();
+          }
         })
         .catch((error: unknown) => {
           this.authorizing = false;
@@ -198,7 +206,8 @@ export class ExplorationSession {
   }
 
   cancelJump = (message = 'Jump cancelled. Holding position in the current system.') => {
-    const wasBusy = this.jump.busy;
+    const wasBusy = this.jump.busy || this.authorizing;
+    this.authorizing = false;
     this.preparation?.abort();
     this.generation += 1;
     this.prepared = null;
@@ -214,7 +223,7 @@ export class ExplorationSession {
     this.publish();
   };
   suspend = () => {
-    if (!this.jump.busy) return;
+    if (!this.jump.busy && !this.authorizing) return;
     this.suspended = true;
     this.audio.update(this.jump, true);
     this.publish();
