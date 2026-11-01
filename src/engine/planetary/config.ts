@@ -8,6 +8,11 @@ export interface PlanetaryFlightConfig {
   readonly approachMaxSpeed: number;
   readonly approachBraking: number;
   readonly approachClearance: number;
+  readonly descentMaxSpeed: number;
+  readonly descentAcceleration: number;
+  readonly descentBraking: number;
+  readonly descentFinalAltitude: number;
+  readonly descentFinalSpeed: number;
   readonly gearPrecisionAltitude: number;
   readonly gearSlowAltitude: number;
   readonly gearJetSpeed: number;
@@ -25,6 +30,11 @@ export const PLANETARY_FLIGHT_CONFIG: Readonly<PlanetaryFlightConfig> = Object.f
   approachMaxSpeed: 1400,
   approachBraking: 100,
   approachClearance: 300,
+  descentMaxSpeed: 1100,
+  descentAcceleration: 160,
+  descentBraking: 90,
+  descentFinalAltitude: 100,
+  descentFinalSpeed: 60,
   gearPrecisionAltitude: 20,
   gearSlowAltitude: 120,
   gearJetSpeed: 2.2,

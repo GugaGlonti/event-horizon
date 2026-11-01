@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { Vector3 } from '@/engine/math/linear';
-import { approachSpeedLimit } from '@/engine/planetary/approach';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { approachSpeedLimit, descentSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG } from '@/engine/planetary/config';
 import { surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
@@ -59,5 +59,26 @@ describe('planetary approach envelope', () => {
     low.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
     expect(low.controller.speed).toBeGreaterThan(890);
     expect(low.controller.speed).toBeLessThan(900);
+  });
+});
+
+describe('planet-relative descent', () => {
+  it('changes continuously from entry speeds to safe touchdown speed', () => {
+    const limit = (h: number) => descentSpeedLimit(h, PLANETARY_FLIGHT_CONFIG);
+    expect(limit(22000)).toBe(1100);
+    expect(limit(100)).toBe(60);
+    expect(limit(100.001) - limit(100)).toBeLessThan(0.01);
+    expect(limit(0)).toBe(2.2);
+    expect(limit(5)).toBeLessThan(limit(20));
+  });
+  it('uses the planet up direction for V and R even when the nose is tilted', () => {
+    for (const lift of [-1, 1]) {
+      const f = fixture(20000);
+      f.controller.relocate(f.point, new Quaternion());
+      for (let i = 0; i < 600; i++) f.controller.step({ ...createFlightInput(), lift }, 1 / 120);
+      const velocity = f.controller.copyVelocity(new Vector3());
+      expect(velocity.dot(f.up) * lift).toBeGreaterThan(500);
+      expect(velocity.clone().addScaledVector(f.up, -velocity.dot(f.up)).length()).toBeLessThan(1);
+    }
   });
 });

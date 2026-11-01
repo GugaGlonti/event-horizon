@@ -1,5 +1,5 @@
 import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
-import { approachSpeedLimit } from '@/engine/planetary/approach';
+import { approachSpeedLimit, descentSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG, type PlanetaryFlightConfig } from '@/engine/planetary/config';
 import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
@@ -255,9 +255,12 @@ export class FlightController {
     const sample = this.surfaceSample;
     field?.sample(this.position, sample);
     if (field && this.grounded(dt)) return;
+    const surfaceLift = Boolean(
+      field && sample.body?.landable && sample.altitude < 60000 && input.lift,
+    );
     // Unassisted gravity is not erased by the space controller's automatic engine braking.
     const fallingSpeed =
-      field && sample.gravity > 0 && !this.assistance && !input.brake
+      field && sample.gravity > 0 && !this.assistance && !input.brake && !surfaceLift
         ? this.velocity.dot(sample.up)
         : 0;
     if (fallingSpeed) this.velocity.addScaledVector(sample.up, -fallingSpeed);
@@ -302,6 +305,36 @@ export class FlightController {
         this.config.maxSpeed;
     }
     const speedFactor = transitFactor * (1 - density * this.planetaryConfig.densitySpeedReduction);
+    let surfaceJetSpeed = 0;
+    if (field && surfaceLift) {
+      const corridor =
+        input.lift < 0
+          ? field.flightClearance(
+              this.position,
+              this.rotationAxis.copy(sample.up).negate(),
+              this.planetaryConfig.descentMaxSpeed ** 2 /
+                (2 * this.planetaryConfig.descentBraking) +
+                100,
+            )
+          : Infinity;
+      surfaceJetSpeed = descentSpeedLimit(
+        Math.min(sample.altitude - 5, corridor),
+        this.planetaryConfig,
+      );
+      if (this.landingGear && sample.altitude < this.planetaryConfig.gearSlowAltitude)
+        surfaceJetSpeed = Math.min(
+          surfaceJetSpeed,
+          this.planetaryConfig.gearJetSpeed +
+            (this.config.strafeMaxSpeed - this.planetaryConfig.gearJetSpeed) *
+              MathUtils.clamp(
+                (sample.altitude - this.planetaryConfig.gearPrecisionAltitude) /
+                  (this.planetaryConfig.gearSlowAltitude -
+                    this.planetaryConfig.gearPrecisionAltitude),
+                0,
+                1,
+              ),
+        );
+    }
     const config = this.config;
     const previousSpeed = this.speed;
     const throttleTarget = input.brake ? 0 : MathUtils.clamp(input.throttle, 0, 1);
@@ -393,7 +426,13 @@ export class FlightController {
       // Translation jets can hold a lateral/reverse command while main throttle is released.
       const speed = translating && !braking ? Math.abs(forwardSpeed) : this.speed;
       const deceleration = braking ? config.brakeDeceleration : config.deceleration;
-      if (speed > 0) {
+      if (surfaceLift && !braking) {
+        if (this.assistance) {
+          this.lateral.copy(this.velocity).sub(sample.velocity);
+          this.lateral.addScaledVector(sample.up, -this.lateral.dot(sample.up));
+          this.velocity.sub(this.lateral.clampLength(0, deceleration * dt));
+        }
+      } else if (speed > 0) {
         if (translating && !braking)
           this.velocity.addScaledVector(
             this.forward,
@@ -423,7 +462,7 @@ export class FlightController {
       this.velocity.addScaledVector(this.forward, thrust);
     }
     // Boost exit sheds excess speed progressively; normal thrust cannot exceed maxSpeed.
-    const speedLimit = planetaryApproach
+    let speedLimit = planetaryApproach
       ? Math.max(
           config.maxSpeed * speedFactor,
           previousSpeed - this.planetaryConfig.approachBraking * dt,
@@ -434,10 +473,16 @@ export class FlightController {
               config.maxSpeed,
               previousSpeed / speedFactor - config.boostDeceleration * (this.transit ? 16 : 1) * dt,
             )) * speedFactor;
+    if (surfaceLift)
+      speedLimit = Math.max(
+        speedLimit,
+        surfaceJetSpeed,
+        previousSpeed - this.planetaryConfig.descentBraking * dt,
+      );
     this.velocity.clampLength(0, speedLimit);
     if (!braking) {
       this.translation
-        .set(input.strafe, input.lift, 0)
+        .set(input.strafe, surfaceLift ? 0 : input.lift, 0)
         .clampLength(0, 1)
         .multiplyScalar(
           this.landingGear && field
@@ -462,7 +507,19 @@ export class FlightController {
         .addScaledVector(this.forward, -this.velocity.dot(this.forward));
       if (reversing) this.lateral.copy(this.velocity);
       this.translation.sub(this.lateral).clampLength(0, config.strafeAcceleration * dt);
-      if (input.strafe || input.lift || reversing) this.velocity.add(this.translation);
+      if (input.strafe || (!surfaceLift && input.lift) || reversing)
+        this.velocity.add(this.translation);
+      if (surfaceLift) {
+        const radial = this.velocity.dot(sample.up) - sample.velocity.dot(sample.up);
+        this.velocity.addScaledVector(
+          sample.up,
+          MathUtils.clamp(
+            input.lift * surfaceJetSpeed - radial,
+            -this.planetaryConfig.descentAcceleration * dt,
+            this.planetaryConfig.descentAcceleration * dt,
+          ),
+        );
+      }
       this.velocity.clampLength(0, speedLimit);
     }
     if (field && sample.body) {
