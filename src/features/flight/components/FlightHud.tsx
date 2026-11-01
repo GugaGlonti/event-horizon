@@ -10,6 +10,7 @@ import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import { SpeedTrendIndicator } from '@/features/flight/components/SpeedTrendIndicator';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { PlanetaryHud } from '@/features/planets/PlanetaryHud';
 import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -96,7 +97,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
           <div>
             <h1 className="text-sm tracking-[0.22em]">Event Horizon</h1>
             <p className="mt-1 text-[10px] tracking-[0.1em] text-phosphor-dim">
-              Kestrel flight systems / MK.IV
+              Kestrel flight systems / MK.VII
             </p>
           </div>
         </div>
@@ -318,6 +319,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
           </div>
         )}
       </footer>
+      <PlanetaryHud session={session} />
       <CombatHud session={session} />
       <HyperspaceStatus session={session} />
       <p id="scene-instructions" className="sr-only">
@@ -329,8 +331,9 @@ export function FlightHud({ session }: { session: FlightSession }) {
         move up/down. G selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B
         starts a patrol encounter. Use Shift with W for boost, C for camera, F for assistance, and
         Escape to pause. M opens the galaxy map; L opens the local system map. T cycles navigation
-        targets; X clears the target. Maps pause flight. Controls are available in the flight
-        briefing.
+        targets; X clears the target. K toggles landing gear. U takes off or undocks. P requests or
+        captures docking; I cancels clearance. O toggles space transit. Maps pause offline flight.
+        Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

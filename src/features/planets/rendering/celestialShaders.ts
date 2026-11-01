@@ -1,4 +1,5 @@
 export const celestialVertex = /* glsl */ `
+  #include <common>
   #include <logdepthbuf_pars_vertex>
   varying vec3 vLocal;
   varying vec3 vWorld;

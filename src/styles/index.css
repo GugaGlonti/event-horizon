@@ -34,7 +34,12 @@
 }
 
 @utility phosphor-glow {
-  text-shadow: 0 0 10px #73f59b35;
+  text-shadow:
+    0 1px 2px #000,
+    0 -1px 2px #000,
+    1px 0 2px #000,
+    -1px 0 2px #000,
+    0 0 10px #73f59b35;
 }
 
 @utility instrument-glow {

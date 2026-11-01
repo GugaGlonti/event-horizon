@@ -207,3 +207,28 @@ describe('bounded terrain quadtree', () => {
     expect(a.indices.length).toBe((resolution * resolution * 2 + resolution * 4 * 2) * 3);
   });
 });
+
+import { Quaternion as RenderQuaternion, Vector3 as RenderVector } from 'three';
+import { bodyRotation } from '@/engine/planetary/coordinates';
+
+it('copies analytical body rotation across renderer math without private-field coupling', () => {
+  const body = { ...pelagos, rotation: { tilt: 0.3, speed: 0.0001 } };
+  const engine = bodyRotation(body, 123),
+    render = bodyRotation(body, 123, new RenderQuaternion());
+  expect(render.toArray()).toEqual(engine.toArray());
+  expect(new RenderVector(0, 1, 0).applyQuaternion(render).length()).toBeCloseTo(1);
+});
+it('levels deployed landing gear gradually while retaining explicit pilot pitch commands', () => {
+  const { controller, position } = nearSurface(1000);
+  controller.relocate(position, new Quaternion());
+  controller.landingGear = true;
+  const initial = controller.snapshot().orientation;
+  for (let i = 0; i < 600; i++) controller.step(createFlightInput(), 1 / 120);
+  expect(controller.snapshot().orientation).not.toEqual(initial);
+  const telemetry = planetaryTelemetry(controller);
+  expect(telemetry.guidance).toBe('Landing envelope safe');
+  controller.step({ ...createFlightInput(), pitch: 1 }, 1 / 120);
+  expect(controller.snapshot().angularVelocity[0]).toBeGreaterThan(0);
+});
+
+import { planetaryTelemetry } from '@/engine/planetary/telemetry';

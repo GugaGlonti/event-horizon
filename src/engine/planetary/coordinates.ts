@@ -2,9 +2,16 @@ import { Quaternion, quaternionFromBasis, Vector3 } from '@/engine/math/linear';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 
 export function bodyRotation(body: CelestialDefinition, time: number, out = new Quaternion()) {
-  return out
-    .setFromAxisAngle(new Vector3(0, 0, 1), body.rotation.tilt)
-    .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), time * body.rotation.speed));
+  // Assign scalar components: Three's multiply reads private quaternion fields and cannot
+  // multiply an engine quaternion, even though both expose the same public components.
+  const tilt = body.rotation.tilt / 2,
+    spin = (time * body.rotation.speed) / 2;
+  return out.set(
+    -Math.sin(tilt) * Math.sin(spin),
+    Math.cos(tilt) * Math.sin(spin),
+    Math.sin(tilt) * Math.cos(spin),
+    Math.cos(tilt) * Math.cos(spin),
+  );
 }
 export function surfaceDirection(latitude: number, longitude: number, out = new Vector3()) {
   return out.set(
@@ -27,7 +34,11 @@ export function tangentFrame(up: Readonly<Vector3>, heading = 0, out = new Quate
   east.normalize();
   const south = new Vector3().crossVectors(east, up).normalize();
   quaternionFromBasis(out, east, up, south).normalize();
-  return out.multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), heading));
+  return out.copy(
+    new Quaternion()
+      .copy(out)
+      .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), heading)),
+  );
 }
 export function toTangent(
   point: Readonly<Vector3>,

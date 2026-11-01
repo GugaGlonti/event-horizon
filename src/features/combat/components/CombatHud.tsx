@@ -125,22 +125,22 @@ export function CombatHud({ session }: { session: FlightSession }) {
         <p className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
           MOUSE / SPACE: FIRE · G: ACQUIRE · N: NEXT · H: CLEAR
         </p>
+        {readout.target && (
+          <section
+            aria-label="Combat target"
+            className="mt-3 border-t border-line pt-2 text-[10px] tracking-wider"
+          >
+            <p className="text-instrument">
+              {readout.target.name} / {Math.round(readout.target.distance)} M
+            </p>
+            <p className="mt-2 text-phosphor-dim">{readout.target.state} / N: NEXT</p>
+            <div className="mt-2">
+              <DefenseGauge label="TGT Shield" value={readout.target.shields} />
+              <DefenseGauge label="TGT Hull" value={readout.target.hull} />
+            </div>
+          </section>
+        )}
       </section>
-      {readout.target && (
-        <section
-          aria-label="Combat target"
-          className="absolute top-52 right-4 w-[42%] text-right text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:w-52 tablet:text-xs [@media(max-height:650px)]:top-28"
-        >
-          <p className="text-instrument">
-            {readout.target.name} / {Math.round(readout.target.distance)} M
-          </p>
-          <p className="mt-2 text-phosphor-dim">{readout.target.state} / N: NEXT</p>
-          <div className="mt-3">
-            <DefenseGauge label="TGT Shield" value={readout.target.shields} />
-            <DefenseGauge label="TGT Hull" value={readout.target.hull} />
-          </div>
-        </section>
-      )}
       <div
         aria-hidden="true"
         className="absolute top-1/2 left-1/2 size-8 -translate-1/2 text-phosphor/80"

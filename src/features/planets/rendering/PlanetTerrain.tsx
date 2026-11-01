@@ -28,6 +28,7 @@ interface CachedPatch {
 }
 export const terrainMetrics = { patches: 0, cache: 0, generationMs: 0, maxGenerationMs: 0 };
 const vertexShader = /* glsl */ `
+  #include <common>
   #include <logdepthbuf_pars_vertex>
   attribute vec3 aCoarse;
   attribute float aElevation;
@@ -51,13 +52,13 @@ const fragmentShader = /* glsl */ `
     #include <logdepthbuf_fragment>
     vec3 normal=normalize(vNormal);
     float slope=1.0-max(0.0,dot(normal,uUp));
-    float grain=sin(vPosition.x*0.31)*sin(vPosition.z*0.37)*0.025;
+    float distance=length(cameraPosition-vPosition);
+    float grain=sin(vElevation*.31)*sin(dot(normal,vec3(1171.,2813.,1597.)))*.025*(1.-smoothstep(100.,1500.,distance));
     vec3 plains=mix(vec3(.18,.25,.19),vec3(.34,.30,.23),smoothstep(300.0,850.0,vElevation));
     vec3 color=mix(plains,vec3(.35,.37,.36),clamp(slope*5.0,0.0,1.0));
     color=mix(color,vec3(.68,.72,.72),smoothstep(1050.0,1400.0,vElevation));
     float day=max(0.0,dot(normal,uLight));
     color=(color+grain)*(.2+day*1.25);
-    float distance=length(cameraPosition-vPosition);
     float haze=1.0-exp(-distance*uDensity*.000075);
     vec3 sky=mix(vec3(.025,.04,.08),vec3(.22,.42,.58),max(0.0,dot(uUp,uLight)));
     gl_FragColor=vec4(mix(color,sky,haze*.8),1.0);

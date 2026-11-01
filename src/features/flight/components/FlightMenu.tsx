@@ -25,6 +25,9 @@ const controls = [
   ['C / F', 'Camera / flight assistance'],
   ['M / L', 'Galaxy / local chart'],
   ['T / X', 'Cycle / clear contact'],
+  ['K / U', 'Landing gear / takeoff or undock'],
+  ['P / I', 'Request or capture docking / cancel'],
+  ['O', 'Toggle bounded space transit'],
   ['ESC', 'Pause / release mouse'],
 ] as const;
 
@@ -106,7 +109,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </h2>
             <p className="mt-3 max-w-lg text-[12px] leading-5 normal-case text-phosphor-dim">
               {phase === 'ready'
-                ? `Welcome to ${system?.name ?? 'Solara'}. A patrol arrives after eight seconds of flight. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
+                ? `Welcome to ${system?.name ?? 'Solara'}. Orbital patrols arrive after eight seconds of flight. K deploys landing gear; P requests nearby docking. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
                 : `Controls suspended in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
             </p>
             <MultiplayerPanel session={session} />

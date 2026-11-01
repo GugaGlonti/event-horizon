@@ -5,8 +5,10 @@ import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
 import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
+import { SurfaceFacilities } from '@/features/planets/rendering/SurfaceFacilities';
 import { FlightEnvironment } from '@/features/space/components/FlightEnvironment';
 import { SpaceBackdrop } from '@/features/space/components/SpaceBackdrop';
+import { StationScene } from '@/features/stations/StationScene';
 
 export function SystemScene({ session }: { session: FlightSession }) {
   const world = session.exploration.world;
@@ -47,6 +49,12 @@ export function SystemScene({ session }: { session: FlightSession }) {
         .map((body) => (
           <PlanetTerrain key={body.id} body={body} session={session} />
         ))}
+      {world.definition.bodies
+        .filter((body) => body.landingZones?.length)
+        .map((body) => (
+          <SurfaceFacilities key={body.id} body={body} session={session} />
+        ))}
+      <StationScene session={session} />
       <AtmosphericSky session={session} />
       <FlightEnvironment world={world} origin={session.origin} />
     </>

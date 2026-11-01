@@ -54,6 +54,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
       uStretch: { value: 0 },
       uCoverage: { value: 0 },
       uTravel: { value: 0 },
+      uAtmosphere: { value: 0 },
       uRadius: { value: radius },
       uDirection: { value: new Vector3(0, 0, -1) },
       uViewport: { value: new Vector2(1000, 1000) },
@@ -67,6 +68,10 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
     const jump = session.exploration.jump;
     if (target.uStretch) target.uStretch.value = reduced ? 0 : jumpStretch(jump);
     if (target.uCoverage) target.uCoverage.value = jump.coverage;
+    if (target.uAtmosphere)
+      target.uAtmosphere.value = jump.busy
+        ? 0
+        : Math.min(1, session.planetaryReadout.density * 1.4);
     if (target.uTravel) target.uTravel.value = reduced ? 0 : jumpStarTravel(jump);
     uniforms.uViewport.value.set(size.width, size.height);
     if (jump.busy) {
@@ -130,7 +135,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
           }
         `}
         fragmentShader={`
-          uniform float uStretch, uCoverage;
+          uniform float uStretch, uCoverage, uAtmosphere;
           varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize;
           void main() {
             float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
@@ -142,7 +147,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
             vec3 color = vec3(0.9, 0.96, 1.0) * core
               + vec3(0.12, 0.38, 0.7) * shoulder * 0.35
               + vec3(0.025, 0.16, 0.45) * glow * 0.28;
-            float fade = 1.0 - smoothstep(0.25, 1.0, uCoverage);
+            float fade = (1.0 - smoothstep(0.25, 1.0, uCoverage))*(1.0-uAtmosphere);
             gl_FragColor = vec4(color, shape * vBrightness * (1.0 + uStretch * 0.45) * fade);
           }
         `}

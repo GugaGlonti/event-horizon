@@ -14,7 +14,8 @@ import { useReducedMotion } from '@/hooks/useReducedMotion';
 
 const vertex = /* glsl */ `
   varying vec2 vUv;
-  void main() { vUv = uv; gl_Position = vec4(position.xy, 0.9985, 1.0); }
+  uniform float uMaskDepth;
+  void main() { vUv = uv; gl_Position = vec4(position.xy, uMaskDepth, 1.0); }
 `;
 const fragment = /* glsl */ `
   uniform float uTime, uOpacity, uExposure, uStarlight;
@@ -77,6 +78,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
+      uMaskDepth: { value: -0.477 },
       uOpacity: { value: 0 },
       uExposure: { value: 0 },
       uStarlight: { value: 0 },
@@ -91,6 +93,9 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (!session.exploration.isSuspended && !reduced)
       clock.current += Math.min(delta, 0.1) * jump.intensity;
     const target = material.current?.uniforms;
+    // Match the logarithmic depth of an 80 m foreground boundary.
+    if (target?.uMaskDepth)
+      target.uMaskDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
     if (target?.uTime) target.uTime.value = clock.current;
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     const exposure = reduced ? 0 : jumpExposure(jump);

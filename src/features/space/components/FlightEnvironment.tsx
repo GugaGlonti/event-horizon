@@ -1,8 +1,9 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import { type BufferAttribute, DoubleSide, type Group, Vector3 } from 'three';
+import { type BufferAttribute, DoubleSide, type Group, type Points, Vector3 } from 'three';
 import type { RenderOrigin } from '@/engine/world/RenderOrigin';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { usePlanetaryStore } from '@/stores/planetaryStore';
 
 /** Periodic world-anchored dust and approach beacons remain bounded across origin shifts. */
 export function FlightEnvironment({
@@ -12,6 +13,7 @@ export function FlightEnvironment({
   world: SystemRuntime;
   origin: RenderOrigin;
 }) {
+  const dustObject = useRef<Points>(null);
   const beacons = useRef<Group>(null);
   const dust = useRef<BufferAttribute>(null);
   const arrival = useMemo(() => new Vector3().fromArray(world.arrival().position), [world]);
@@ -25,6 +27,8 @@ export function FlightEnvironment({
   }, [world]);
   const positions = useMemo(() => new Float32Array(field.length), [field]);
   useFrame(() => {
+    if (dustObject.current)
+      dustObject.current.visible = (usePlanetaryStore.getState().readout?.density ?? 0) < 0.1;
     if (beacons.current) {
       origin.toRender(arrival, beacons.current.position);
       beacons.current.visible = beacons.current.position.lengthSq() < 60000 ** 2;
@@ -44,7 +48,7 @@ export function FlightEnvironment({
   });
   return (
     <>
-      <points frustumCulled={false}>
+      <points ref={dustObject} frustumCulled={false}>
         <bufferGeometry>
           <bufferAttribute ref={dust} attach="attributes-position" args={[positions, 3]} />
         </bufferGeometry>

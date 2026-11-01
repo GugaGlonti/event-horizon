@@ -63,6 +63,8 @@ export function createShipEffectAttributes(
 }
 
 export const shipEffectVertex = /* glsl */ `
+  #include <common>
+  #include <logdepthbuf_pars_vertex>
   uniform float uTime, uPower, uReach, uMotion, uPhase, uViewportHeight;
   attribute vec3 aOrigin, aColor;
   attribute vec4 aParameters;
@@ -124,14 +126,17 @@ export const shipEffectVertex = /* glsl */ `
     vGain *= 1.0 - smoothstep(1800.0, 4500.0, depth);
     if (kind > 2.5 && kind < 3.5) vGain *= 1.0 - smoothstep(220.0, 900.0, depth);
     gl_Position = center.z < -0.1 ? projectionMatrix * center : vec4(2.0, 2.0, 2.0, 1.0);
+    #include <logdepthbuf_vertex>
   }
 `;
 
 export const shipEffectFragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   varying vec2 vUv;
   varying vec3 vColor;
   varying float vKind, vGain;
   void main() {
+    #include <logdepthbuf_fragment>
     float r2 = dot(vUv, vUv);
     if (r2 > 1.0 || vGain < 0.002) discard;
     float edge = 1.0 - smoothstep(0.65, 1.0, r2);

@@ -39,7 +39,8 @@ export function planetaryTelemetry(controller: FlightController) {
     transit: controller.transit,
     zoneId: zone?.id ?? null,
     zoneName: zone?.name ?? '',
-    zoneDistance: sample.zoneDistance,
+    zoneDistance: Math.hypot(sample.zoneDistance, sample.altitude),
+    zoneGroundDistance: sample.zoneDistance,
     safe,
     guidance: !sample.body?.landable
       ? 'Surface unavailable'

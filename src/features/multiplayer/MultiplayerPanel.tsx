@@ -111,14 +111,6 @@ export function MultiplayerHud({ session }: { session: FlightSession }) {
     deaths = useMultiplayerStore((s) => s.deaths);
   const error = useMultiplayerStore((s) => s.error),
     name = useMultiplayerStore((s) => s.name);
-  const debug = useMultiplayerStore((s) => s.debug),
-    rtt = useMultiplayerStore((s) => s.rtt);
-  const delay = useMultiplayerStore((s) => s.delay),
-    tickRate = useMultiplayerStore((s) => s.tickRate);
-  const fps = useMultiplayerStore((s) => s.fps),
-    corrections = useMultiplayerStore((s) => s.corrections);
-  const room = useMultiplayerStore((s) => s.roomId),
-    system = useMultiplayerStore((s) => s.systemId);
   const markers = useMultiplayerStore((s) => s.markers);
   if (
     status === 'offline' ||
@@ -142,14 +134,6 @@ export function MultiplayerHud({ session }: { session: FlightSession }) {
         {error && (
           <p role="alert" className="mt-1 max-w-sm text-instrument normal-case">
             {error}
-          </p>
-        )}
-        {import.meta.env.DEV && debug && (
-          <p className="mt-1 max-w-lg normal-case">
-            RTT {Math.round(rtt)}ms · snapshot age {delay}ms · {tickRate}Hz · {fps} FPS ·
-            corrections {corrections}
-            <br />
-            {system} / {room}
           </p>
         )}
       </div>

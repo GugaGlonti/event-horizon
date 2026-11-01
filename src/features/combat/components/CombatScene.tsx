@@ -37,6 +37,7 @@ function EnemySlot({
   reducedMotion: boolean;
 }) {
   const model = useRef<Group>(null);
+  const gear = useRef(false);
   const enginePower = useRef(0.3);
   const shield = useRef<Mesh>(null),
     material = useRef<MeshBasicMaterial>(null);
@@ -54,6 +55,7 @@ function EnemySlot({
         model.current.position.set(0, 0, 0);
         return;
       }
+      gear.current = ship.controller.landingGear;
       model.current.visible = true;
       model.current.quaternion.copy(scratch.orientation);
       shield.current.position.copy(model.current.position);
@@ -69,6 +71,7 @@ function EnemySlot({
     <>
       <Starfighter
         modelRef={model}
+        gearRef={gear}
         enginePowerRef={enginePower}
         effectTimeRef={effectTimeRef}
         model={hull}

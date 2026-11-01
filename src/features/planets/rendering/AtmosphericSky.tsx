@@ -47,8 +47,8 @@ export function AtmosphericSky({ session }: { session: FlightSession }) {
         side={BackSide}
         transparent
         depthWrite={false}
-        depthTest={false}
-        vertexShader={`varying vec3 vDirection;void main(){vDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}`}
+        depthTest
+        vertexShader={`varying vec3 vDirection;void main(){vDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_Position.z=gl_Position.w*.9999998;}`}
         fragmentShader={`uniform vec3 uUp,uSun;uniform float uDensity,uHeight;varying vec3 vDirection;
       void main(){vec3 ray=normalize(vDirection);float horizon=pow(1.0-abs(dot(ray,uUp)),5.0);
         float day=smoothstep(-.22,.25,dot(uUp,uSun));float sun=pow(max(0.0,dot(ray,uSun)),32.0);

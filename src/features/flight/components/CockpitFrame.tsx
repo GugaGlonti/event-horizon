@@ -102,10 +102,17 @@ export function CockpitFrame({
           transparent
           depthWrite={false}
           toneMapped={false}
-          vertexShader={`varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`}
+          vertexShader={`
+ #include <common>
+ #include <logdepthbuf_pars_vertex>
+ varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+ #include <logdepthbuf_vertex>
+ }`}
           fragmentShader={`
+            #include <logdepthbuf_pars_fragment>
             uniform float uTime, uLight; varying vec2 vUv;
             void main() {
+              #include <logdepthbuf_fragment>
               float edge = smoothstep(0.18, 0.5, abs(vUv.x - 0.5));
               float sweep = exp(-pow((vUv.x + vUv.y * 0.25 - sin(uTime * 0.65) * 0.65 - 0.5) * 9.0, 2.0));
               float instruments = exp(-pow((vUv.y - 0.14) * 28.0, 2.0)) * edge;

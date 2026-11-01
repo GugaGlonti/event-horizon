@@ -1,5 +1,6 @@
 import { MathUtils, type PerspectiveCamera, Vector3 } from 'three';
 import { smoothRamp } from '@/engine/navigation/HyperspaceController';
+import { traceStation } from '@/engine/stations/stationGeometry';
 import { jumpKick, jumpRattle, jumpRecoil } from '@/features/exploration/hyperspaceVisuals';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
@@ -8,6 +9,7 @@ import type { CameraMode } from '@/stores/flightStore';
 
 /** Presentation-only follow controller. It never writes to the flight controller. */
 export class FlightCamera {
+  private readonly logicalCamera = new Vector3();
   private readonly targetPosition = new Vector3();
   private readonly previousOrigin = new Vector3();
   private readonly previousShip = new Vector3();
@@ -49,6 +51,30 @@ export class FlightCamera {
           (JUMP_MOTION.exitSpeed / config.positionDamping) * smoothRamp(0.25, 1, jump.progress);
     }
     this.targetPosition.applyQuaternion(session.orientation).add(session.renderPosition);
+    if (
+      !jump.busy &&
+      (session.planetaryReadout.altitude < 250 || session.stationReadout.distance < 1000)
+    ) {
+      this.logicalCamera.copy(this.targetPosition).add(session.origin.position);
+      const terrain = session.controller.environment?.trace(
+        session.position,
+        this.logicalCamera,
+        1,
+      );
+      const station = traceStation(
+        session.exploration.world,
+        session.position,
+        this.logicalCamera,
+        1,
+      );
+      const fraction = Math.min(terrain ?? 1, station?.fraction ?? 1);
+      if (fraction < 1)
+        this.targetPosition.lerpVectors(
+          session.renderPosition,
+          this.targetPosition,
+          Math.max(0, fraction - 0.02),
+        );
+    }
     const snap =
       mode === 'cockpit' || mode !== this.mode || session.resetVersion !== this.resetVersion;
     if (snap) {

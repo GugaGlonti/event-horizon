@@ -8,15 +8,19 @@ import { FlightCamera } from '@/features/flight/camera/FlightCamera';
 import { CockpitFrame } from '@/features/flight/components/CockpitFrame';
 import { GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { terrainMetrics } from '@/features/planets/rendering/PlanetTerrain';
 import { Starfield } from '@/features/space/components/Starfield';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
 import { useSpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
+import { useRenderStatsStore } from '@/stores/renderStatsStore';
 
 export function FlightWorld({ session }: { session: FlightSession }) {
+  const statsClock = useRef({ elapsed: 0, frames: 0 });
   const ship = useRef<Group>(null);
+  const gear = useRef(false);
   const enginePower = useRef(0.25);
   const effectTime = useRef(0);
   const spacecraft = useSpacecraftModels();
@@ -28,8 +32,26 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   const reducedMotion = useReducedMotion();
   const systemId = useExplorationStore((state) => state.systemId);
 
-  useFrame((_, delta) => {
+  useFrame((state, delta) => {
+    const stats = statsClock.current;
+    stats.elapsed += delta;
+    stats.frames++;
+    if (stats.elapsed >= 0.5) {
+      useRenderStatsStore.setState({
+        fps: stats.frames / stats.elapsed,
+        frameMs: (stats.elapsed * 1000) / stats.frames,
+        drawCalls: state.gl.info.render.calls,
+        triangles: state.gl.info.render.triangles,
+        geometries: state.gl.info.memory.geometries,
+        textures: state.gl.info.memory.textures,
+        patches: terrainMetrics.patches,
+        cache: terrainMetrics.cache,
+        generationMs: terrainMetrics.generationMs,
+      });
+      stats.elapsed = stats.frames = 0;
+    }
     session.advance(delta, reducedMotion);
+    gear.current = session.controller.landingGear;
     effectTime.current = session.exploration.world.time;
     if (ship.current) {
       ship.current.visible =
@@ -64,6 +86,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       </group>
       <Starfighter
         modelRef={ship}
+        gearRef={gear}
         enginePowerRef={enginePower}
         effectTimeRef={effectTime}
         model={spacecraft.player}
