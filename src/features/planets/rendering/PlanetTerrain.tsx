@@ -27,6 +27,7 @@ interface CachedPatch {
   born: number;
 }
 export const terrainMetrics = { patches: 0, cache: 0, generationMs: 0, maxGenerationMs: 0 };
+const MAX_CACHED_PATCHES = 384;
 const vertexShader = /* glsl */ `
   #include <common>
   #include <logdepthbuf_pars_vertex>
@@ -175,6 +176,13 @@ export function PlanetTerrain({
       if (disposed) return;
       busy = false;
       const { patch, data, ms } = event.data;
+      // Keep drawn parents pinned while new coverage streams, with a hard transient ceiling.
+      if (cache.size >= MAX_CACHED_PATCHES) {
+        const unused = [...cache].find(([key]) => !desired.has(key) && !shown.has(key));
+        if (!unused) return;
+        unused[1].geometry.dispose();
+        cache.delete(unused[0]);
+      }
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new BufferAttribute(data.positions, 3));
       geometry.setAttribute('normal', new BufferAttribute(data.normals, 3));
