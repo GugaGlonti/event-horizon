@@ -1,6 +1,7 @@
 import { Quaternion, Vector3 } from 'three';
 import { CombatSimulation } from '@/engine/combat/CombatSimulation';
 import type { WeaponSlot } from '@/engine/combat/combatTypes';
+import { Encounter } from '@/engine/combat/Encounter';
 import { missileCanLock } from '@/engine/combat/weapons';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightInput } from '@/engine/simulation/flightTypes';
@@ -21,13 +22,13 @@ export class CombatSession {
   readonly simulation: CombatSimulation;
   readonly audio = new CombatAudio();
   private world: SystemRuntime | null = null;
-  private active = false;
-  private encounterSize = 0;
+  readonly encounter = new Encounter(ENCOUNTER_CONFIG);
+  private readonly forward = new Vector3(0, 0, -1);
   private readonly point = new Vector3();
   private readonly direction = new Vector3();
   private readonly orientation = new Quaternion();
   private readonly command: { flight: FlightInput; fire: boolean; weapon: WeaponSlot };
-  status = 'B / Start patrol encounter';
+  status = 'Patrol inbound / B to engage now';
 
   constructor(controller: FlightController, input: FlightInput) {
     this.simulation = new CombatSimulation(PLAYER_SHIP, AI_CONFIG, controller, TARGETING_CONFIG);
@@ -37,7 +38,7 @@ export class CombatSession {
   setWorld(world: SystemRuntime) {
     this.world = world;
     this.simulation.clearEncounter();
-    this.active = false;
+    this.encounter.reset(world.definition.id);
     for (const body of world.definition.bodies) {
       const center = world.positions.get(body.id);
       if (center)
@@ -54,12 +55,12 @@ export class CombatSession {
         });
     }
     this.simulation.player.sync();
-    this.status = 'B / Start patrol encounter';
+    this.status = 'Patrol inbound / B to engage now';
     this.publish();
   }
 
   depart() {
-    this.active = false;
+    this.encounter.clear();
     this.simulation.clearEncounter();
     this.audio.stop();
     this.status = 'Encounter left behind';
@@ -82,7 +83,7 @@ export class CombatSession {
 
   reset(world: SystemRuntime) {
     this.command.weapon = 1;
-    this.simulation.respawn();
+    this.simulation.respawn(ENCOUNTER_CONFIG.spawnProtection);
     this.setWorld(world);
   }
 
@@ -97,47 +98,56 @@ export class CombatSession {
     );
   }
 
-  startEncounter(practice = false, count: number = ENCOUNTER_CONFIG.enemies) {
-    if (!this.world || this.simulation.player.health.destroyed || this.active) return false;
-    this.setWorld(this.world);
+  private spawnSlot = (slot: Readonly<{ id: string; index: number }>) => {
     const player = this.simulation.player;
-    player.sync();
-    const total = practice ? 1 : Math.max(1, Math.min(ENCOUNTER_CONFIG.maximumEnemies, count));
-    for (let index = 0; index < total; index++) {
-      let found = false;
-      // Search a deterministic shell; never spawn inside a planet, moon or another ship.
-      for (let attempt = 0; attempt < 24; attempt++) {
-        const angle = index * 2.399 + attempt * 0.7;
-        const radius = practice && attempt === 0 ? 0 : 170 + index * 35;
-        this.point
-          .set(
-            Math.cos(angle) * radius,
-            Math.sin(angle) * radius,
-            -(practice ? 260 : 600 + (index % 3) * 100) + attempt * 50,
-          )
-          .applyQuaternion(player.orientation)
-          .add(player.position);
-        if (this.safe(this.point, ENEMY_SHIP.radius)) {
-          found = true;
-          break;
-        }
-      }
-      if (!found) continue;
+    const practice = this.encounter.mode === 'practice';
+    const index = slot.index;
+    for (let attempt = 0; attempt < 48; attempt++) {
+      const angle = index * 2.399 + attempt * 0.7;
+      const radius =
+        practice && attempt === 0 ? 0 : ENCOUNTER_CONFIG.spawnRadius + index * 35 + attempt * 12;
+      this.point
+        .set(
+          Math.cos(angle) * radius,
+          Math.sin(angle) * radius,
+          -(practice
+            ? 260
+            : ENCOUNTER_CONFIG.spawnDistance + (index % 3) * ENCOUNTER_CONFIG.spawnSpacing),
+        )
+        .applyQuaternion(player.orientation)
+        .add(player.position);
+      if (!this.safe(this.point, ENEMY_SHIP.radius)) continue;
       this.direction.subVectors(player.position, this.point).normalize();
-      this.orientation.setFromUnitVectors(new Vector3(0, 0, -1), this.direction);
-      this.simulation.spawn(
-        practice ? PRACTICE_TARGET : ENEMY_SHIP,
-        this.point,
-        this.orientation,
-        practice,
+      this.orientation.setFromUnitVectors(this.forward, this.direction);
+      return (
+        this.simulation.spawn(
+          practice ? PRACTICE_TARGET : ENEMY_SHIP,
+          this.point,
+          this.orientation,
+          practice,
+          slot.id,
+          practice ? 0 : ENCOUNTER_CONFIG.spawnProtection,
+        ) !== null
       );
     }
-    const spawned = this.simulation.ships.size - 1;
-    if (!spawned) {
-      this.status = 'No clear encounter space. Fly away from the surface.';
-      this.publish();
+    return false;
+  };
+
+  startEncounter(practice = false, count: number = ENCOUNTER_CONFIG.enemies) {
+    if (!this.world || this.simulation.player.health.destroyed || this.simulation.ships.size > 1)
       return false;
-    }
+    this.setWorld(this.world);
+    this.encounter.begin(practice, count);
+    this.encounter.advance(0, this.simulation.ships, this.spawnSlot);
+    this.seedAsteroids();
+    this.updateStatus();
+    this.simulation.targetAhead();
+    this.publish();
+    return this.simulation.ships.size > 1;
+  }
+
+  private seedAsteroids() {
+    const player = this.simulation.player;
     for (let index = 0; index < ENCOUNTER_CONFIG.asteroids; index++) {
       this.point
         .set(
@@ -161,14 +171,20 @@ export class CombatSession {
           velocity: new Vector3(),
         });
     }
-    this.encounterSize = spawned;
-    this.active = true;
-    this.status = practice
-      ? 'Practice target / Space to fire'
-      : `Patrol engaged / ${spawned} contacts`;
-    this.simulation.cycleTarget();
-    this.publish();
-    return true;
+  }
+
+  private updateStatus() {
+    const hostiles = this.simulation.ships.size - 1;
+    if (this.encounter.mode === 'complete') this.status = 'Sector clear / B for patrol';
+    else if (this.encounter.mode === 'practice')
+      this.status = 'Practice target / Mouse or Space to fire';
+    else if (this.encounter.mode === 'patrol') {
+      const next = this.encounter.nextRespawn;
+      this.status =
+        next !== null
+          ? `${hostiles} contacts / Reinforcements in ${Math.ceil(next)}s`
+          : `Patrol engaged / ${hostiles} contacts`;
+    }
   }
 
   step(input: FlightInput, fire: boolean, dt: number) {
@@ -190,21 +206,19 @@ export class CombatSession {
       const center = world.positions.get(obstacle.id.slice(5));
       if (center) obstacle.position.copy(center);
     }
-    if (
-      this.active &&
-      this.simulation.ships.size === 1 &&
-      !this.simulation.player.health.destroyed
-    ) {
-      this.status = `Sector clear / ${this.encounterSize} ${this.encounterSize === 1 ? 'contact' : 'contacts'} destroyed / B to replay`;
-      this.active = false;
+    if (!this.simulation.player.health.destroyed) {
+      const waiting = this.encounter.mode === 'waiting';
+      this.encounter.advance(dt, this.simulation.ships, this.spawnSlot);
+      if (waiting && this.encounter.mode === 'patrol') this.seedAsteroids();
     }
+    this.updateStatus();
   }
 
   dispose() {
     this.simulation.clearEncounter();
     this.audio.dispose();
     this.world = null;
-    this.active = false;
+    this.encounter.clear();
   }
 
   publish() {
@@ -215,6 +229,7 @@ export class CombatSession {
       readout: {
         weapon: player.weapon,
         weaponCooldown: player.cooldown,
+        reinforcements: this.encounter.nextRespawn,
         weaponCharge: player.railgunCharge / player.config.railgun.chargeTime,
         missileLocked: missileCanLock(player, target ?? undefined),
         shields: player.health.shields / player.config.defense.shields,

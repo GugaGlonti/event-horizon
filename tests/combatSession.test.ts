@@ -67,7 +67,6 @@ describe('integrated combat lifecycle', () => {
     buttonKey('Escape');
     expect(useExplorationStore.getState().overlay).toBeNull();
   });
-
   it('selects, cycles and clears combat targets without conflicting with navigation or lift', () => {
     session.startEncounter(true);
     const id = session.combat.simulation.targetId;
@@ -88,6 +87,32 @@ describe('integrated combat lifecycle', () => {
     expect(menuTab.defaultPrevented).toBe(false);
   });
 
+  it('freezes reinforcement timers in maps and cancels pending respawns on hyperspace departure', () => {
+    session.startEncounter();
+    session.combat.simulation.player.health.invulnerability = 100;
+    const ship = [...session.combat.simulation.ships.values()].find(
+      (ship) => ship.team === 'hostile',
+    );
+    if (!ship) throw new Error('Expected hostile');
+    ship.health.invulnerability = 0;
+    session.combat.simulation.damage(ship, 1000);
+    advance(0.1);
+    const remaining = session.combat.encounter.nextRespawn;
+    key('KeyL');
+    advance(20);
+    expect(session.combat.encounter.nextRespawn).toBe(remaining);
+    key('Escape');
+    session.startKeyboard();
+    session.exploration.selectDestination('vesper');
+    expect(session.exploration.beginJump()).toBe(true);
+    expect(session.combat.encounter.mode).toBe('dormant');
+    expect(session.combat.encounter.slots).toHaveLength(0);
+    session.exploration.cancelJump();
+    expect(session.combat.encounter.mode).toBe('waiting');
+    expect(session.combat.simulation.targetId).toBeNull();
+    expect(session.combat.simulation.events).toHaveLength(0);
+  });
+
   it('publishes combat readouts at 10 Hz while active', () => {
     let updates = 0;
     const unsubscribe = useCombatStore.subscribe((state, previous) => {
@@ -98,7 +123,6 @@ describe('integrated combat lifecycle', () => {
     expect(updates).toBeGreaterThanOrEqual(9);
     expect(updates).toBeLessThanOrEqual(10);
   });
-
   it('starts and wins a practice encounter with real fire input, then starts a patrol', () => {
     session.startEncounter(true);
     key('Space');
@@ -260,6 +284,51 @@ describe('integrated combat lifecycle', () => {
 });
 
 describe('system encounters and complete dogfights', () => {
+  it.each(SYSTEMS.map((system) => [system.id, system] as const))(
+    'automatically starts and safely replenishes a patrol in %s',
+    (_, definition) => {
+      const world = new SystemRuntime(definition);
+      const controller = new FlightController(PLAYER_SHIP.flight);
+      const arrival = world.arrival();
+      controller.relocate(
+        new Vector3().fromArray(arrival.position),
+        new Quaternion().fromArray(arrival.orientation),
+      );
+      const combat = new CombatSession(controller, createFlightInput());
+      combat.setWorld(world);
+      combat.simulation.player.health.invulnerability = 100;
+      const tick = () => {
+        world.update(world.time + dt);
+        combat.step(createFlightInput(), false, dt);
+      };
+      for (let step = 0; step < 120 * 8; step++) tick();
+      expect(combat.simulation.ships.size).toBe(6);
+      const enemy = [...combat.simulation.ships.values()].find((ship) => ship.team === 'hostile');
+      if (!enemy) throw new Error('Expected enemy');
+      for (const ship of combat.simulation.ships.values()) ship.stationary = true;
+      const id = enemy.id;
+      enemy.health.invulnerability = 0;
+      combat.simulation.damage(enemy, 1000, 'player');
+      tick();
+      for (let step = 0; step < 120 * 12 - 1; step++) tick();
+      expect(combat.simulation.ships.has(id)).toBe(false);
+      tick();
+      const replacement = combat.simulation.ships.get(id);
+      expect(replacement).toBeDefined();
+      expect(replacement).not.toBe(enemy);
+      expect(replacement?.health.shields).toBe(ENEMY_SHIP.defense.shields);
+      expect(replacement?.health.invulnerability).toBe(3);
+      for (const body of world.definition.bodies) {
+        const center = world.positions.get(body.id);
+        if (!center || !replacement) throw new Error('Expected body and replacement');
+        expect(replacement.position.distanceTo(center)).toBeGreaterThan(
+          body.radius + replacement.radius + 100,
+        );
+      }
+      expect(combat.simulation.kills).toBe(1);
+      combat.dispose();
+    },
+  );
   it.each(SYSTEMS.map((system) => [system.id, system] as const))(
     'spawns five safe enemies and a reachable practice target in %s',
     (_, definition) => {

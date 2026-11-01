@@ -326,7 +326,6 @@ describe('AI commands and fixed-step replay', () => {
     }
     expect(replay()).toEqual(replay());
   });
-
   it('patrols, detects, pursues, attacks, evades, disengages and returns home without changing poses', () => {
     const simulation = world(),
       ai = new ShipAi();
@@ -420,6 +419,24 @@ describe('AI commands and fixed-step replay', () => {
 });
 
 describe('targeting and serializable gameplay events', () => {
+  it('rejects stale ship objects after a slot ID is reused', () => {
+    const simulation = world(),
+      old = target(simulation);
+    simulation.clearEncounter();
+    const replacement = simulation.spawn(
+      PRACTICE_TARGET,
+      old.position,
+      old.orientation,
+      true,
+      old.id,
+    );
+    if (!replacement) throw new Error('Expected replacement');
+    simulation.damage(old, 1000, 'player');
+    expect(simulation.ships.get(old.id)).toBe(replacement);
+    expect(replacement.health.shields).toBe(PRACTICE_TARGET.defense.shields);
+    expect(simulation.kills).toBe(0);
+    expect(simulation.events.filter((event) => event.kind === 'damage')).toHaveLength(0);
+  });
   it('selects the nearest hostile ahead, ignores nearer rear/side contacts and clears explicitly', () => {
     const simulation = world();
     target(simulation, new Vector3(0, 0, 30));

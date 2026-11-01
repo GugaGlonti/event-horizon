@@ -98,8 +98,18 @@ export const AI_CONFIG: AiConfig = {
   maneuverability: 0.85,
   retreatHull: 0.25,
 };
-export const ENCOUNTER_CONFIG = { enemies: 5, maximumEnemies: 10, asteroids: 8 } as const;
-
+export const ENCOUNTER_CONFIG = {
+  enemies: 5,
+  maximumEnemies: 10,
+  asteroids: 8,
+  spawnDistance: 600,
+  spawnSpacing: 100,
+  spawnRadius: 170,
+  arrivalDelay: 8,
+  respawnDelay: 12,
+  spawnProtection: 3,
+  retryDelay: 2,
+} as const;
 export const TARGETING_CONFIG = { range: 3500, aheadAngle: Math.PI / 3 } as const;
 
 export const WEAPON_CHOICES = [

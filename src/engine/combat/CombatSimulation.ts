@@ -73,15 +73,18 @@ export class CombatSimulation {
     position: Readonly<Vector3>,
     orientation: Readonly<Quaternion>,
     stationary = false,
+    id = `hostile-${++this.sequence}`,
+    protection = 0,
   ) {
-    if (this.ships.size >= 11) return null;
-    const ship = new CombatShip(`hostile-${++this.sequence}`, 'hostile', config);
+    if (this.ships.size >= 11 || this.ships.has(id)) return null;
+    const ship = new CombatShip(id, 'hostile', config);
     ship.controller.relocate(position, orientation);
     ship.sync();
     ship.previous.copy(ship.position);
     ship.previousOrientation.copy(ship.orientation);
     ship.home.copy(ship.position);
     ship.stationary = stationary;
+    ship.health.invulnerability = protection;
     this.ships.set(ship.id, ship);
     this.event(ship.id, ship.position, { kind: 'spawned', sourceId: null });
     return ship;
@@ -102,12 +105,12 @@ export class CombatSimulation {
     this.player.command.fire = false;
   }
 
-  respawn() {
+  respawn(protection = 3) {
     this.clearEncounter();
     const player = this.player;
     player.health.hull = player.config.defense.hull;
     player.health.shields = player.config.defense.shields;
-    player.health.invulnerability = 3;
+    player.health.invulnerability = protection;
     player.cooldown = 0;
     player.weapon = 1;
     player.hitFlash = 0;

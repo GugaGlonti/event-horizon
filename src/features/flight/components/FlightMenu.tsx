@@ -105,7 +105,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </h2>
             <p className="mt-3 max-w-lg text-[12px] leading-5 normal-case text-phosphor-dim">
               {phase === 'ready'
-                ? `Welcome to ${system?.name ?? 'Solara'}. Choose an input mode to take the controls. Consult the local chart to select a contact, or plot a jump to another system.`
+                ? `Welcome to ${system?.name ?? 'Solara'}. A patrol arrives after eight seconds of flight. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
                 : `Position and momentum held in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
             </p>
             <div className="order-2 mt-5 flex justify-between border-b border-line pb-2 text-[10px] tracking-widest tablet:order-none">
