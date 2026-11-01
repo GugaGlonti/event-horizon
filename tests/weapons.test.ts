@@ -63,6 +63,112 @@ describe('weapon commands and reload', () => {
   });
 });
 
+describe('laser hardpoints, heat and travel budgets', () => {
+  it('alternates configured hardpoints in the rotated ship frame and inherits configured velocity', () => {
+    const config = { ...PLAYER_SHIP, laser: { ...PLAYER_SHIP.laser, velocityInheritance: 0.5 } };
+    const world = new CombatSimulation(config, AI_CONFIG);
+    const orientation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), 0.8);
+    world.player.controller.relocate(new Vector3(1e8, 50, -1e8), orientation, 100);
+    for (let cannon = 0; cannon < 2; cannon++) {
+      world.player.cooldown = 0;
+      world.step({ ...idle, fire: true }, dt);
+      const shot = world.projectiles.at(-1);
+      if (!shot) throw new Error('Expected laser');
+      const local = shot.position
+        .clone()
+        .sub(world.player.position)
+        .applyQuaternion(orientation.clone().invert());
+      const hardpoint = config.laser.hardpoints[cannon];
+      if (!hardpoint) throw new Error('Expected hardpoint');
+      expect(local.distanceTo(new Vector3(...hardpoint))).toBeLessThan(1e-6);
+      const propulsion = shot.velocity.clone().addScaledVector(world.player.velocity, -0.5);
+      expect(propulsion.length()).toBeCloseTo(config.laser.speed);
+      expect(
+        propulsion.normalize().distanceTo(new Vector3(0, 0, -1).applyQuaternion(orientation)),
+      ).toBeLessThan(1e-8);
+    }
+  });
+
+  it('reserves synchronized cannon capacity atomically and charges heat for every bolt', () => {
+    const config = {
+      ...PLAYER_SHIP,
+      laser: { ...PLAYER_SHIP.laser, firingMode: 'synchronized' as const },
+    };
+    const world = new CombatSimulation(config, AI_CONFIG);
+    world.step({ ...idle, fire: true }, dt);
+    expect(world.projectiles).toHaveLength(2);
+    expect(world.player.heat).toBeCloseTo(config.laser.heat.perShot * 2);
+    expect(world.projectiles.map((shot) => shot.position.x)).toEqual([2.65, -2.65]);
+    const shot = world.projectiles[0];
+    if (!shot) throw new Error('Expected laser');
+    while (world.projectiles.length < 191)
+      world.projectiles.push({
+        ...shot,
+        position: shot.position.clone(),
+        previous: shot.previous.clone(),
+      });
+    world.player.cooldown = 0;
+    const heat = world.player.heat;
+    world.step({ ...idle, fire: true }, dt);
+    expect(world.projectiles).toHaveLength(191);
+    expect(world.player.cooldown).toBe(0);
+    expect(world.player.heat).toBeCloseTo(heat - config.laser.heat.coolingRate * dt);
+  });
+
+  it('locks overheated cannons until the resume threshold, then fires while held without switching exploits', () => {
+    const world = simulation();
+    let overheated = false;
+    for (let tick = 0; tick < 120 * 5; tick++) {
+      world.step({ ...idle, fire: true }, dt);
+      if (world.player.overheated) {
+        overheated = true;
+        break;
+      }
+    }
+    expect(overheated).toBe(true);
+    expect(world.player.heat).toBe(1);
+    world.step({ ...idle, weapon: 2 }, dt);
+    world.step({ ...idle, weapon: 1 }, dt);
+    expect(world.player.overheated).toBe(true);
+    const fired = world.events.filter((event) => event.kind === 'fired').at(-1)?.id;
+    while (
+      world.player.heat >
+      PLAYER_SHIP.laser.heat.resumeAt + PLAYER_SHIP.laser.heat.coolingRate * dt
+    ) {
+      world.step({ ...idle, fire: true }, dt);
+      expect(world.player.overheated).toBe(true);
+      expect(world.events.filter((event) => event.kind === 'fired').at(-1)?.id).toBe(fired);
+    }
+    world.step({ ...idle, fire: true }, dt);
+    expect(world.player.overheated).toBe(false);
+    expect(world.events.filter((event) => event.kind === 'fired').at(-1)?.id).not.toBe(fired);
+    advance(world, 10);
+    expect(world.player.heat).toBe(0);
+    world.respawn();
+    expect(world.player.overheated).toBe(false);
+  });
+
+  it('expires at maximum relative range even with inherited velocity and a longer lifetime', () => {
+    const world = new CombatSimulation(
+      { ...PLAYER_SHIP, laser: { ...PLAYER_SHIP.laser, range: 50, lifetime: 10 } },
+      AI_CONFIG,
+    );
+    world.player.controller.relocate(new Vector3(), new Quaternion(), 100);
+    world.step({ ...idle, fire: true }, dt);
+    const shot = world.projectiles[0];
+    if (!shot) throw new Error('Expected laser');
+    const start = shot.position.clone(),
+      velocity = shot.velocity.clone();
+    advance(world, 0.1);
+    expect(world.projectiles).toHaveLength(0);
+    expect(
+      shot.position.distanceTo(
+        start.clone().addScaledVector(velocity, 50 / PLAYER_SHIP.laser.speed),
+      ),
+    ).toBeLessThan(1e-7);
+  });
+});
+
 describe('slower homing missiles', () => {
   it('launches below the central nose at a slower speed and captures the selected hostile', () => {
     const world = simulation(),
@@ -185,7 +291,6 @@ describe('charged central railgun', () => {
     expect(world.events.findIndex((event) => event.kind === 'fired')).toBeLessThan(
       world.events.findIndex((event) => event.kind === 'impact'),
     );
-
     expect(world.player.railgunCharge).toBe(0);
     expect(world.player.cooldown).toBe(1.6);
     expect(world.projectiles).toHaveLength(0);

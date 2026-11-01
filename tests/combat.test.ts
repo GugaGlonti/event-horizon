@@ -218,6 +218,8 @@ describe('lasers and entity lifetime', () => {
       velocity: new Vector3(0, 0, 7200),
       damage: 40,
       radius: 0.6,
+      speed: 7200,
+      range: 7200,
       life: 1,
     });
     simulation.step(idle, dt);
@@ -405,6 +407,9 @@ describe('targeting and serializable gameplay events', () => {
     const before = snapshot.ships[0]?.flight.position.slice();
     simulation.player.controller.relocate(new Vector3(999, 0, 0), new Quaternion());
     expect(snapshot.ships[0]?.flight.position).toEqual(before);
+    snapshot.ships[0]?.config.laser.hardpoints.forEach((point) => {
+      expect(Array.isArray(point)).toBe(true);
+    });
     expect(snapshot.ships[0]?.config).not.toBe(PLAYER_SHIP);
     for (let index = 0; index < 200; index++) {
       simulation.player.health.shields = 100;

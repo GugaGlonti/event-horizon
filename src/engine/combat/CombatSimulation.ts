@@ -104,6 +104,9 @@ export class CombatSimulation {
     player.cooldown = 0;
     player.weapon = 1;
     player.hitFlash = 0;
+    player.barrel = 0;
+    player.heat = 0;
+    player.overheated = false;
     player.health.sinceDamage = 0;
     player.sync();
     player.previous.copy(player.position);
@@ -196,14 +199,20 @@ export class CombatSimulation {
 
   private fire(ship: CombatShip) {
     if (ship.cooldown > 1e-9 || ship.health.destroyed) return;
-    const projectileCount = ship.weapon === 4 ? ship.config.flak.pellets : 1;
+    const laser = ship.config.laser;
+    if (ship.weapon === 1 && (ship.overheated || laser.hardpoints.length === 0)) return;
+    const projectileCount =
+      ship.weapon === 4
+        ? ship.config.flak.pellets
+        : ship.weapon === 1 && laser.firingMode === 'synchronized'
+          ? laser.hardpoints.length
+          : 1;
     if (ship.weapon !== 3 && this.projectiles.length + projectileCount > 192) return;
     this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
     this.point
-      .set(ship.weapon === 1 ? ship.barrel * 2.65 : 0, ship.weapon === 2 ? -0.4 : 0, -6)
+      .set(0, ship.weapon === 2 ? -0.4 : 0, -6)
       .applyQuaternion(ship.orientation)
       .add(ship.position);
-    ship.barrel *= -1;
     const target =
       ship.team === 'player' && this.targetId
         ? this.ships.get(this.targetId)
@@ -254,10 +263,15 @@ export class CombatSimulation {
           kind: 'flak',
           position: this.point.clone(),
           previous: this.point.clone(),
-          velocity: this.direction.clone().multiplyScalar(flak.speed).add(ship.velocity),
+          velocity: this.direction
+            .clone()
+            .multiplyScalar(flak.speed)
+            .addScaledVector(ship.velocity, flak.velocityInheritance),
           damage: flak.damage,
           radius: flak.radius,
           life: flak.lifetime,
+          range: flak.range,
+          speed: flak.speed,
         });
       }
       this.effect('flak-shot', this.point, ship.team);
@@ -266,38 +280,62 @@ export class CombatSimulation {
     }
     const config = ship.weapon === 2 ? ship.config.missile : ship.config.laser;
     ship.cooldown = config.interval;
-    if (ship.weapon === 1 && target && !target.health.destroyed && config.aimAssistAngle > 0) {
-      this.aim.subVectors(target.position, this.point);
-      this.relativeVelocity.subVectors(target.velocity, ship.velocity);
-      const time = leadTime(this.aim, this.relativeVelocity, config.speed, config.lifetime);
-      this.aim.addScaledVector(this.relativeVelocity, time).normalize();
-      if (time > 0 && this.direction.dot(this.aim) >= Math.cos(config.aimAssistAngle))
-        this.direction.copy(this.aim);
+    if (ship.weapon === 1) {
+      ship.heat = Math.min(1, ship.heat + laser.heat.perShot * projectileCount);
+      ship.overheated = ship.heat >= 1 - 1e-9;
     }
-    const state = {
-      id: ++this.sequence,
-      owner: ship.id,
-      team: ship.team,
-      position: this.point.clone(),
-      previous: this.point.clone(),
-      velocity: this.direction.clone().multiplyScalar(config.speed).add(ship.velocity),
-      damage: config.damage,
-      radius: config.radius,
-      life: config.lifetime,
-    };
-    if (ship.weapon === 2)
-      this.projectiles.push({
-        ...state,
-        kind: 'missile',
-        targetId: missileCanLock(ship, target) ? (target?.id ?? null) : null,
-        heading: this.direction.clone(),
-        inheritedVelocity: ship.velocity.clone(),
-        speed: ship.config.missile.speed,
-        turnRate: ship.config.missile.turnRate,
-      });
-    else this.projectiles.push({ ...state, kind: 'gun' });
-    this.effect(ship.weapon === 2 ? 'missile-launch' : 'shot', this.point, ship.team);
-    this.event(ship.id, this.point, { kind: 'fired', weapon: ship.weapon });
+    for (let cannon = 0; cannon < projectileCount; cannon++) {
+      this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
+      if (ship.weapon === 1) {
+        const hardpoint = laser.hardpoints[ship.barrel % laser.hardpoints.length];
+        if (!hardpoint) continue;
+        this.point.fromArray(hardpoint).applyQuaternion(ship.orientation).add(ship.position);
+        ship.barrel = (ship.barrel + 1) % laser.hardpoints.length;
+      }
+      if (ship.weapon === 1 && target && !target.health.destroyed && config.aimAssistAngle > 0) {
+        this.aim.subVectors(target.position, this.point);
+        this.relativeVelocity
+          .copy(target.velocity)
+          .addScaledVector(ship.velocity, -config.velocityInheritance);
+        const time = leadTime(
+          this.aim,
+          this.relativeVelocity,
+          config.speed,
+          Math.min(config.lifetime, config.range / config.speed),
+        );
+        this.aim.addScaledVector(this.relativeVelocity, time).normalize();
+        if (time > 0 && this.direction.dot(this.aim) >= Math.cos(config.aimAssistAngle))
+          this.direction.copy(this.aim);
+      }
+      const state = {
+        id: ++this.sequence,
+        owner: ship.id,
+        team: ship.team,
+        position: this.point.clone(),
+        previous: this.point.clone(),
+        velocity: this.direction
+          .clone()
+          .multiplyScalar(config.speed)
+          .addScaledVector(ship.velocity, config.velocityInheritance),
+        damage: config.damage,
+        radius: config.radius,
+        life: config.lifetime,
+        range: config.range,
+        speed: config.speed,
+      };
+      if (ship.weapon === 2)
+        this.projectiles.push({
+          ...state,
+          kind: 'missile',
+          targetId: missileCanLock(ship, target) ? (target?.id ?? null) : null,
+          heading: this.direction.clone(),
+          inheritedVelocity: ship.velocity.clone().multiplyScalar(config.velocityInheritance),
+          turnRate: ship.config.missile.turnRate,
+        });
+      else this.projectiles.push({ ...state, kind: 'gun' });
+      this.effect(ship.weapon === 2 ? 'missile-launch' : 'shot', this.point, ship.team);
+      this.event(ship.id, this.point, { kind: 'fired', weapon: ship.weapon });
+    }
   }
 
   /** Shared nearest-hit query. A zero motion fraction traces an instantaneous rail shot. */
@@ -371,7 +409,7 @@ export class CombatSimulation {
     for (let index = this.projectiles.length - 1; index >= 0; index--) {
       const shot = this.projectiles[index];
       if (!shot) continue;
-      const travel = Math.min(dt, shot.life);
+      const travel = Math.min(dt, shot.life, shot.range / shot.speed);
       if (shot.kind === 'missile' && shot.targetId) {
         const target = this.ships.get(shot.targetId);
         if (!target || target.health.destroyed || target.team === shot.team) shot.targetId = null;
@@ -396,6 +434,7 @@ export class CombatSimulation {
       this.trace(shot.position, this.end, shot.owner, shot.team, shot.radius, travel / dt);
       shot.position.lerp(this.end, this.hitFraction);
       shot.life -= dt;
+      shot.range = Math.max(0, shot.range - shot.speed * travel);
       if (this.hitDetected) {
         this.event(shot.owner, shot.position, {
           kind: 'impact',
@@ -405,7 +444,8 @@ export class CombatSimulation {
         if (this.hitShip) this.damage(this.hitShip, shot.damage, shot.owner);
         this.effect(shot.kind === 'missile' ? 'detonation' : 'impact', shot.position, shot.team);
       }
-      if (this.hitDetected || shot.life <= 1e-9) this.projectiles.splice(index, 1);
+      if (this.hitDetected || shot.life <= 1e-9 || shot.range <= 1e-9)
+        this.projectiles.splice(index, 1);
     }
   }
 
@@ -442,6 +482,8 @@ export class CombatSimulation {
       ship.health.step(dt);
       ship.hitFlash = Math.max(0, ship.hitFlash - dt);
       ship.cooldown = Math.max(0, ship.cooldown - dt);
+      ship.heat = Math.max(0, ship.heat - ship.config.laser.heat.coolingRate * dt);
+      if (ship.overheated && ship.heat <= ship.config.laser.heat.resumeAt) ship.overheated = false;
       if (ship.health.destroyed) continue;
       if (ship !== this.player) this.ai.step(ship, this.player, this.obstacles, this.aiConfig, dt);
       const input = ship === this.player ? command.flight : ship.command.flight;
@@ -516,6 +558,8 @@ export class CombatSimulation {
         weapon: ship.weapon,
         cooldown: ship.cooldown,
         railgunCharge: ship.railgunCharge,
+        heat: ship.heat,
+        overheated: ship.overheated,
         barrel: ship.barrel,
         hitFlash: ship.hitFlash,
         aiState: ship.aiState,

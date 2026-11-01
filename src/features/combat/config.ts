@@ -13,6 +13,8 @@ export const PLAYER_SHIP: ShipConfig = {
     lifetime: 7,
     radius: 0.9,
     aimAssistAngle: 0,
+    range: 2240,
+    velocityInheritance: 1,
     turnRate: 1.6,
     lockRange: 2200,
     lockAngle: Math.PI / 3,
@@ -32,6 +34,8 @@ export const PLAYER_SHIP: ShipConfig = {
     lifetime: 0.5,
     radius: 0.25,
     aimAssistAngle: 0,
+    range: 325,
+    velocityInheritance: 1,
     pellets: 12,
     spreadAngle: 0.14,
   },
@@ -42,6 +46,14 @@ export const PLAYER_SHIP: ShipConfig = {
     lifetime: 2,
     radius: 0.6,
     aimAssistAngle: 0.04,
+    range: 2000,
+    velocityInheritance: 1,
+    hardpoints: [
+      [2.65, 0, -6],
+      [-2.65, 0, -6],
+    ],
+    firingMode: 'alternating',
+    heat: { perShot: 0.075, coolingRate: 0.14, resumeAt: 0.3 },
   },
 };
 export const ENEMY_SHIP: ShipConfig = {
@@ -52,7 +64,17 @@ export const ENEMY_SHIP: ShipConfig = {
   radius: 5,
   flight: { ...FLIGHT_CONFIG, maxSpeed: 135, acceleration: 36, maxAngularSpeed: [0.75, 0.7, 1.2] },
   defense: { shields: 45, hull: 55, regeneration: 4, regenerationDelay: 6 },
-  laser: { interval: 0.85, damage: 4, speed: 650, lifetime: 2.4, radius: 0.7, aimAssistAngle: 0 },
+  laser: {
+    ...PLAYER_SHIP.laser,
+    interval: 0.85,
+    damage: 4,
+    speed: 650,
+    lifetime: 2.4,
+    range: 1560,
+    radius: 0.7,
+    aimAssistAngle: 0,
+    heat: { perShot: 0.16, coolingRate: 0.1, resumeAt: 0.3 },
+  },
 };
 export const PRACTICE_TARGET: ShipConfig = {
   ...ENEMY_SHIP,

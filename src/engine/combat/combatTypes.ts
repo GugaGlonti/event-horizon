@@ -8,16 +8,29 @@ import {
 } from '@/engine/simulation/flightTypes';
 import { type DefenseConfig, ShipHealth } from './damage';
 
-export interface LaserConfig {
+export interface ProjectileConfig {
   readonly interval: number;
   readonly damage: number;
   readonly speed: number;
   readonly lifetime: number;
   readonly radius: number;
   readonly aimAssistAngle: number;
+  /** Travel relative to the inherited launch velocity, in metres. */
+  readonly range: number;
+  readonly velocityInheritance: number;
+}
+export interface LaserConfig extends ProjectileConfig {
+  readonly hardpoints: readonly (readonly [number, number, number])[];
+  readonly firingMode: 'alternating' | 'synchronized';
+  /** Heat is normalized to a capacity of one. */
+  readonly heat: {
+    readonly perShot: number;
+    readonly coolingRate: number;
+    readonly resumeAt: number;
+  };
 }
 export type WeaponSlot = 1 | 2 | 3 | 4;
-export interface MissileConfig extends LaserConfig {
+export interface MissileConfig extends ProjectileConfig {
   readonly turnRate: number;
   readonly lockRange: number;
   readonly lockAngle: number;
@@ -30,7 +43,7 @@ export interface RailgunConfig {
   readonly radius: number;
   readonly duration: number;
 }
-export interface FlakConfig extends LaserConfig {
+export interface FlakConfig extends ProjectileConfig {
   readonly pellets: number;
   readonly spreadAngle: number;
 }
@@ -81,7 +94,9 @@ export class CombatShip {
   cooldown = 0;
   railgunCharge = 0;
   weapon: WeaponSlot = 1;
-  barrel = 1;
+  barrel = 0;
+  heat = 0;
+  overheated = false;
   hitFlash = 0;
   stationary = false;
 
@@ -135,6 +150,8 @@ interface ProjectileState {
   readonly velocity: Vector3;
   readonly damage: number;
   readonly radius: number;
+  readonly speed: number;
+  range: number;
   life: number;
 }
 export type Projectile = ProjectileState &
@@ -145,7 +162,6 @@ export type Projectile = ProjectileState &
         targetId: string | null;
         readonly heading: Vector3;
         readonly inheritedVelocity: Vector3;
-        readonly speed: number;
         readonly turnRate: number;
       }
   );

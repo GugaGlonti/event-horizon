@@ -43,12 +43,14 @@ export class ShipAi {
     }
 
     this.relative.subVectors(target.position, ship.position);
-    this.velocity.subVectors(target.velocity, ship.velocity);
+    this.velocity
+      .copy(target.velocity)
+      .addScaledVector(ship.velocity, -ship.config.laser.velocityInheritance);
     const intercept = leadTime(
       this.relative,
       this.velocity,
       ship.config.laser.speed,
-      ship.config.laser.lifetime,
+      Math.min(ship.config.laser.lifetime, ship.config.laser.range / ship.config.laser.speed),
     );
     this.direction.copy(this.relative).addScaledVector(this.velocity, intercept);
     if (next === 'patrol')
