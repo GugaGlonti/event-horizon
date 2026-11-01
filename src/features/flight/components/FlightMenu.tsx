@@ -9,7 +9,7 @@ import { useFlightStore } from '@/stores/flightStore';
 
 const controls = [
   ['W', 'Accelerate / release to coast'],
-  ['S', 'Brake to a stop'],
+  ['S', 'Brake, then reverse at zero throttle'],
   ['↑ / ↓', 'Nose down / up'],
   ['← / →', 'Roll left / right'],
   ['Q / E', 'Yaw left / right'],
@@ -18,7 +18,7 @@ const controls = [
   ['MOUSE / SPACE', 'Fire selected weapon'],
   ['1 / 2 / 3 / 4', 'Gun / missiles / railgun / flak'],
   ['A / D', 'Strafe left / right'],
-  ['R / V / Z', 'Up / down / reverse'],
+  ['R / V', 'Up / down'],
   ['B / N', 'Start patrol / cycle hostile'],
   ['G / H', 'Nearest hostile ahead / clear'],
   ['TAB', 'Cycle hostile while flying'],
@@ -133,9 +133,9 @@ export function FlightMenu({ session }: { session: FlightSession }) {
               ))}
             </dl>
             <p className="order-2 mt-4 border-l-2 border-instrument/70 pl-3 text-[11px] leading-5 normal-case text-phosphor-dim tablet:order-none">
-              Hold W to build throttle. Release W to slow down; S brakes harder. Mouse steering
-              recenters gently. Release Shift after boost depletion to rearm. Hold Space to charge
-              the railgun; releasing early cancels.
+              Hold W to build throttle. Release W to slow down; hold S to brake, then reverse once
+              throttle reaches zero. Mouse steering recenters gently. Release Shift after boost
+              depletion to rearm. Hold Space to charge the railgun; releasing early cancels.
             </p>
             {notice && (
               <p

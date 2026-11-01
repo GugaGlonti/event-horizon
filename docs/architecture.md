@@ -44,10 +44,11 @@ yaw turns right, roll banks right. Combined body rates integrate a normalized qu
 Up/Down are inverted pitch, Left/Right roll, and Q/E yaw; mouse motion remains pitch/yaw.
 Holding W gradually raises stored throttle from 0 to 100%. Releasing W gradually returns throttle to
 zero and slows the full velocity vector at normal deceleration. S lowers throttle and applies stronger
-braking, taking priority over thrust/boost. Both slow the ship with or without assistance. Boost needs
-W held. Braking caps stored throttle at the remaining forward cruise speed. A/D and R/V command
-local lateral/vertical velocity; Z commands bounded reverse thrust when main throttle is released.
-Translation jets use configurable acceleration/speed and braking takes priority over every axis.
+braking, taking priority over thrust/boost. Holding S engages bounded reverse thrust once requested
+and stored throttle reach zero. Both slow the ship with or without assistance. Boost needs W held.
+Braking caps stored throttle at the remaining forward cruise speed. A/D and R/V command local
+lateral/vertical velocity. Translation jets use configurable acceleration/speed; braking takes
+priority over every axis until the reverse command engages at zero throttle.
 Left mouse/Space fires, B begins a patrol, G acquires ahead, H clears, and N/Tab cycles hostile
 contacts independently of T/X navigation. UI clicks are excluded from firing; Tab retains normal
 button/map focus traversal and Escape pauses regardless of focused HUD controls.
@@ -64,6 +65,11 @@ endpoints and increments a revision so the camera snaps. Jump handoffs replace t
 preserving the camera revision and relative follow pose. Pause clears the accumulator. Navigation
 and flight telemetry publish at 10 Hz; discrete changes publish immediately. Paused idle navigation
 has no recurring store publications.
+
+Flight speed trends compare consecutive scalar speed publications and their elapsed time, with a
+small dead band for settled-speed noise. ACCEL/DECEL lamps work in reverse as well as forward and
+clear on pause or discontinuous pose handoffs. Instrument motion runs in CSS, with steady labels
+and a reduced-motion fallback; it adds no per-frame React or store updates.
 
 Celestial time advances only during active flight or an unsuspended jump. FlightSession advances
 `ExplorationSession.advanceWorld` once per fixed gameplay tick before preparing moving celestial

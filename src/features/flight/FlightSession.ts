@@ -395,7 +395,7 @@ export class FlightSession {
     input.speed = this.controller.speed;
     input.boosting = this.controller.isBoosting;
     input.boostReserve = state.telemetry.boostCharge;
-    input.braking = this.input.brake;
+    input.braking = this.input.brake && !(this.input.reverse && input.throttle === 0);
     input.translation = engineTranslationEffort(this.input);
     input.cockpit = state.cameraMode === 'cockpit';
     this.engineAudio.update(
@@ -466,8 +466,8 @@ export class FlightSession {
       }
       this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
+        state.publishTelemetry(this.controller.getTelemetry(), this.telemetryElapsed);
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
-        state.publishTelemetry(this.controller.getTelemetry());
         if (!flying && !this.exploration.jump.busy)
           this.exploration.syncPose(this.position, this.orientation);
       }
@@ -485,8 +485,8 @@ export class FlightSession {
       this.orientation.slerpQuaternions(this.previousOrientation, this.currentOrientation, alpha);
       this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
+        state.publishTelemetry(this.controller.getTelemetry(), this.telemetryElapsed);
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
-        state.publishTelemetry(this.controller.getTelemetry());
         this.combat.publish();
       }
     } else this.loop.reset();

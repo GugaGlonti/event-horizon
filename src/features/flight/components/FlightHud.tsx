@@ -7,6 +7,7 @@ import { NearbyPlanetMarkers } from '@/features/exploration/components/NearbyPla
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { FlightMenu } from '@/features/flight/components/FlightMenu';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
+import { SpeedTrendIndicator } from '@/features/flight/components/SpeedTrendIndicator';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useCombatStore } from '@/stores/combatStore';
@@ -39,15 +40,19 @@ function Meter({
         </span>
       </div>
       <meter aria-label={label} value={value} min={0} max={1} className="sr-only" />
-      <div aria-hidden="true" className={compact ? 'h-1.5' : 'h-3'}>
+      <div aria-hidden="true" className={`relative ${compact ? 'h-1.5' : 'h-3'}`}>
         <div className="flex h-full gap-1">
           {gaugeSegments.map((segment) => (
             <span
               key={segment}
-              className={`h-full flex-1 bg-current ${value * 24 > segment ? 'opacity-90' : 'opacity-10'}`}
+              className={`h-full flex-1 bg-current motion-safe:transition-opacity motion-safe:duration-150 ${value * 24 > segment ? 'opacity-90' : 'opacity-10'}`}
             />
           ))}
         </div>
+        <span
+          className="absolute -bottom-1 h-0.5 w-1.5 -translate-x-full bg-current motion-safe:transition-[left] motion-safe:duration-150 motion-safe:ease-linear"
+          style={{ left: `${Math.max(0, Math.min(1, value)) * 100}%` }}
+        />
       </div>
     </div>
   );
@@ -59,6 +64,7 @@ const instrumentTitleClassName =
 export function FlightHud({ session }: { session: FlightSession }) {
   const dead = useCombatStore((state) => state.readout.dead);
   const telemetry = useFlightStore((state) => state.telemetry);
+  const speedTrend = useFlightStore((state) => state.speedTrend);
   const phase = useFlightStore((state) => state.phase);
   const cameraMode = useFlightStore((state) => state.cameraMode);
   const assistance = useFlightStore((state) => state.assistance);
@@ -69,6 +75,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
   const busy = jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN';
+  const active = phase === 'flying' && !busy && !dead;
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
   const heading = Math.round(telemetry.heading) % 360;
 
@@ -181,26 +188,49 @@ export function FlightHud({ session }: { session: FlightSession }) {
           </section>
           <div className="absolute inset-x-4 bottom-16 grid grid-cols-2 items-end gap-x-6 gap-y-5 tablet:inset-x-8 tablet:grid-cols-[1fr_1.1fr_0.8fr_1.3fr] tablet:gap-x-8">
             <section aria-label="Flight telemetry" className="min-w-0">
-              <div className={instrumentTitleClassName}>
+              <div className={`${instrumentTitleClassName} short-mobile:hidden`}>
                 <span>Velocity</span>
               </div>
               <div className="flex items-end gap-2 pb-3 tablet:gap-3">
                 <SegmentReadout
                   label="Speed"
                   value={Math.round(telemetry.speed).toString().padStart(3, '0')}
-                  className="h-12 text-instrument tablet:h-16"
+                  className="h-12 text-instrument short-mobile:h-10 tablet:h-16"
                 />
                 <span className="pb-1 text-[10px] text-phosphor-dim">M/S</span>
               </div>
-              <div className="flex max-w-56 justify-between gap-2 text-[10px] text-phosphor-dim">
+              <div aria-hidden="true" className="relative mb-2 h-1 max-w-56 bg-phosphor/10">
+                <div
+                  className="h-full origin-left bg-instrument/65 motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-linear"
+                  style={{
+                    transform: `scaleX(${Math.min(1, telemetry.speed / FLIGHT_CONFIG.boostMaxSpeed)})`,
+                  }}
+                />
+                <span
+                  className="absolute -top-1 h-3 w-px bg-phosphor/65"
+                  style={{
+                    left: `${(FLIGHT_CONFIG.maxSpeed / FLIGHT_CONFIG.boostMaxSpeed) * 100}%`,
+                  }}
+                />
+              </div>
+              <div className="flex max-w-56 justify-between gap-2 text-[10px] text-phosphor-dim short-mobile:hidden">
                 <span>CRS {FLIGHT_CONFIG.maxSpeed}</span>
                 <span>MAX {FLIGHT_CONFIG.boostMaxSpeed}</span>
               </div>
+              <SpeedTrendIndicator trend={speedTrend} active={active} />
             </section>
             <section aria-label="Ship systems" className="min-w-0 tablet:max-w-72">
               <div className={instrumentTitleClassName}>
                 <span>Propulsion</span>
-                {telemetry.boosting && <span className="ml-auto text-instrument">BST</span>}
+                {telemetry.boosting && (
+                  <span className="ml-auto flex items-center gap-1.5 text-instrument">
+                    <span
+                      aria-hidden="true"
+                      className={`size-1.5 bg-current ${active ? 'hud-signal' : ''}`}
+                    />
+                    BST
+                  </span>
+                )}
               </div>
               <div className="space-y-4">
                 <Meter label="THROTTLE" value={telemetry.throttle} />
@@ -244,7 +274,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
         <p className="flex items-center gap-2">
           <span
             aria-hidden="true"
-            className={`size-1.5 ${busy ? 'bg-instrument' : 'bg-phosphor'}`}
+            className={`size-1.5 ${busy ? 'bg-instrument' : 'bg-phosphor'} ${active ? 'hud-heartbeat' : ''}`}
           />
           <span>
             {busy ? 'Hyperdrive active' : phase === 'flying' ? 'Flight active' : 'Standby'}
@@ -293,13 +323,14 @@ export function FlightHud({ session }: { session: FlightSession }) {
       <p id="scene-instructions" className="sr-only">
         Use mouse for pitch and yaw. Up arrow pitches the nose down; Down arrow pitches the nose up.
         Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
-        raise throttle; release to slow down. S applies stronger braking. Left mouse or Space fires
-        the selected weapon. 1 selects the gun, 2 homing missiles, 3 the railgun, and 4 the flak
-        scattergun. Hold Space to charge the railgun. A/D strafe, R/V move up/down, Z reverses. G
-        selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B starts a patrol
-        encounter. Use Shift with W for boost, C for camera, F for assistance, and Escape to pause.
-        M opens the galaxy map; L opens the local system map. T cycles navigation targets; X clears
-        the target. Maps pause flight. Controls are available in the flight briefing.
+        raise throttle; release to slow down. Hold S to brake, then reverse once throttle reaches
+        zero. Left mouse or Space fires the selected weapon. 1 selects the gun, 2 homing missiles, 3
+        the railgun, and 4 the flak scattergun. Hold Space to charge the railgun. A/D strafe, R/V
+        move up/down. G selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B
+        starts a patrol encounter. Use Shift with W for boost, C for camera, F for assistance, and
+        Escape to pause. M opens the galaxy map; L opens the local system map. T cycles navigation
+        targets; X clears the target. Maps pause flight. Controls are available in the flight
+        briefing.
       </p>
       <FlightMenu session={session} />
     </div>

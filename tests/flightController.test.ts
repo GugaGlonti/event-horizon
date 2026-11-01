@@ -287,6 +287,56 @@ describe('fixed-step clock', () => {
 });
 
 describe('six-degree translation', () => {
+  it.each([true, false])(
+    'brakes before reversing at zero throttle with assistance %s, even with W and boost held',
+    (assistance) => {
+      const ship = new FlightController(FLIGHT_CONFIG);
+      ship.setAssistance(assistance);
+      fly(ship, 8, { throttle: 1 });
+      const input = {
+        ...createFlightInput(),
+        throttle: 1,
+        brake: true,
+        reverse: true,
+        boost: true,
+      };
+      fly(ship, 0.5, input);
+      expect(ship.enginePower).toBeGreaterThan(0);
+      expect(ship.speed).toBeCloseTo(
+        FLIGHT_CONFIG.maxSpeed - FLIGHT_CONFIG.brakeDeceleration * 0.5,
+      );
+      expect(ship.copyVelocity(new Vector3()).z).toBeLessThan(0);
+      expect(ship.getTelemetry().boosting).toBe(false);
+      expect(ship.getTelemetry().boostCharge).toBe(1);
+      for (let tick = 0; tick < 1200; tick++) {
+        ship.step(input, dt);
+        if (ship.enginePower > 0) expect(ship.copyVelocity(new Vector3()).z).toBeLessThanOrEqual(0);
+      }
+      expect(ship.enginePower).toBe(0);
+      expect(ship.copyVelocity(new Vector3()).z).toBeCloseTo(FLIGHT_CONFIG.reverseMaxSpeed);
+      fly(ship, 3);
+      expect(ship.speed).toBe(0);
+      fly(ship, 4, { brake: true, reverse: true });
+      expect(ship.copyVelocity(new Vector3()).z).toBeCloseTo(FLIGHT_CONFIG.reverseMaxSpeed);
+      fly(ship, 4, { throttle: 1 });
+      expect(ship.copyVelocity(new Vector3()).z).toBeLessThan(0);
+      expect(ship.enginePower).toBe(1);
+    },
+  );
+
+  it('waits for stored throttle to reach zero before applying standalone reverse thrust', () => {
+    const ship = new FlightController(FLIGHT_CONFIG);
+    fly(ship, 8, { throttle: 1 });
+    // A collision can stop movement while leaving stored throttle above zero.
+    ship.resolveMotion(new Vector3(), new Vector3());
+    fly(ship, 1, { reverse: true });
+    expect(ship.enginePower).toBeGreaterThan(0);
+    expect(ship.speed).toBe(0);
+    fly(ship, 4, { reverse: true });
+    expect(ship.enginePower).toBe(0);
+    expect(ship.copyVelocity(new Vector3()).z).toBeCloseTo(FLIGHT_CONFIG.reverseMaxSpeed);
+  });
+
   it('accelerates laterally, vertically and in reverse in the local ship frame', () => {
     for (const [input, axis] of [
       [{ strafe: 1 }, new Vector3(1, 0, 0)],

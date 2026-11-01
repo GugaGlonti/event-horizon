@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import type { InputMode } from '@/engine/input/FlightInputManager';
 import type { FlightTelemetry } from '@/engine/simulation/flightTypes';
+import { getSpeedTrend, type SpeedTrend } from '@/features/flight/flightInstruments';
 
 export type CameraMode = 'chase' | 'cockpit';
 export type FlightPhase = 'ready' | 'flying' | 'paused';
@@ -14,12 +15,13 @@ interface FlightState {
   rendererReady: boolean;
   notice: string | null;
   telemetry: FlightTelemetry;
+  speedTrend: SpeedTrend;
   setInputMode: (mode: InputMode | null) => void;
   toggleCamera: () => void;
   toggleAssistance: () => void;
   setRendererReady: (ready: boolean) => void;
   setNotice: (notice: string) => void;
-  publishTelemetry: (telemetry: FlightTelemetry) => void;
+  publishTelemetry: (telemetry: FlightTelemetry, seconds?: number) => void;
 }
 
 export const useFlightStore = create<FlightState>()((set) => ({
@@ -30,6 +32,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
   engineSound: true,
   rendererReady: false,
   notice: null,
+  speedTrend: 'steady',
   telemetry: {
     speed: 0,
     throttle: 0,
@@ -44,6 +47,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
   setInputMode: (inputMode) =>
     set((state) => ({
       inputMode,
+      speedTrend: 'steady',
       phase: inputMode ? 'flying' : state.phase === 'ready' ? 'ready' : 'paused',
       ...(inputMode ? { notice: null } : {}),
     })),
@@ -52,5 +56,12 @@ export const useFlightStore = create<FlightState>()((set) => ({
   toggleAssistance: () => set((state) => ({ assistance: !state.assistance })),
   setRendererReady: (rendererReady) => set({ rendererReady }),
   setNotice: (notice) => set({ notice }),
-  publishTelemetry: (telemetry) => set({ telemetry }),
+  publishTelemetry: (telemetry, seconds = 0) =>
+    set((state) => ({
+      telemetry,
+      speedTrend:
+        state.phase === 'flying'
+          ? getSpeedTrend(state.telemetry.speed, telemetry.speed, seconds)
+          : 'steady',
+    })),
 }));

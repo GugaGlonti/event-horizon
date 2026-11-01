@@ -191,24 +191,27 @@ export class FlightController {
 
     this.forward.set(0, 0, -1).applyQuaternion(this.orientation);
     const forwardSpeed = this.velocity.dot(this.forward);
-    const translating = input.strafe !== 0 || input.lift !== 0 || input.reverse;
+    // A held brake/reverse command becomes reverse thrust only after stored power reaches zero.
+    const reversing = input.reverse && throttleTarget === 0 && this.throttle === 0;
+    const braking = input.brake && !reversing;
+    const translating = input.strafe !== 0 || input.lift !== 0 || reversing;
     if (this.assistance && !translating) {
       this.lateral.copy(this.velocity).addScaledVector(this.forward, -forwardSpeed);
       this.velocity.addScaledVector(this.lateral, Math.expm1(-config.lateralDamping * dt));
     }
-    if (input.brake || throttleTarget === 0) {
+    if (braking || throttleTarget === 0) {
       // Translation jets can hold a lateral/reverse command while main throttle is released.
-      const speed = translating && !input.brake ? Math.abs(forwardSpeed) : this.speed;
-      const deceleration = input.brake ? config.brakeDeceleration : config.deceleration;
+      const speed = translating && !braking ? Math.abs(forwardSpeed) : this.speed;
+      const deceleration = braking ? config.brakeDeceleration : config.deceleration;
       if (speed > 0) {
-        if (translating && !input.brake)
+        if (translating && !braking)
           this.velocity.addScaledVector(
             this.forward,
             -Math.sign(forwardSpeed) * Math.min(speed, deceleration * dt),
           );
         else this.velocity.multiplyScalar(Math.max(0, speed - deceleration * dt) / speed);
       }
-      if (input.brake) {
+      if (braking) {
         // Braking also sheds stored power so pressing W again starts from the reduced speed.
         this.throttle = Math.min(
           this.throttle,
@@ -229,12 +232,11 @@ export class FlightController {
       ? config.boostMaxSpeed
       : Math.max(config.maxSpeed, previousSpeed - config.boostDeceleration * dt);
     this.velocity.clampLength(0, speedLimit);
-    if (!input.brake) {
+    if (!braking) {
       this.translation
         .set(input.strafe, input.lift, 0)
         .clampLength(0, 1)
         .multiplyScalar(config.strafeMaxSpeed);
-      const reversing = input.reverse && throttleTarget === 0;
       if (reversing) this.translation.z = config.reverseMaxSpeed;
       this.translation.applyQuaternion(this.orientation);
       this.lateral
@@ -242,7 +244,7 @@ export class FlightController {
         .addScaledVector(this.forward, -this.velocity.dot(this.forward));
       if (reversing) this.lateral.copy(this.velocity);
       this.translation.sub(this.lateral).clampLength(0, config.strafeAcceleration * dt);
-      if (input.strafe || input.lift || input.reverse) this.velocity.add(this.translation);
+      if (input.strafe || input.lift || reversing) this.velocity.add(this.translation);
       this.velocity.clampLength(0, speedLimit);
     }
     this.position.addScaledVector(this.velocity, dt);

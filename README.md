@@ -64,7 +64,11 @@ The interface is a 1980s flight terminal: green phosphor displays, amber seven-s
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
 Flight instruments float over the scene with short reference rules, slim gauges, and a quiet header;
 the briefing, survey charts, and warnings retain framed terminal panels. Controls share visible
-keyboard focus. A static CRT texture adds scanlines without flicker or animation. The bundled
+keyboard focus. Green ACCEL and amber DECEL lamps blink with actual speed changes, including in
+reverse; directional chevrons, a speed tape, engine gauge cursors and a flight-status pulse animate
+the live instruments. Speed trends use the existing 10 Hz telemetry cadence, settle at steady speed,
+and clear on pause. Reduced motion keeps lamps steady and removes animation/transitions. A static
+CRT texture adds scanlines without flicker or animation. The bundled
 Share Tech Mono font is distributed under the SIL Open Font License; see
 [`public/assets/fonts/OFL-ShareTechMono.txt`](public/assets/fonts/OFL-ShareTechMono.txt).
 
@@ -92,11 +96,10 @@ deterministic inclined orbits. Planet positions are deliberately fixed.
 | ← / →              | Roll left/right                                                |
 | Q / E              | Yaw left/right                                                 |
 | W                  | Gradually raise throttle to 100%; release to slow down         |
-| S                  | Slow down and lower throttle; hold to stop                     |
+| S                  | Brake; keep holding to reverse once throttle reaches zero      |
 | Shift              | Hold for engine boost                                          |
 | A / D              | Strafe left/right in the ship’s local frame                    |
 | R / V              | Translate up/down                                              |
-| Z                  | Reverse thrust; W takes priority                               |
 | Left mouse / Space | Hold to fire the selected weapon                               |
 | 1 / 2 / 3 / 4      | Select gun / homing missiles / railgun / flak scattergun       |
 | B                  | Start a five-ship patrol encounter when the sector is clear    |
@@ -134,8 +137,9 @@ safe arrival in its current system, restoring engine reserve and clearing moment
 assistance preferences survive reset. Boost lasts about four seconds, recharges after a delay, and
 requires releasing Shift after depletion to rearm at 18% reserve. Assistance damps drift and angular
 momentum; without it, use counter-steering to settle rotation. Releasing W gradually lowers throttle
-and slows the ship; S applies stronger braking. Both work with assistance on or off and override boost.
-Hold W with Shift to boost.
+and slows the ship; S applies stronger braking, then engages reverse once throttle reaches zero.
+Both work with assistance on or off and override boost. Release S to slow reverse movement, or hold
+W to accelerate forward again. Hold W with Shift to boost.
 
 ## Combat sandbox
 

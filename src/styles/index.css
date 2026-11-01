@@ -70,6 +70,54 @@
   box-shadow: inset 0 0 100px #0003;
 }
 
+/* Only small status lamps/chevrons blink. Text and the CRT texture stay steady. */
+@media (prefers-reduced-motion: no-preference) {
+  .hud-signal {
+    animation: hud-signal 1.2s step-end infinite;
+  }
+
+  .hud-chevron {
+    animation: hud-chevron 1.2s ease-in-out infinite;
+  }
+
+  .hud-heartbeat {
+    animation: hud-heartbeat 2.4s ease-in-out infinite;
+  }
+}
+
+@keyframes hud-signal {
+  0%,
+  65% {
+    opacity: 1;
+  }
+  66%,
+  100% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes hud-chevron {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+@keyframes hud-heartbeat {
+  0%,
+  100% {
+    opacity: 0.45;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  45% {
+    opacity: 1;
+    box-shadow: 0 0 6px 1px currentColor;
+  }
+}
+
 @custom-variant short-mobile (@media (width < 47.5625rem) and (height <= 43.75rem));
 @custom-variant short-desktop (@media (width >= 47.5625rem) and (height <= 38.75rem));
 

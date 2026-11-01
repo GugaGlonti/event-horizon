@@ -99,15 +99,31 @@ describe('flight input lifecycle', () => {
     expect(onWeapon).toHaveBeenCalledTimes(8);
   });
 
-  it('maps S to braking and lower throttle, including while W and boost are held', () => {
+  it('maps S to braking and reverse, including while W and boost are held', () => {
     manager.startKeyboard();
     key('keydown', 'KeyS');
-    expect(manager.sample(0.01)).toMatchObject({ throttle: 0, brake: true });
+    expect(manager.sample(0.01)).toMatchObject({ throttle: 0, brake: true, reverse: true });
     key('keydown', 'KeyW');
     key('keydown', 'ShiftLeft');
-    expect(manager.sample(0.01)).toMatchObject({ throttle: 0, brake: true, boost: true });
+    expect(manager.sample(0.01)).toMatchObject({
+      throttle: 0,
+      brake: true,
+      reverse: true,
+      boost: true,
+    });
     key('keyup', 'KeyS');
-    expect(manager.sample(0.01)).toMatchObject({ throttle: 1, brake: false, boost: true });
+    expect(manager.sample(0.01)).toMatchObject({
+      throttle: 1,
+      brake: false,
+      reverse: false,
+      boost: true,
+    });
+  });
+
+  it.each(['KeyY', 'KeyZ'])('leaves %s unbound instead of engaging reverse', (code) => {
+    manager.startKeyboard();
+    expect(key('keydown', code).defaultPrevented).toBe(false);
+    expect(manager.sample(0.01).reverse).toBe(false);
   });
 
   it('reads primary fire only while actively piloting and prevents active-flight scrolling', () => {
@@ -158,7 +174,7 @@ describe('flight input lifecycle', () => {
 
   it('maps six-axis translation and clears it with fire on focus loss', () => {
     manager.startKeyboard();
-    for (const code of ['KeyD', 'KeyR', 'KeyZ', 'Space']) key('keydown', code);
+    for (const code of ['KeyD', 'KeyR', 'KeyS', 'Space']) key('keydown', code);
     expect(manager.sample(0.01)).toMatchObject({ strafe: 1, lift: 1, reverse: true });
     expect(manager.firing).toBe(true);
     windowTarget.dispatchEvent(new Event('blur'));
@@ -223,6 +239,7 @@ describe('flight input lifecycle', () => {
       expect(manager.sample(0.01)).toMatchObject({
         throttle: Number(code === 'KeyW'),
         brake: code === 'KeyS',
+        reverse: code === 'KeyS',
       });
       if (action === 'blur') windowTarget.dispatchEvent(new Event('blur'));
       if (action === 'hidden') {
@@ -232,6 +249,7 @@ describe('flight input lifecycle', () => {
       if (action === 'escape') key('keydown', 'Escape');
       expect(manager.sample(0.01).throttle).toBe(0);
       expect(manager.sample(0.01).brake).toBe(false);
+      expect(manager.sample(0.01).reverse).toBe(false);
       expect(onMode).toHaveBeenLastCalledWith(null);
     }
   });

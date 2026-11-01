@@ -6,10 +6,11 @@ export interface FlightInput {
   /** Requested throttle, 0..1; stored engine power approaches it gradually. */
   throttle: number;
   boost: boolean;
-  /** Slows velocity and lowers stored throttle; overrides thrust and boost. */
+  /** Slows velocity and lowers stored throttle; yields to reverse at zero stored throttle. */
   brake: boolean;
   strafe: number;
   lift: number;
+  /** Bounded reverse thrust once requested and stored throttle are both zero. */
   reverse: boolean;
 }
 
