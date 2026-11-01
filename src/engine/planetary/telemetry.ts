@@ -20,8 +20,8 @@ export function planetaryTelemetry(controller: FlightController) {
   const safe = Boolean(
     sample.body?.landable &&
       controller.landingGear &&
-      Math.abs(vertical) <= 3 &&
-      ground <= 5 &&
+      Math.abs(vertical) <= controller.planetaryConfig.landingVerticalSpeed &&
+      ground <= controller.planetaryConfig.landingGroundSpeed &&
       alignment >= 0.96 &&
       sample.normal.dot(sample.up) >= 0.985,
   );
@@ -46,9 +46,9 @@ export function planetaryTelemetry(controller: FlightController) {
       ? 'Surface unavailable'
       : !controller.landingGear
         ? 'Deploy gear / K'
-        : ground > 5
+        : ground > controller.planetaryConfig.landingGroundSpeed
           ? 'Reduce ground speed'
-          : Math.abs(vertical) > 3
+          : Math.abs(vertical) > controller.planetaryConfig.landingVerticalSpeed
             ? 'Reduce descent rate'
             : alignment < 0.96
               ? 'Level with horizon'

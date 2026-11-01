@@ -1,4 +1,5 @@
 import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
+import { PLANETARY_FLIGHT_CONFIG, type PlanetaryFlightConfig } from '@/engine/planetary/config';
 import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
 import { createSurfaceState } from '@/engine/planetary/planetTypes';
@@ -34,6 +35,7 @@ export class FlightController {
   private readonly surfaceSample = new SurfaceSample();
   private readonly motionStart = new Vector3();
   private readonly config: FlightConfig;
+  readonly planetaryConfig: Readonly<PlanetaryFlightConfig>;
   private readonly position = new Vector3();
   private readonly velocity = new Vector3();
   private readonly orientation = new Quaternion();
@@ -51,8 +53,12 @@ export class FlightController {
   private assistance = true;
   private distance = 0;
 
-  constructor(config: FlightConfig) {
+  constructor(
+    config: FlightConfig,
+    planetaryConfig: Readonly<PlanetaryFlightConfig> = PLANETARY_FLIGHT_CONFIG,
+  ) {
     this.config = config;
+    this.planetaryConfig = planetaryConfig;
   }
 
   get speed() {
@@ -259,17 +265,17 @@ export class FlightController {
     const transitFactor =
       field && this.transit && !this.landingGear
         ? 1 +
-          32 *
+          (this.planetaryConfig.transitMultiplier - 1) *
             MathUtils.clamp(
               Math.min(
                 sample.transitClearance,
                 sample.altitude - (sample.body?.atmosphere?.height ?? 0) - 2000,
-              ) / 18000,
+              ) / this.planetaryConfig.transitRamp,
               0,
               1,
             )
         : 1;
-    const speedFactor = transitFactor * (1 - density * 0.22);
+    const speedFactor = transitFactor * (1 - density * this.planetaryConfig.densitySpeedReduction);
     const config = this.config;
     const previousSpeed = this.speed;
     const throttleTarget = input.brake ? 0 : MathUtils.clamp(input.throttle, 0, 1);
@@ -297,7 +303,7 @@ export class FlightController {
       ? config.assistedAngularDamping
       : config.unassistedAngularDamping;
     const acceleration = config.angularAcceleration;
-    const handling = 1 / (1 + (density * this.speed) / 240);
+    const handling = 1 / (1 + (density * this.speed) / this.planetaryConfig.handlingSpeed);
     const limit = config.maxAngularSpeed;
     this.angularVelocity.set(
       angularRate(
@@ -401,7 +407,22 @@ export class FlightController {
       this.translation
         .set(input.strafe, input.lift, 0)
         .clampLength(0, 1)
-        .multiplyScalar(config.strafeMaxSpeed);
+        .multiplyScalar(
+          this.landingGear && field
+            ? Math.min(
+                config.strafeMaxSpeed,
+                this.planetaryConfig.gearJetSpeed +
+                  (config.strafeMaxSpeed - this.planetaryConfig.gearJetSpeed) *
+                    MathUtils.clamp(
+                      (sample.altitude - this.planetaryConfig.gearPrecisionAltitude) /
+                        (this.planetaryConfig.gearSlowAltitude -
+                          this.planetaryConfig.gearPrecisionAltitude),
+                      0,
+                      1,
+                    ),
+              )
+            : config.strafeMaxSpeed,
+        );
       if (reversing) this.translation.z = config.reverseMaxSpeed;
       this.translation.applyQuaternion(this.orientation);
       this.lateral
@@ -415,10 +436,13 @@ export class FlightController {
     if (field && sample.body) {
       if (fallingSpeed) this.velocity.addScaledVector(sample.up, fallingSpeed);
       // Hover assistance cancels most gravity with an explicit residual; disabling it exposes full gravity.
-      const compensation = this.assistance ? 0.9 : 0;
+      const compensation = this.assistance ? this.planetaryConfig.gravityCompensation : 0;
       this.velocity.addScaledVector(sample.acceleration, (1 - compensation) * dt);
       this.lateral.copy(this.velocity).sub(sample.velocity);
-      this.velocity.addScaledVector(this.lateral, Math.expm1(-density * 0.12 * dt));
+      this.velocity.addScaledVector(
+        this.lateral,
+        Math.expm1(-density * this.planetaryConfig.drag * dt),
+      );
     }
     this.position.addScaledVector(this.velocity, dt);
     if (field) {
@@ -434,8 +458,8 @@ export class FlightController {
           sample.body?.landable &&
           this.landingClearance &&
           this.landingGear &&
-          Math.abs(vertical) <= 3 &&
-          horizontal <= 5 &&
+          Math.abs(vertical) <= this.planetaryConfig.landingVerticalSpeed &&
+          horizontal <= this.planetaryConfig.landingGroundSpeed &&
           up.dot(sample.normal) >= 0.96 &&
           sample.up.dot(sample.normal) >= 0.985;
         if (safe) {

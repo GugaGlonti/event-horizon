@@ -237,20 +237,16 @@ it('levels deployed landing gear gradually while retaining explicit pilot pitch 
 import { planetaryTelemetry } from '@/engine/planetary/telemetry';
 
 it('flies continuously from orbit through a meaningful atmosphere to a safe landing', () => {
-  const { controller, world, up } = nearSurface(22000);
+  const { controller, world } = nearSurface(22000);
   controller.landingGear = true;
   let time = 0,
     enteredAt = 0;
   const sample = new SurfaceSample();
   while (time < 450 && controller.surface.phase !== 'landed') {
     controller.environment?.sample(new Vector3().fromArray(controller.snapshot().position), sample);
-    const altitude = sample.altitude - 5;
     if (!enteredAt && sample.density > 0) enteredAt = time;
-    const vertical = controller.copyVelocity(new Vector3()).dot(up);
     const input = createFlightInput();
-    if (altitude > 65) input.lift = -1;
-    else if (vertical < -2) input.brake = true;
-    else input.lift = -0.02;
+    input.lift = -1;
     world.update(time);
     controller.step(input, 1 / 120);
     time += 1 / 120;
