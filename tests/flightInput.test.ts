@@ -127,6 +127,35 @@ describe('flight input lifecycle', () => {
     expect(key('keydown', 'Space').defaultPrevented).toBe(false);
   });
 
+  it('fires on a held left click in either input mode, excluding HUD controls and clearing on pause', async () => {
+    const mouse = (type: string, source = target, button = 0) => {
+      const event = Object.assign(new Event(type, { cancelable: true }), { button });
+      Object.defineProperty(event, 'target', { value: source });
+      doc.dispatchEvent(event);
+    };
+    mouse('mousedown');
+    expect(manager.firing).toBe(false);
+    manager.startKeyboard();
+    mouse('mousedown', { tagName: 'BUTTON' } as HTMLElement);
+    expect(manager.firing).toBe(false);
+    mouse('mousedown', target, 2);
+    expect(manager.firing).toBe(false);
+    mouse('mousedown');
+    expect(manager.firing).toBe(true);
+    mouse('mouseup');
+    expect(manager.firing).toBe(false);
+    await manager.requestMouse();
+    mouse('mousedown');
+    expect(manager.firing).toBe(true);
+    doc.exitPointerLock();
+    expect(manager.firing).toBe(false);
+    manager.startKeyboard();
+    expect(manager.firing).toBe(false);
+    mouse('mousedown');
+    windowTarget.dispatchEvent(new Event('blur'));
+    expect(manager.firing).toBe(false);
+  });
+
   it('maps six-axis translation and clears it with fire on focus loss', () => {
     manager.startKeyboard();
     for (const code of ['KeyD', 'KeyR', 'KeyZ', 'Space']) key('keydown', code);

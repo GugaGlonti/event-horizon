@@ -49,6 +49,25 @@ afterEach(() => {
 });
 
 describe('integrated combat lifecycle', () => {
+  it('honors Escape with a HUD or map button focused while preserving Tab focus navigation', () => {
+    const buttonKey = (code: string) => {
+      const event = Object.assign(new Event('keydown', { cancelable: true }), { code });
+      Object.defineProperty(event, 'target', { value: { tagName: 'BUTTON' } });
+      target.dispatchEvent(event);
+      return event;
+    };
+    expect(buttonKey('Tab').defaultPrevented).toBe(false);
+    buttonKey('Space');
+    advance(0.1);
+    expect(session.combat.simulation.projectiles).toHaveLength(0);
+    buttonKey('Escape');
+    expect(useFlightStore.getState().phase).toBe('paused');
+    session.startKeyboard();
+    key('KeyL');
+    buttonKey('Escape');
+    expect(useExplorationStore.getState().overlay).toBeNull();
+  });
+
   it('starts and wins a practice encounter with real fire input, then starts a patrol', () => {
     session.startEncounter(true);
     key('Space');

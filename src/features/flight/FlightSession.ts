@@ -257,6 +257,7 @@ export class FlightSession {
   pause = () => {
     this.engineAudio.stop();
     this.combat.audio.stop();
+    this.combat.cancelWeaponCharge();
     this.manager?.pause();
     this.loop.reset();
     useFlightStore.getState().setInputMode(null);

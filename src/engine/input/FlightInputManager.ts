@@ -58,6 +58,7 @@ export class FlightInputManager {
   private mode: InputMode | null = null;
   private disposed = false;
   private wantsMouse = false;
+  private mouseFire = false;
 
   constructor(
     target: HTMLElement,
@@ -103,6 +104,8 @@ export class FlightInputManager {
     window.addEventListener('keydown', this.onKeyDown);
     window.addEventListener('keyup', this.onKeyUp);
     document.addEventListener('mousemove', this.onMouseMove);
+    document.addEventListener('mousedown', this.onMouseDown);
+    document.addEventListener('mouseup', this.onMouseUp);
     document.addEventListener('wheel', this.preventDefault, { passive: false });
     document.addEventListener('contextmenu', this.preventDefault);
     this.target.focus({ preventScroll: true });
@@ -116,6 +119,8 @@ export class FlightInputManager {
     window.removeEventListener('keydown', this.onKeyDown);
     window.removeEventListener('keyup', this.onKeyUp);
     document.removeEventListener('mousemove', this.onMouseMove);
+    document.removeEventListener('mousedown', this.onMouseDown);
+    document.removeEventListener('mouseup', this.onMouseUp);
     document.removeEventListener('wheel', this.preventDefault);
     document.removeEventListener('contextmenu', this.preventDefault);
     this.clear();
@@ -125,6 +130,7 @@ export class FlightInputManager {
 
   private clear() {
     this.keys.clear();
+    this.mouseFire = false;
     this.stickX = 0;
     this.stickY = 0;
     Object.assign(this.input, createFlightInput());
@@ -160,10 +166,21 @@ export class FlightInputManager {
 
   private onKeyDown = (event: KeyboardEvent) => {
     if (!FLIGHT_KEYS.has(event.code) || event.metaKey || event.ctrlKey || event.altKey) return;
+    if (event.code === 'Escape') {
+      event.preventDefault();
+      this.pause();
+      return;
+    }
+    const element = event.target as HTMLElement | null;
+    if (
+      element?.isContentEditable ||
+      ['INPUT', 'TEXTAREA', 'SELECT'].includes(element?.tagName ?? '') ||
+      (element?.tagName === 'BUTTON' && event.code === 'Space')
+    )
+      return;
     event.preventDefault();
     this.keys.add(event.code);
     if (event.repeat) return;
-    if (event.code === 'Escape') this.pause();
     if (event.code === 'KeyC') this.callbacks.onCamera();
     if (event.code === 'KeyF') this.callbacks.onAssistance();
     const weapon = WEAPON_KEYS.get(event.code);
@@ -178,8 +195,26 @@ export class FlightInputManager {
   };
 
   get firing() {
-    return this.keys.has('Space');
+    return this.mode !== null && (this.keys.has('Space') || this.mouseFire);
   }
+
+  private onMouseDown = (event: MouseEvent) => {
+    // Clickable HUD controls must not also fire a weapon. Pointer lock routes all clicks here.
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.altKey) return;
+    const element = event.target as HTMLElement | null;
+    if (
+      document.pointerLockElement !== this.target &&
+      element !== this.target &&
+      element?.tagName !== 'CANVAS'
+    )
+      return;
+    event.preventDefault();
+    this.mouseFire = true;
+  };
+
+  private onMouseUp = (event: MouseEvent) => {
+    if (event.button === 0) this.mouseFire = false;
+  };
 
   sample(dt: number) {
     const keys = this.keys;
