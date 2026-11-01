@@ -61,6 +61,7 @@ export function planetaryTelemetry(controller: FlightController, targetId: strin
     phase: controller.surface.phase,
     gear: controller.landingGear,
     transit: controller.transit,
+    travelMode: controller.travelMode,
     landingAssist: controller.landingAssist,
     assistReason: targetId ? controller.landingAssistReason(targetId) : 'Select a landing zone.',
     zoneId: zone?.id ?? null,

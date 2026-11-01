@@ -34,6 +34,16 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
             {planet.bodyName} / {planet.density > 0.001 ? 'ATMOSPHERE' : 'ORBIT'}
           </p>
           <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
+            <dt className="text-phosphor-dim">SPEED MODE</dt>
+            <dd>
+              {planet.landingAssist
+                ? 'LAND ASSIST'
+                : planet.travelMode === 'surface'
+                  ? 'SURFACE COAST'
+                  : planet.transit
+                    ? 'APPROACH'
+                    : 'NORMAL'}
+            </dd>
             <dt className="text-phosphor-dim">ALT / AGL</dt>
             <dd>{formatDistance(Math.max(0, planet.altitude - 5))}</dd>
             <dt className="text-phosphor-dim">VERT</dt>
@@ -51,6 +61,11 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
               </>
             )}
           </dl>
+          {planet.travelMode === 'surface' && !planet.landingAssist && (
+            <p className="mt-2 text-phosphor-dim">
+              V/R set motion · release to coast · S brake · W normal flight
+            </p>
+          )}
           {planet.phase !== 'landed' && planet.phase !== 'taking-off' && (
             <p role={planet.brakeNow ? 'alert' : undefined} className="mt-2 text-instrument">
               {planet.brakeNow ? 'BRAKE / S — descent too fast' : planet.approachStage}

@@ -1,5 +1,6 @@
 import { InstrumentButton } from '@/components/ui/InstrumentButton';
 import { SegmentReadout } from '@/components/ui/SegmentReadout';
+import { PLANETARY_FLIGHT_CONFIG } from '@/engine/planetary/config';
 import { CombatHud } from '@/features/combat/components/CombatHud';
 import { HyperspaceStatus } from '@/features/exploration/components/HyperspaceStatus';
 import { NavigationHud, NavigationMarker } from '@/features/exploration/components/NavigationHud';
@@ -14,6 +15,7 @@ import { PlanetaryHud } from '@/features/planets/PlanetaryHud';
 import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
+import { usePlanetaryStore } from '@/stores/planetaryStore';
 
 const gaugeSegments = Array.from({ length: 24 }, (_, position) => position);
 const compassTicks = Array.from({ length: 25 }, (_, position) => position);
@@ -75,6 +77,17 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const ready = useFlightStore((state) => state.rendererReady);
   const systemId = useExplorationStore((state) => state.systemId);
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
+  const travelMode = usePlanetaryStore((state) => state.readout?.travelMode ?? 'normal');
+  const altitude = usePlanetaryStore((state) => state.readout?.altitude ?? Infinity);
+  const descentLimit = usePlanetaryStore((state) => state.readout?.descentLimit ?? 0);
+  const speedRange =
+    travelMode === 'surface'
+      ? Math.max(FLIGHT_CONFIG.boostMaxSpeed, descentLimit)
+      : travelMode === 'transit'
+        ? altitude < 60000
+          ? PLANETARY_FLIGHT_CONFIG.approachMaxSpeed
+          : FLIGHT_CONFIG.boostMaxSpeed * PLANETARY_FLIGHT_CONFIG.transitMultiplier
+        : FLIGHT_CONFIG.boostMaxSpeed;
   const busy = jumpPhase !== 'IDLE' && jumpPhase !== 'COOLDOWN';
   const active = phase === 'flying' && !busy && !dead;
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
@@ -204,19 +217,33 @@ export function FlightHud({ session }: { session: FlightSession }) {
                 <div
                   className="h-full origin-left bg-instrument/65 motion-safe:transition-transform motion-safe:duration-150 motion-safe:ease-linear"
                   style={{
-                    transform: `scaleX(${Math.min(1, telemetry.speed / FLIGHT_CONFIG.boostMaxSpeed)})`,
+                    transform: `scaleX(${Math.min(1, telemetry.speed / speedRange)})`,
                   }}
                 />
                 <span
                   className="absolute -top-1 h-3 w-px bg-phosphor/65"
                   style={{
-                    left: `${(FLIGHT_CONFIG.maxSpeed / FLIGHT_CONFIG.boostMaxSpeed) * 100}%`,
+                    left: `${(FLIGHT_CONFIG.maxSpeed / speedRange) * 100}%`,
                   }}
                 />
               </div>
               <div className="flex max-w-56 justify-between gap-2 text-[10px] text-phosphor-dim short-mobile:hidden">
-                <span>CRS {FLIGHT_CONFIG.maxSpeed}</span>
-                <span>BST {FLIGHT_CONFIG.boostMaxSpeed}</span>
+                <span>
+                  {travelMode === 'surface'
+                    ? 'SURFACE COAST'
+                    : travelMode === 'transit'
+                      ? altitude < 60000
+                        ? 'APPROACH'
+                        : 'TRANSIT'
+                      : `CRS ${FLIGHT_CONFIG.maxSpeed}`}
+                </span>
+                <span>
+                  {travelMode === 'surface'
+                    ? `ALT ${Math.round(descentLimit)}`
+                    : travelMode === 'transit'
+                      ? 'ACTIVE'
+                      : `BST ${FLIGHT_CONFIG.boostMaxSpeed}`}
+                </span>
               </div>
               <SpeedTrendIndicator trend={speedTrend} active={active} />
             </section>
@@ -251,7 +278,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
                 <ShipSchematic className="h-20 w-[45%] text-phosphor/60" />
                 <dl className="space-y-3 text-[10px]">
                   <div>
-                    <dt className="text-phosphor-dim">ASSIST</dt>
+                    <dt className="text-phosphor-dim">STABILIZER</dt>
                     <dd className={assistance ? 'text-phosphor' : 'text-instrument'}>
                       {assistance ? 'ENGAGED' : 'MANUAL'}
                     </dd>
@@ -310,11 +337,12 @@ export function FlightHud({ session }: { session: FlightSession }) {
             <button
               type="button"
               aria-label="Flight assistance"
+              title="Stabilization and gravity compensation. Travel mode controls speed."
               aria-pressed={assistance}
               onClick={toggleAssistance}
               className="cursor-pointer border-l border-line px-2 py-2 hover:text-instrument focus-visible:outline-2 focus-visible:outline-focus"
             >
-              <kbd className="text-instrument">F</kbd> / ASSIST {assistance ? 'ON' : 'OFF'}
+              <kbd className="text-instrument">F</kbd> / STAB {assistance ? 'ON' : 'OFF'}
             </button>
           </div>
         )}
@@ -334,8 +362,9 @@ export function FlightHud({ session }: { session: FlightSession }) {
         targets; X clears the target. K toggles landing gear. U takes off or undocks. P requests or
         captures docking; I cancels clearance. O toggles space transit and planetary approach. J
         assists landing at the selected zone; manual input cancels. V/R use planet-relative
-        descent/lift near landable worlds. Maps pause offline flight. Controls are available in the
-        flight briefing.
+        descent/lift near landable worlds; release to coast, S to brake or W for normal flight. F
+        controls stabilization, independently of travel-mode speed limits. Maps pause offline
+        flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>
