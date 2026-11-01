@@ -40,6 +40,26 @@ afterEach(() => {
 });
 
 describe('engine audio session boundaries', () => {
+  it.each(['Escape', 'blur', 'visibility'])(
+    'cancels landing assistance on the %s input pause path',
+    (path) => {
+      const { session } = setup();
+      session.startKeyboard();
+      session.controller.landingAssist = 'pelagos-survey-base';
+      if (path === 'Escape') key('keydown', 'Escape');
+      else if (path === 'blur') windowTarget.dispatchEvent(new Event('blur'));
+      else {
+        documentTarget.hidden = true;
+        documentTarget.dispatchEvent(new Event('visibilitychange'));
+        documentTarget.hidden = false;
+      }
+      expect(useFlightStore.getState().phase).toBe('paused');
+      expect(session.controller.landingAssist).toBeNull();
+      session.startKeyboard();
+      session.advance(1 / 120);
+      expect(session.controller.landingAssist).toBeNull();
+    },
+  );
   it('passes actual throttle/boost/brake and camera state without publishing frame-rate stores', () => {
     const { session, update, unlock } = setup();
     session.startKeyboard();

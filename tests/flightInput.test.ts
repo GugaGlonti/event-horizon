@@ -71,6 +71,19 @@ describe('flight input lifecycle', () => {
     expect(pausedWheel.defaultPrevented).toBe(false);
   });
 
+  it('allows HUD instrument scrolling in keyboard flight while captured mouse flight retains wheel control', async () => {
+    manager.startKeyboard();
+    const wheel = new Event('wheel', { cancelable: true });
+    Object.defineProperty(wheel, 'target', { value: { closest: () => ({}) } });
+    doc.dispatchEvent(wheel);
+    expect(wheel.defaultPrevented).toBe(false);
+    await manager.requestMouse();
+    const captured = new Event('wheel', { cancelable: true });
+    Object.defineProperty(captured, 'target', { value: { closest: () => ({}) } });
+    doc.dispatchEvent(captured);
+    expect(captured.defaultPrevented).toBe(true);
+  });
+
   it('selects weapons with number-row/numpad keys only while active, ignoring repeats/modifiers', () => {
     key('keydown', 'Digit2');
     expect(onWeapon).not.toHaveBeenCalled();

@@ -230,6 +230,7 @@ export class FlightSession {
       target,
       {
         onMode: (mode) => {
+          if (mode === null) this.cancelLandingAssistance();
           if (mode === null) this.multiplayer.pause();
           if (mode === null) this.engineAudio.stop();
           if (mode === null) {
@@ -387,12 +388,16 @@ export class FlightSession {
       this.manager?.startKeyboard();
     }
   };
-  pause = () => {
+  private cancelLandingAssistance() {
     if (this.controller.landingAssist) {
       if (this.multiplayer?.enabled)
         this.multiplayer.network.action({ kind: 'landing-assist', zoneId: null });
       this.controller.landingAssist = null;
+      this.publishPlanetary();
     }
+  }
+  pause = () => {
+    this.cancelLandingAssistance();
     this.multiplayer?.pause();
     this.engineAudio.stop();
     this.combat.audio.stop();

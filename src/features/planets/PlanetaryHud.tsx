@@ -24,6 +24,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
     nearStation = station?.stationId && (station.distance < 5000 || station.phase !== 'undocked');
   return (
     <section
+      data-flight-scroll
       aria-label="Planetary and docking guidance"
       className="pointer-events-auto absolute max-h-[max(100px,calc(100svh-530px))] overflow-y-auto overscroll-contain pr-1 top-52 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:max-h-[calc(100svh-390px)] tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
     >

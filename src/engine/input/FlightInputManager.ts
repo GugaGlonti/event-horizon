@@ -155,6 +155,12 @@ export class FlightInputManager {
     if (document.hidden) this.pause();
   };
   private preventDefault = (event: Event) => {
+    if (
+      event.type === 'wheel' &&
+      !document.pointerLockElement &&
+      (event.target as HTMLElement | null)?.closest?.('[data-flight-scroll]')
+    )
+      return;
     event.preventDefault();
   };
   private onMouseMove = (event: MouseEvent) => {
