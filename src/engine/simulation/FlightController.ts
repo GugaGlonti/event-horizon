@@ -1,4 +1,5 @@
 import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
+import { approachSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG, type PlanetaryFlightConfig } from '@/engine/planetary/config';
 import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
@@ -262,7 +263,7 @@ export class FlightController {
     if (fallingSpeed) this.velocity.addScaledVector(sample.up, -fallingSpeed);
     this.motionStart.copy(this.position);
     const density = field ? sample.density : 0;
-    const transitFactor =
+    let transitFactor =
       field && this.transit && !this.landingGear
         ? 1 +
           (this.planetaryConfig.transitMultiplier - 1) *
@@ -275,6 +276,31 @@ export class FlightController {
               1,
             )
         : 1;
+    const planetaryApproach = Boolean(
+      field &&
+        sample.body?.landable &&
+        sample.altitude < 60000 &&
+        this.transit &&
+        !this.landingGear,
+    );
+    if (field && planetaryApproach) {
+      this.forward.copy(this.velocity);
+      if (this.forward.lengthSq() < 1) this.forward.set(0, 0, -1).applyQuaternion(this.orientation);
+      this.forward.normalize();
+      const lookahead = Math.max(
+        this.planetaryConfig.approachClearance +
+          this.planetaryConfig.approachMaxSpeed ** 2 / (2 * this.planetaryConfig.approachBraking),
+        this.speed ** 2 / (2 * this.planetaryConfig.approachBraking) + this.speed * 2,
+      );
+      const clearance = Math.min(
+        sample.altitude - 5,
+        sample.transitClearance,
+        field.flightClearance(this.position, this.forward, lookahead),
+      );
+      transitFactor =
+        approachSpeedLimit(clearance, this.config.maxSpeed, this.planetaryConfig) /
+        this.config.maxSpeed;
+    }
     const speedFactor = transitFactor * (1 - density * this.planetaryConfig.densitySpeedReduction);
     const config = this.config;
     const previousSpeed = this.speed;
@@ -387,7 +413,9 @@ export class FlightController {
         this.throttle * (this.boosting ? config.boostMaxSpeed : config.maxSpeed) * speedFactor;
       const thrust = MathUtils.clamp(
         targetSpeed - forwardSpeed,
-        this.assistance ? -config.deceleration * dt : 0,
+        this.assistance
+          ? -(planetaryApproach ? this.planetaryConfig.approachBraking : config.deceleration) * dt
+          : 0,
         (this.boosting ? config.boostAcceleration : config.acceleration) *
           Math.sqrt(transitFactor) *
           dt,
@@ -395,13 +423,17 @@ export class FlightController {
       this.velocity.addScaledVector(this.forward, thrust);
     }
     // Boost exit sheds excess speed progressively; normal thrust cannot exceed maxSpeed.
-    const speedLimit =
-      (this.boosting
-        ? config.boostMaxSpeed
-        : Math.max(
-            config.maxSpeed,
-            previousSpeed / speedFactor - config.boostDeceleration * (this.transit ? 16 : 1) * dt,
-          )) * speedFactor;
+    const speedLimit = planetaryApproach
+      ? Math.max(
+          config.maxSpeed * speedFactor,
+          previousSpeed - this.planetaryConfig.approachBraking * dt,
+        )
+      : (this.boosting
+          ? config.boostMaxSpeed
+          : Math.max(
+              config.maxSpeed,
+              previousSpeed / speedFactor - config.boostDeceleration * (this.transit ? 16 : 1) * dt,
+            )) * speedFactor;
     this.velocity.clampLength(0, speedLimit);
     if (!braking) {
       this.translation

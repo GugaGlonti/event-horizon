@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { sweepSphere } from '@/engine/physics/spheres';
+import { traceStation } from '@/engine/stations/stationGeometry';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import { bodyRotation, surfaceDirection } from './coordinates';
@@ -24,8 +25,16 @@ export class SurfaceSample {
 /** Lightweight analytical authority. It never builds or inspects rendered terrain patches. */
 export class PlanetaryEnvironment {
   readonly world: SystemRuntime;
+  private readonly lookahead = new Vector3();
   constructor(world: SystemRuntime) {
     this.world = world;
+  }
+  /** A bounded forward sweep sees ridges and facilities before the speed envelope commits. */
+  flightClearance(position: Readonly<Vector3>, direction: Readonly<Vector3>, distance: number) {
+    this.lookahead.copy(position).addScaledVector(direction, distance);
+    const terrain = this.trace(position, this.lookahead, 10);
+    const station = traceStation(this.world, position, this.lookahead, 25);
+    return Math.min(terrain ?? 1, station?.fraction ?? 1) * distance;
   }
   sample(position: Readonly<Vector3>, out: SurfaceSample) {
     out.body = null;
