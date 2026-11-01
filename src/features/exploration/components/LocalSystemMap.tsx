@@ -38,6 +38,14 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
       0, 0, 0,
     ];
     const direct = project(position);
+    if (['station', 'landing-zone', 'surface-poi'].includes(body.kind)) {
+      const parent = chart.bodies.find((p) => p.id === body.parentId);
+      const base = project(parent?.position ?? position);
+      return [
+        base[0] + (body.kind === 'station' ? 5 : 3),
+        base[1] + (body.kind === 'station' ? 4 : -5),
+      ] as const;
+    }
     if (body.kind !== 'moon') return direct;
     const parent = chart.bodies.find((candidate) => candidate.id === body.parentId)?.position ?? [
       0, 0, 0,
@@ -109,11 +117,13 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
                 <span
                   className={`rounded-full border border-current ${body.kind === 'star' ? 'size-3 bg-current/30' : body.kind === 'moon' ? 'size-1 bg-current' : 'size-2'}`}
                 />
-                {body.kind !== 'moon' && (
-                  <span className="absolute top-full whitespace-nowrap font-mono text-[11px] text-phosphor-dim">
-                    {body.name}
-                  </span>
-                )}
+                {body.kind !== 'moon' &&
+                  body.kind !== 'landing-zone' &&
+                  body.kind !== 'surface-poi' && (
+                    <span className="absolute top-full whitespace-nowrap font-mono text-[11px] text-phosphor-dim">
+                      {body.name}
+                    </span>
+                  )}
               </button>
             );
           })}

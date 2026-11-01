@@ -1,6 +1,6 @@
 import { Vector3 } from '@/engine/math/linear';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
-import { terrainNormal, terrainPoint } from './terrain';
+import { terrainHeight, terrainNormal, terrainPoint } from './terrain';
 
 export interface TerrainPatch {
   face: number;
@@ -57,7 +57,7 @@ export function selectTerrainPatches(
       if (!patch || patch.level >= (body.terrain?.maxLevel ?? 0)) continue;
       const size = 2 / 2 ** patch.level;
       cubeDirection(patch.face, -1 + (patch.x + 0.5) * size, -1 + (patch.y + 0.5) * size, center);
-      center.multiplyScalar(body.radius);
+      center.multiplyScalar(body.radius + (patch.level > 4 ? terrainHeight(body, center) : 0));
       const span = body.radius * size;
       const distance = Math.max(35, center.distanceTo(camera) - span * 0.25);
       const priority = span / distance;

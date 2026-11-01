@@ -58,7 +58,9 @@ const fragmentShader = /* glsl */ `
     vec3 color=mix(plains,vec3(.35,.37,.36),clamp(slope*5.0,0.0,1.0));
     color=mix(color,vec3(.68,.72,.72),smoothstep(1050.0,1400.0,vElevation));
     float day=max(0.0,dot(normal,uLight));
-    color=(color+grain)*(.2+day*1.25);
+    float roughness=mix(.85,.5,smoothstep(450.,1100.,vElevation));
+    float highlight=pow(max(0.,dot(normal,normalize(uLight+normalize(cameraPosition-vPosition)))),mix(64.,4.,roughness))*.04;
+    color=(color+grain)*(.2+day*1.25)+highlight*day;
     float haze=1.0-exp(-distance*uDensity*.000075);
     vec3 sky=mix(vec3(.025,.04,.08),vec3(.22,.42,.58),max(0.0,dot(uUp,uLight)));
     gl_FragColor=vec4(mix(color,sky,haze*.8),1.0);
@@ -224,7 +226,7 @@ export function PlanetTerrain({
     };
   }, [body, cache]);
   useEffect(() => () => material.dispose(), [material]);
-  useFrame((_, dt) => {
+  useFrame(({ camera }, dt) => {
     const world = session.exploration.world,
       center = world.positions.get(body.id);
     if (!center) return;
@@ -232,7 +234,11 @@ export function PlanetTerrain({
     if (elapsed.current >= 0.15) {
       elapsed.current = 0;
       bodyRotation(body, world.time, scratch.rotation).invert();
-      scratch.point.copy(session.position).sub(center).applyQuaternion(scratch.rotation);
+      scratch.point
+        .copy(camera.position)
+        .add(session.origin.position)
+        .sub(center)
+        .applyQuaternion(scratch.rotation);
       target.current = selectTerrainPatches(body, scratch.point);
     }
     const star = world.definition.bodies.find((p) => p.kind === 'star');
