@@ -115,6 +115,7 @@ export class CombatShip {
   heat = 0;
   overheated = false;
   hitFlash = 0;
+  shieldHit = false;
   stationary = false;
 
   constructor(

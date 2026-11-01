@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { type RefObject, useMemo, useRef } from 'react';
 import {
+  AdditiveBlending,
   Color,
   type Group,
   type InstancedMesh,
@@ -57,7 +58,10 @@ function EnemySlot({
       model.current.quaternion.copy(scratch.orientation);
       shield.current.position.copy(model.current.position);
       shield.current.visible = ship.hitFlash > 0;
-      if (material.current) material.current.opacity = ship.hitFlash * 1.4;
+      if (material.current) {
+        material.current.opacity = ship.hitFlash * 1.4;
+        material.current.color.set(ship.shieldHit ? '#77dfff' : '#ffac55');
+      }
       enginePower.current = 0.3 + ship.controller.enginePower;
     }
   }, -0.5);
@@ -109,6 +113,8 @@ export function CombatScene({
   const bolts = useRef<InstancedMesh>(null),
     rocks = useRef<InstancedMesh>(null);
   const flashes = useRef<InstancedMesh>(null);
+  const halos = useRef<InstancedMesh>(null);
+  const particles = useRef<InstancedMesh>(null);
   const scratch = useMemo(
     () => ({
       object: new Object3D(),
@@ -122,7 +128,7 @@ export function CombatScene({
     const simulation = session.combat.simulation;
     const { object, color, forward, direction } = scratch;
     const hidden = session.exploration.jump.busy;
-    if (bolts.current) {
+    if (bolts.current && halos.current) {
       let count = 0;
       if (!hidden)
         for (const shot of simulation.projectiles) {
@@ -140,14 +146,22 @@ export function CombatScene({
           );
           object.updateMatrix();
           bolts.current.setMatrixAt(count, object.matrix);
+          object.scale.set(object.scale.x * 3, object.scale.y * 3, object.scale.z * 2.5);
+          object.position.addScaledVector(direction, -6);
+          object.updateMatrix();
+          halos.current.setMatrixAt(count, object.matrix);
           color.set(
             shot.kind === 'flak' ? '#ffcc7c' : shot.team === 'player' ? '#8dffb4' : '#ff7854',
           );
-          bolts.current.setColorAt(count++, color);
+          bolts.current.setColorAt(count, color);
+          halos.current.setColorAt(count++, color);
         }
       bolts.current.count = count;
+      halos.current.count = count;
       bolts.current.instanceMatrix.needsUpdate = true;
+      halos.current.instanceMatrix.needsUpdate = true;
       if (bolts.current.instanceColor) bolts.current.instanceColor.needsUpdate = true;
+      if (halos.current.instanceColor) halos.current.instanceColor.needsUpdate = true;
     }
     if (rocks.current) {
       let count = 0;
@@ -195,6 +209,41 @@ export function CombatScene({
       flashes.current.instanceMatrix.needsUpdate = true;
       if (flashes.current.instanceColor) flashes.current.instanceColor.needsUpdate = true;
     }
+    if (particles.current) {
+      let count = 0;
+      if (!hidden && !reducedMotion)
+        for (const effect of simulation.effects) {
+          if (
+            effect.kind !== 'impact' &&
+            effect.kind !== 'explosion' &&
+            effect.kind !== 'detonation'
+          )
+            continue;
+          const progress = effect.age / effect.lifetime;
+          const explosion = effect.kind === 'explosion' || effect.kind === 'detonation';
+          for (let index = 0; index < 12; index++) {
+            // Seeded radial sparks/debris are analytical, bounded and frozen by simulation time.
+            const angle = index * 2.399963 + effect.id;
+            const y = 1 - (2 * (index + 0.5)) / 12;
+            const ring = Math.sqrt(1 - y * y);
+            direction.set(Math.cos(angle) * ring, y, Math.sin(angle) * ring);
+            object.position
+              .copy(effect.position)
+              .sub(session.origin.position)
+              .addScaledVector(direction, (explosion ? 38 : 15) * effect.age);
+            if (object.position.lengthSq() > 60000 ** 2) continue;
+            object.rotation.set(angle, angle * 0.7, angle * progress);
+            object.scale.setScalar((explosion ? 1.1 : 0.35) * (1 - progress));
+            object.updateMatrix();
+            particles.current.setMatrixAt(count, object.matrix);
+            color.set(index % 3 === 0 ? '#b36d35' : '#ffd09a').multiplyScalar(1 - progress);
+            particles.current.setColorAt(count++, color);
+          }
+        }
+      particles.current.count = count;
+      particles.current.instanceMatrix.needsUpdate = true;
+      if (particles.current.instanceColor) particles.current.instanceColor.needsUpdate = true;
+    }
   });
   return (
     <>
@@ -211,6 +260,20 @@ export function CombatScene({
       ))}
       <instancedMesh ref={bolts} args={[undefined, undefined, 192]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial toneMapped={false} />
+      </instancedMesh>
+      <instancedMesh ref={halos} args={[undefined, undefined, 192]} frustumCulled={false}>
+        <boxGeometry args={[1, 1, 1]} />
+        <meshBasicMaterial
+          blending={AdditiveBlending}
+          transparent
+          opacity={0.14}
+          depthWrite={false}
+          toneMapped={false}
+        />
+      </instancedMesh>
+      <instancedMesh ref={particles} args={[undefined, undefined, 1152]} frustumCulled={false}>
+        <tetrahedronGeometry args={[1]} />
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
       <instancedMesh

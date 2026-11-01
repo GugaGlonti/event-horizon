@@ -229,6 +229,9 @@ export class CombatSession {
       readout: {
         weapon: player.weapon,
         weaponCooldown: player.cooldown,
+        heat: player.heat,
+        overheated: player.overheated,
+        damage: player.hitFlash / 0.3,
         reinforcements: this.encounter.nextRespawn,
         weaponCharge: player.railgunCharge / player.config.railgun.chargeTime,
         missileLocked: missileCanLock(player, target ?? undefined),

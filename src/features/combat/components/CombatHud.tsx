@@ -37,19 +37,32 @@ export function CombatHud({ session }: { session: FlightSession }) {
   if (phase !== 'flying') return null;
   return (
     <>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 border-4 border-instrument"
+        style={{ opacity: readout.damage * 0.6 }}
+      />
       <section
         aria-label="Combat systems"
-        className="absolute top-52 left-4 max-w-[47%] text-[10px] tracking-wider tablet:top-36 tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs [@media(max-height:650px)]:top-32"
+        className="absolute top-52 left-4 max-w-[47%] text-[10px] tracking-wider tablet:top-36 tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs [@media(max-height:650px)]:top-28"
       >
-        <p className="mb-2 text-phosphor-dim">
+        <p className="mb-2 text-phosphor-dim [@media(max-height:650px)]:mb-1">
           DEFENSE {readout.invulnerable ? '/ PROTECTED' : '/ LIVE'}
         </p>
         <DefenseGauge label="Shield" value={readout.shields} />
         <DefenseGauge label="Hull" value={readout.hull} />
-        <p className="mt-3 text-instrument">
+        <DefenseGauge label="Laser heat" value={readout.heat} warning />
+        <p className="mt-1 text-[10px] text-instrument">
+          {readout.overheated
+            ? 'OVERHEATED / COOLING'
+            : readout.damage > 0
+              ? 'INCOMING DAMAGE'
+              : 'CANNONS READY'}
+        </p>
+        <p className="mt-3 text-instrument [@media(max-height:650px)]:mt-1">
           {readout.hostiles} HOSTILES / {readout.kills} KILLS
         </p>
-        <p className="mt-3 text-[10px] text-phosphor-dim">
+        <p className="mt-3 text-[10px] text-phosphor-dim [@media(max-height:650px)]:mt-1">
           WEAPON / {WEAPON_CHOICES.find((choice) => choice.slot === readout.weapon)?.label}
         </p>
         <fieldset
@@ -116,7 +129,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
       {readout.target && (
         <section
           aria-label="Combat target"
-          className="absolute top-52 right-4 w-[42%] text-right text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:w-52 tablet:text-xs [@media(max-height:650px)]:top-32"
+          className="absolute top-52 right-4 w-[42%] text-right text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:w-52 tablet:text-xs [@media(max-height:650px)]:top-28"
         >
           <p className="text-instrument">
             {readout.target.name} / {Math.round(readout.target.distance)} M
@@ -162,17 +175,29 @@ export function CombatHud({ session }: { session: FlightSession }) {
   );
 }
 
-function DefenseGauge({ label, value }: { label: string; value: number }) {
+function DefenseGauge({
+  label,
+  value,
+  warning = false,
+}: {
+  label: string;
+  value: number;
+  warning?: boolean;
+}) {
   return (
-    <div className="mt-1.5">
+    <div className="mt-1.5 [@media(max-height:650px)]:mt-1">
       <div className="flex justify-between gap-2">
         <span>{label}</span>
         <span>{Math.ceil(value * 100)}%</span>
       </div>
       <meter className="sr-only" aria-label={label} min={0} max={1} value={value} />
-      <div aria-hidden="true" className="mt-1 h-1 bg-phosphor/15">
+      <div aria-hidden="true" className="mt-1 h-1 bg-phosphor/15 [@media(max-height:650px)]:mt-0.5">
         <div
-          className={value < 0.25 ? 'h-full bg-instrument' : 'h-full bg-phosphor/80'}
+          className={
+            (warning ? value > 0.75 : value < 0.25)
+              ? 'h-full bg-instrument'
+              : 'h-full bg-phosphor/80'
+          }
           style={{ width: `${value * 100}%` }}
         />
       </div>

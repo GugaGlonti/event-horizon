@@ -106,21 +106,22 @@ describe('nearby planet edge markers', () => {
   });
 
   it('prioritizes the nearest label when a compact viewport cannot fit all contacts', () => {
-    const view = setup(320, 640);
+    const view = setup(390, 844);
     view.place('pelagos', 5000, 0, -1000);
     view.place('cairn', 7000, 0, -1000);
     view.place('aureole', 9000, 0, -1000);
     const markers = view.sample();
     expect(markers.map((marker) => marker.id)).toEqual(['pelagos']);
     const marker = markers[0];
-    expect(marker?.x).toBeLessThanOrEqual(320 - 12 - PLANET_MARKER_SIZE.width / 2);
-    expect(marker?.y).toBeGreaterThanOrEqual(236 + PLANET_MARKER_SIZE.height / 2);
-    expect(marker?.y).toBeLessThanOrEqual(640 - 340 - PLANET_MARKER_SIZE.height / 2);
+    expect(marker?.x).toBeLessThanOrEqual(390 - 12 - PLANET_MARKER_SIZE.width / 2);
+    expect(marker?.y).toBeGreaterThanOrEqual(458 + PLANET_MARKER_SIZE.height / 2);
+    expect(marker?.y).toBeLessThanOrEqual(844 - 340 - PLANET_MARKER_SIZE.height / 2);
   });
 
   it.each([
     [0, 0],
     [320, 560],
+    [320, 640],
     [NaN, 900],
     [1440, Infinity],
   ])('hides labels when viewport %s × %s has no usable flight area', (width, height) => {

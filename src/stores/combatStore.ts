@@ -13,6 +13,9 @@ export interface CombatReadout {
   readonly weapon: WeaponSlot;
   readonly weaponCooldown: number;
   readonly weaponCharge: number;
+  readonly heat: number;
+  readonly overheated: boolean;
+  readonly damage: number;
   readonly reinforcements: number | null;
   readonly missileLocked: boolean;
   readonly shields: number;
@@ -42,6 +45,9 @@ export const useCombatStore = create<CombatState>()(() => ({
     weapon: 1,
     weaponCooldown: 0,
     weaponCharge: 0,
+    heat: 0,
+    overheated: false,
+    damage: 0,
     reinforcements: null,
     missileLocked: false,
     shields: 1,

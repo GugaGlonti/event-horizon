@@ -49,10 +49,10 @@ export class PlanetMarkerProjector {
     const { width, height } = viewport;
     const tablet = width >= 761;
     const margin = tablet ? 24 : 12;
-    // Marker centres leave room for their labels, the compass, and the instrument bank.
+    // Reserve the complete combat instrument columns as well as the compass and lower bank.
     const left = margin + PLANET_MARKER_SIZE.width / 2;
     const right = width - left;
-    const top = (tablet ? 200 : 236) + PLANET_MARKER_SIZE.height / 2;
+    const top = (tablet ? 400 : 458) + PLANET_MARKER_SIZE.height / 2;
     const bottom = height - (tablet ? 216 : 340) - PLANET_MARKER_SIZE.height / 2;
     if (!Number.isFinite(width + height) || right <= left || bottom <= top) return [];
     const centreX = (left + right) / 2;

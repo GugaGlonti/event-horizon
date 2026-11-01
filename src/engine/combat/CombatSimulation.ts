@@ -114,6 +114,7 @@ export class CombatSimulation {
     player.cooldown = 0;
     player.weapon = 1;
     player.hitFlash = 0;
+    player.shieldHit = false;
     player.barrel = 0;
     player.aiState = 'patrol';
     player.aiElapsed = player.aiTime = player.aiReaction = 0;
@@ -190,6 +191,7 @@ export class CombatSimulation {
       hull: beforeHull - ship.health.hull,
     });
     ship.hitFlash = 0.3;
+    ship.shieldHit = shield;
     if (ship.health.destroyed) {
       ship.railgunCharge = 0;
       ship.aiState = 'destroyed';
@@ -582,6 +584,7 @@ export class CombatSimulation {
         overheated: ship.overheated,
         barrel: ship.barrel,
         hitFlash: ship.hitFlash,
+        shieldHit: ship.shieldHit,
         aiState: ship.aiState,
         aiElapsed: ship.aiElapsed,
         aiTime: ship.aiTime,
