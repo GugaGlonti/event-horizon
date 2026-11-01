@@ -1,5 +1,44 @@
 # Asset credits
 
+## Spacecraft models
+
+The bundled Spitfire, Striker and Insurgent hulls are by **Quaternius**, from the May 2021
+[Ultimate Spaceships Pack](https://quaternius.com/packs/ultimatespaceships.html). The
+[original release announcement](https://www.patreon.com/quaternius/posts/ultimate-pack-51541119)
+and the included `src/features/spacecraft/assets/License-Quaternius.txt` identify this release as
+**CC0 1.0 Universal**. These model derivatives retain CC0; project code remains MIT.
+
+The creator's Google Drive download was quota-limited on 2026-11-01. Originals were obtained from
+the [archived release mirror](https://github.com/yolanother/QuaterniusUltimateSpaceships/tree/c005a95cd2166989a3a8a115e2f401d69fab580e),
+pinned to commit `c005a95cd2166989a3a8a115e2f401d69fab580e`, with its original CC0 license.
+This attribution applies specifically to that archived release, not newer Quaternius assets.
+
+| Hull      | Paint source                           | Triangles | In-game use             |
+| --------- | -------------------------------------- | --------- | ----------------------- |
+| Spitfire  | `Spitfire/Textures/Spitfire_Blue.png`  | 3,512     | Kestrel player exterior |
+| Striker   | `Striker/Textures/Striker_Red.png`     | 4,530     | Enemy fighter           |
+| Insurgent | `Insurgent/Textures/Insurgent_Red.png` | 8,292     | Alternate enemy hull    |
+
+`scripts/build-spacecraft-assets.mjs` bakes the original glTF vertices/normals into the game's -Z
+forward frame, centers each hull inside a 4.8m sphere and transforms measured exhaust mounts.
+It packs the unchanged topology/UVs and selected paint into self-contained GLB files, using opaque
+materials with modest metallic/roughness values and a restrained emissive texture lift for readability.
+The three GLBs total about 1.6 MB. `assets/manifest.json` records source/output SHA-256 hashes,
+triangle counts and transformed nozzle anchors. Original downloads are not bundled.
+
+To reproduce, download each hull's `glTF/NAME.gltf` and paint PNG from the pinned mirror, plus
+`License.txt`, into one source directory. Prepare `Spitfire.jpg`, `Striker.jpg` and `Insurgent.jpg`
+as 1024px JPEGs at quality 85. The initial conversion used macOS `sips`, for example:
+
+```sh
+sips -Z 1024 -s format jpeg -s formatOptions 85 Spitfire_Blue.png --out Spitfire.jpg
+node scripts/build-spacecraft-assets.mjs /path/to/spacecraft-sources
+```
+
+Repeat the image conversion with `Striker_Red.png` and `Insurgent_Red.png`. The packing script uses
+only Node built-ins. The license, model buffers and textures ship locally; no runtime asset services
+or external decoder downloads are needed.
+
 ## Hyperdrive sound
 
 The four bundled WAV files in `src/features/exploration/audio/assets/` are original edits of

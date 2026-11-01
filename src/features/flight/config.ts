@@ -33,7 +33,7 @@ export const GAME_CONFIG = {
   input: { mouseSensitivity: 0.003, mouseReturnRate: 2.8 },
   hyperspace: { departureDistance: 5200, arrivalSpeed: 3200, exitSpeed: 100 },
   camera: {
-    chaseOffset: [0, 3.2, 12] as const,
+    chaseOffset: [0, 3.8, 15] as const,
     narrowScreenAspect: 0.9,
     cockpitOffset: [0, 0.8, -1.8] as const,
     positionDamping: 7,

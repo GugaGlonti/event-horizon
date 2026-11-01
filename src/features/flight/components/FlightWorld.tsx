@@ -10,13 +10,16 @@ import { GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { Starfield } from '@/features/space/components/Starfield';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
+import { useSpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 
 export function FlightWorld({ session }: { session: FlightSession }) {
   const ship = useRef<Group>(null);
-  const exhaust = useRef<Group>(null);
+  const enginePower = useRef(0.25);
+  const effectTime = useRef(0);
+  const spacecraft = useSpacecraftModels();
   const cockpit = useRef<Group>(null);
   const sky = useRef<Group>(null);
   const camera = useThree((state) => state.camera);
@@ -27,20 +30,18 @@ export function FlightWorld({ session }: { session: FlightSession }) {
 
   useFrame((_, delta) => {
     session.advance(delta, reducedMotion);
+    effectTime.current = session.exploration.world.time;
     if (ship.current) {
       ship.current.visible =
         cameraMode === 'chase' && !session.combat.simulation.player.health.destroyed;
       ship.current.position.copy(session.renderPosition);
       ship.current.quaternion.copy(session.orientation);
     }
-    if (exhaust.current) {
-      const intensity = session.exploration.jump.busy
-        ? 0.7 + session.exploration.jump.intensity * 4
-        : session.controller.isBoosting
-          ? 2.4
-          : 0.25 + session.controller.enginePower;
-      exhaust.current.scale.z = intensity;
-    }
+    enginePower.current = session.exploration.jump.busy
+      ? 0.7 + session.exploration.jump.intensity * 4
+      : session.controller.isBoosting
+        ? 2.4
+        : 0.25 + session.controller.enginePower;
     sky.current?.position.copy(session.renderPosition);
     if (camera instanceof PerspectiveCamera) {
       const dt = Math.min(delta, GAME_CONFIG.maxFrameTime);
@@ -61,9 +62,21 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       <group ref={sky}>
         <Starfield session={session} radius={GAME_CONFIG.environment.starRadius} />
       </group>
-      <Starfighter modelRef={ship} exhaustRef={exhaust} visible={cameraMode === 'chase'} />
+      <Starfighter
+        modelRef={ship}
+        enginePowerRef={enginePower}
+        effectTimeRef={effectTime}
+        model={spacecraft.player}
+        visible={cameraMode === 'chase'}
+        reducedMotion={reducedMotion}
+      />
       <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} session={session} />
-      <CombatScene session={session} />
+      <CombatScene
+        session={session}
+        spacecraft={spacecraft}
+        effectTimeRef={effectTime}
+        reducedMotion={reducedMotion}
+      />
       <HyperspaceTunnel session={session} />
     </>
   );

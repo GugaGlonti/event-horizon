@@ -34,7 +34,7 @@ and landings remain future work; add them only when the current task requests th
 - `src/features/exploration`: handcrafted catalogue, cancellable system preparation, journey orchestration,
   maps/navigation read models, hyperdrive presentation and recorded/synthesized audio adapter.
 - `src/features/planets`: shared procedural surface, atmosphere and ring rendering.
-- `src/features/spacecraft`: replaceable procedural model and engine visuals; no simulation imports.
+- `src/features/spacecraft`: bundled ship models, shared asset lifetime and engine visuals; no simulation imports.
 - `src/components/ui`: reusable DOM UI with no feature or engine dependencies.
 - `src/stores`: low-frequency shared state. `src/hooks`: reusable subscriptions and UI hooks.
 - `src/styles`: Tailwind entry point, theme tokens, custom variants, and global base defaults.
@@ -119,8 +119,9 @@ and landings remain future work; add them only when the current task requests th
 - Dispose of Three.js resources correctly. Fiber handles declaratively mounted geometry/materials;
   explicitly manage ownership and disposal of manual textures, render targets, and shared caches.
 - Clean up event listeners and effects. Verify lifecycle logic against React Strict Mode.
-- Fiber owns declaratively mounted ship/environment geometry and materials. Do not double-dispose
-  shared resources or recreate geometry in the frame loop.
+- Fiber owns declarative exhaust/environment resources. FlightWorld owns the shared spacecraft GLB
+  library; retain it across jumps, suppress per-ship disposal and release/evict it on final teardown.
+  Do not double-dispose shared resources or recreate geometry in the frame loop.
 - Each SystemScene explicitly owns/disposes its shared sphere geometry; primitive geometry attachments
   are external resources. Fiber disposes body materials/rings and per-scene declarative resources.
   Stop/disconnect recorded and synthesized audio voices on abort. Cache decoded local stems across

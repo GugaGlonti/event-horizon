@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useMemo, useRef } from 'react';
+import { type RefObject, useMemo, useRef } from 'react';
 import {
   Color,
   type Group,
@@ -13,49 +13,64 @@ import {
 import { leadTime } from '@/engine/combat/targeting';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
+import type { SpacecraftModel, SpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useCombatStore } from '@/stores/combatStore';
 import { useFlightStore } from '@/stores/flightStore';
 import { ENCOUNTER_CONFIG } from '../config';
+import { syncEnemySlots } from '../enemySlots';
 import { WeaponEffects } from './WeaponEffects';
 
-function EnemySlot({ session, slot }: { session: FlightSession; slot: number }) {
-  const model = useRef<Group>(null),
-    exhaust = useRef<Group>(null);
+function EnemySlot({
+  session,
+  slots,
+  slot,
+  hull,
+  effectTimeRef,
+  reducedMotion,
+}: {
+  session: FlightSession;
+  slots: ReadonlyArray<string | null>;
+  slot: number;
+  hull: SpacecraftModel;
+  effectTimeRef: RefObject<number>;
+  reducedMotion: boolean;
+}) {
+  const model = useRef<Group>(null);
+  const enginePower = useRef(0.3);
   const shield = useRef<Mesh>(null),
     material = useRef<MeshBasicMaterial>(null);
   const scratch = useMemo(() => ({ position: new Vector3(), orientation: new Quaternion() }), []);
   useFrame(() => {
     if (!model.current || !shield.current) return;
-    let index = 0;
     model.current.visible = shield.current.visible = false;
     model.current.position.set(0, 0, 0);
-    for (const ship of session.combat.simulation.ships.values()) {
-      if (ship.team !== 'hostile') continue;
-      if (index++ !== slot) continue;
-      if (session.exploration.jump.busy || ship.health.destroyed) break;
+    const id = slots[slot];
+    const ship = id ? session.combat.simulation.ships.get(id) : undefined;
+    if (ship && !session.exploration.jump.busy && !ship.health.destroyed) {
       session.combat.simulation.present(ship, scratch.position, scratch.orientation);
       session.origin.toRender(scratch.position, model.current.position);
       if (model.current.position.lengthSq() > 60000 ** 2) {
         model.current.position.set(0, 0, 0);
-        break;
+        return;
       }
       model.current.visible = true;
       model.current.quaternion.copy(scratch.orientation);
       shield.current.position.copy(model.current.position);
       shield.current.visible = ship.hitFlash > 0;
       if (material.current) material.current.opacity = ship.hitFlash * 1.4;
-      if (exhaust.current) exhaust.current.scale.z = 0.3 + ship.controller.enginePower;
-      break;
+      enginePower.current = 0.3 + ship.controller.enginePower;
     }
-  });
+  }, -0.5);
   return (
     <>
       <Starfighter
         modelRef={model}
-        exhaustRef={exhaust}
+        enginePowerRef={enginePower}
+        effectTimeRef={effectTimeRef}
+        model={hull}
         visible={false}
-        paint="#8d5c4f"
-        engineColor="#ff8c55"
+        reducedMotion={reducedMotion}
+        effectPhase={slot * 0.37}
       />
       <mesh ref={shield} visible={false}>
         <sphereGeometry args={[6, 12, 8]} />
@@ -75,7 +90,22 @@ function EnemySlot({ session, slot }: { session: FlightSession; slot: number }) 
 const slots = Array.from({ length: ENCOUNTER_CONFIG.maximumEnemies }, (_, i) => i);
 
 /** Fixed-capacity instance buffers; transforms never pass through React or Zustand. */
-export function CombatScene({ session }: { session: FlightSession }) {
+export function CombatScene({
+  session,
+  spacecraft,
+  effectTimeRef,
+  reducedMotion,
+}: {
+  session: FlightSession;
+  spacecraft: SpacecraftModels;
+  effectTimeRef: RefObject<number>;
+  reducedMotion: boolean;
+}) {
+  const enemySlots = useMemo<Array<string | null>>(
+    () => Array(ENCOUNTER_CONFIG.maximumEnemies).fill(null),
+    [],
+  );
+  useFrame(() => syncEnemySlots(enemySlots, session.combat.simulation.ships), -1);
   const bolts = useRef<InstancedMesh>(null),
     rocks = useRef<InstancedMesh>(null);
   const flashes = useRef<InstancedMesh>(null);
@@ -169,7 +199,15 @@ export function CombatScene({ session }: { session: FlightSession }) {
   return (
     <>
       {slots.map((slot) => (
-        <EnemySlot key={slot} slot={slot} session={session} />
+        <EnemySlot
+          key={slot}
+          slot={slot}
+          slots={enemySlots}
+          session={session}
+          hull={slot % 2 === 0 ? spacecraft.striker : spacecraft.insurgent}
+          effectTimeRef={effectTimeRef}
+          reducedMotion={reducedMotion}
+        />
       ))}
       <instancedMesh ref={bolts} args={[undefined, undefined, 192]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />

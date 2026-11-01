@@ -66,7 +66,7 @@ describe('flight presentation boundaries', () => {
     expect(session.orientation.equals(new Quaternion())).toBe(true);
   });
 
-  it('backs the chase camera away on narrow viewports without changing the ship pose', () => {
+  it('frames a narrow chase view above the instruments without changing the ship pose', () => {
     const session = new FlightSession();
     const pose = session.position.clone();
     const camera = new PerspectiveCamera(62, 0.5);
@@ -74,6 +74,10 @@ describe('flight presentation boundaries', () => {
     expect(camera.position.z - session.renderPosition.z).toBeGreaterThan(
       GAME_CONFIG.camera.chaseOffset[2],
     );
+    camera.updateMatrixWorld();
+    const hullCenter = session.renderPosition.clone().project(camera);
+    expect(hullCenter.y).toBeGreaterThan(-0.35);
+    expect(hullCenter.y).toBeLessThan(0);
     expect(session.position.equals(pose)).toBe(true);
   });
 

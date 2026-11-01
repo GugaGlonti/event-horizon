@@ -135,7 +135,7 @@ anchors the source to the interpolated central emitter and the endpoint to the r
 bounded near the cockpit and scaled for distant visibility. A ref-driven central coil presents the
 simulation charge; reduced motion disables its rotation. `WeaponEffects` reuses bounded missile-body
 and amber exhaust-flare instances; `CombatScene` shares its bolt buffer with flak pellets. There are
-no emitted trail particles or per-frame geometry creation. Gun, missile, railgun, flak and detonation
+no emitted weapon-trail particles or per-frame geometry creation. Gun, missile, railgun, flak and detonation
 cues use the existing bounded optional audio adapter.
 
 `CombatSimulation` centrally owns spawning, destruction, target validity, projectiles and effects.
@@ -242,8 +242,9 @@ bounded 12-second deadlines. The first 14% of exit remains opaque; coverage fall
 0.1 seconds), coordinated with star contraction, a restrained exposure crest and the exit impulse.
 The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
 distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
-in flight/config.ts and the full swept corridor uses those same bounds. Celestial and spacecraft
-assets use procedural geometry/shaders. The old keyed SystemScene releases its owned resources.
+in flight/config.ts and the full swept corridor uses those same bounds. Celestial assets use
+procedural geometry/shaders. The shared spacecraft GLB library stays mounted
+across handoffs. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
 Camera mode, assistance and engine reserve survive. The arrival notice lasts three seconds. Charge is
@@ -348,8 +349,8 @@ planet shadow. Per-system ambient light and seeded nebula backgrounds vary the m
 
 Each mounted SystemScene owns one shared SphereGeometry, attached to bodies/atmospheres as external
 primitives and explicitly disposed on scene teardown. Fiber owns declarative per-body materials,
-rings, sky, ship, cockpit, dust, beacons and tunnel buffers. There are no render targets, external
-textures, models or post-processing dependencies. Sky and hyperdrive components reuse geometry and
+rings, sky, ship exhaust, cockpit, dust, beacons and tunnel buffers. There are no render targets or
+post-processing dependencies. Sky and hyperdrive components reuse geometry and
 uniform references between frames. One persistent 12,000-star galactic catalogue supplies point and
 trail billboards across all systems. Its 48,000 vertices fit 16-bit indices. The normal sky already
 contains every star used by the jump, and the same angular pattern survives the world handoff. Buffers
@@ -358,6 +359,45 @@ Projecting each star's finite forward exposure produces depth-dependent length a
 bounded proximity controls width. Virtual depths affect motion only: normal stars render behind the
 celestial bodies. Trail widths use CSS viewport pixels. There is no separate corridor particle layout,
 time loop or accumulating star simulation.
+
+FlightWorld loads three local, uncompressed GLBs through `useSpacecraftModels`, with remote decoder
+loading disabled. The player uses Spitfire; fixed enemy presentation slots alternate Striker and
+Insurgent. Slots retain their hostile ID until destruction, preventing surviving hulls from changing
+when an earlier enemy is removed. Each hull is one opaque textured mesh (3,512–8,292 triangles).
+The offline asset recipe rotates +Z source noses to -Z, centers/scales every vertex inside a 4.8m
+radius, transforms measured engine mounts and embeds one 1024px JPEG. A restrained emissive texture
+lift preserves panel detail in shade. Existing 5m gameplay spheres and -6m weapon origins are unchanged.
+The chase camera stands slightly farther back to frame the wider player hull. Portrait framing
+extends only the aft offset, keeping the hull above the taller instrument bank.
+
+The library shares geometry/materials/textures across all ships and persists across resets and jumps.
+Hull meshes suppress Fiber disposal. The last library owner disposes each shared GPU resource once,
+closes decoded image bitmaps and evicts the loader entry on teardown. A microtask deferral allows
+Strict Mode's immediate effect replay to reacquire the resource before disposal. The cockpit remains
+procedural.
+
+`spacecraftLighting` places up to eight steady running lamps on actual hull vertices and offsets them
+along surface normals. The shared standard material adds local colored light pools and a restrained
+view-dependent rim, retaining the original texture and environmental lighting. This uses no per-NPC
+scene lights, shadow maps, external textures or post-processing. Player lighting is cyan; hostile
+lighting is amber, including the nose/wing lamps visible during head-on approaches.
+
+`ShipEffects` owns one declarative instanced-quad batch/material per craft: physical white-hot nozzle
+discs, soft camera-facing halos, four static plume layers and twelve analytic particles per engine,
+plus running-lamp glows. The largest hull is capped at 116 quads / 72 moving particles. Particle
+seeds/attributes are built once; mounted shader uniforms consume engine power, CSS viewport height
+and explicit world time through refs. FlightWorld updates the clock at priority -2, slots synchronize
+at -1, hostile poses/power update at -0.5, and sprite uniforms follow at 0. No per-frame allocations,
+React state, geometry creation or growing emission history are needed.
+
+Plumes/particles expand aft from fixed local nozzle anchors and stay within a bounded local envelope,
+independent of render-origin changes. Ions have a small capped screen footprint, including when a
+boost tail approaches the chase camera. A small minimum screen footprint makes distant engine/running
+lights readable, capped at an 8m optical radius and faded beyond combat ranges. All sprites depth-test
+against hulls/solid worlds and render at the existing exhaust order 30. Hidden/destroyed ships hide
+the complete batch. Effects freeze with the paused celestial clock; reduced motion suppresses moving
+particles while retaining steady lamps, halos and static plumes. Fiber disposes batch geometry and
+materials; shared hull resources retain their existing library ownership.
 
 The tunnel samples two scales of 3D value noise on three bounded depth shells. A bent centerline,
 irregular wisps and dark cloud channels create forward flow without angular rotation or an atan seam.

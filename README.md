@@ -28,6 +28,18 @@ the local system map; M opens the galaxy map. Select Vesper and choose **Engage 
 No API keys, external services, or separate asset downloads are required. **No dependencies were added
 for Milestones 3 or 4.** All celestial definitions, shaders, audio, and interface assets are local.
 
+The Kestrel uses Quaternius's blue **Spitfire** hull; patrols mix red **Striker** and **Insurgent**
+hulls, each with its own engine mounts. Three bundled GLBs share geometry/materials across enemies
+and total about 1.6 MB, including 1024px textures. Their silhouettes fit the existing collision spheres;
+flight handling, weapons and damage rules are unchanged. The cockpit remains the original procedural
+flight deck. See [CREDITS.md](CREDITS.md) for the CC0 release, source mirror and asset preparation recipe.
+
+White-hot engine cores have soft cyan player / amber enemy halos. Steady nose, wing and dorsal
+running lights, colored light spill and a restrained hull rim keep ships visible against dark space,
+including approaching enemies. Short exhaust particles strengthen with thrust and boost. Effects
+pause with flight; reduced motion retains steady lights and plumes while suppressing particles.
+Lights remain occluded by solid objects, and their small distant glow stays readable at combat ranges.
+
 The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
 Flight instruments float over the scene with short reference rules, slim gauges, and a quiet header;

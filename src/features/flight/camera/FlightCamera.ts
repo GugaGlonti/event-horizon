@@ -42,7 +42,8 @@ export class FlightCamera {
     const offset = mode === 'cockpit' ? config.cockpitOffset : config.chaseOffset;
     this.targetPosition.fromArray(offset);
     if (mode === 'chase') {
-      this.targetPosition.multiplyScalar(Math.max(1, config.narrowScreenAspect / camera.aspect));
+      // Back away without lowering the hull behind the taller portrait instrument bank.
+      this.targetPosition.z *= Math.max(1, config.narrowScreenAspect / camera.aspect);
       if (jump.phase === 'EXITING')
         this.targetPosition.z +=
           (JUMP_MOTION.exitSpeed / config.positionDamping) * smoothRamp(0.25, 1, jump.progress);
