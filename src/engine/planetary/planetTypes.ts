@@ -1,4 +1,4 @@
-import type { Position3 } from '@/engine/world/worldTypes';
+import type { Position3, Rotation4 } from '@/engine/world/worldTypes';
 
 export interface GravityDefinition {
   /** Acceleration at reference radius, m/s². Smoothly fades at influenceRadius. */
@@ -35,10 +35,12 @@ export interface SurfaceState {
   timer: number;
   /** Attached direction in the body frame, transported as doubles. */
   anchor: Position3 | null;
+  orientation: Rotation4 | null;
 }
 export const createSurfaceState = (): SurfaceState => ({
   phase: 'flying',
   bodyId: null,
   timer: 0,
   anchor: null,
+  orientation: null,
 });

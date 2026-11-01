@@ -573,13 +573,25 @@ export class CombatSimulation {
       }
       const input = commands || ship !== this.player ? ship.command.flight : command.flight;
       ship.controller.environment = ship.stationary ? null : this.environment;
+      ship.controller.landingClearance = ![...this.ships.values()].some(
+        (other) =>
+          other !== ship &&
+          !other.health.destroyed &&
+          other.position.distanceTo(ship.position) < ship.radius + other.radius + 10,
+      );
       ship.controller.step(input, dt);
+      if (ship.controller.flightLocked) {
+        ship.command.fire = false;
+        ship.railgunCharge = 0;
+      }
       ship.sync();
       if (ship.controller.impactSpeed > 0)
         this.damage(ship, impactDamage(ship.controller.impactSpeed, ship.config.mass));
+      ship.integratedVelocity.copy(ship.velocity);
       // Terrain has already swept the full segment. Feed its corrected velocity into the sphere solver.
       if (ship.controller.environment)
         ship.velocity.subVectors(ship.position, ship.previous).divideScalar(dt);
+      ship.motionVelocity.copy(ship.velocity);
       ship.position.copy(ship.previous);
       this.bodies.push(ship);
     }
@@ -593,21 +605,25 @@ export class CombatSimulation {
     }
     this.solver.solve(this.bodies, dt, this.collision);
     for (const ship of this.ships.values()) {
+      // Preserve the terrain/grounding response while retaining impulses from the sphere solve.
+      if (ship.controller.environment)
+        ship.velocity.add(ship.integratedVelocity).sub(ship.motionVelocity);
       const hit =
         this.environment &&
         !ship.controller.flightLocked &&
-        traceStation(this.environment.world, ship.previous, ship.position, ship.radius);
+        traceStation(this.environment.world, ship.previous, ship.position, ship.radius, dt);
       if (hit) {
         ship.position
           .lerpVectors(ship.previous, ship.position, hit.fraction)
           .addScaledVector(hit.normal, 0.02);
-        const closing = -ship.velocity.dot(hit.normal);
+        const closing = -ship.velocity.clone().sub(hit.velocity).dot(hit.normal);
         if (closing > 0) {
           ship.velocity.addScaledVector(hit.normal, closing * 1.08);
           this.damage(ship, impactDamage(closing, ship.config.mass), hit.stationId);
         }
       }
-      ship.controller.resolveMotion(ship.position, ship.velocity);
+      if (ship.controller.flightLocked) ship.sync();
+      else ship.controller.resolveMotion(ship.position, ship.velocity);
     }
     // Existing projectiles sweep relative to this tick's moving colliders.
     this.advanceProjectiles(dt);

@@ -230,7 +230,7 @@ describe('authority and delayed prediction regressions', () => {
     for (let i = 0; i < 300; i++) world.step();
     expect(world.simulation.ships.size).toBe(1);
     for (let i = 1; i <= 250; i++) {
-      pilot.inputs.accept(moving(i));
+      pilot.inputs.accept({ ...moving(i), flight: createFlightInput() });
       world.step();
     }
     expect([...world.simulation.ships.values()].some((s) => s.team === 'hostile')).toBe(true);

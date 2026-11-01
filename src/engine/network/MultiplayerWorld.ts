@@ -8,6 +8,7 @@ import {
   PRACTICE_TARGET,
 } from '@/engine/combat/config';
 import { Encounter } from '@/engine/combat/Encounter';
+import { encounterSpace } from '@/engine/combat/encounterSpace';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import {
   departureObstruction,
@@ -210,7 +211,7 @@ export class MultiplayerWorld {
   }
   private spawn = (slot: Readonly<{ id: string; index: number }>) => {
     const player = [...this.pilots.values()].find(
-      (pilot) => pilot.connected && !pilot.ship.health.destroyed && !pilot.ship.transferring,
+      (pilot) => pilot.connected && encounterSpace(this.simulation, pilot.ship),
     )?.ship;
     if (!player) return false;
     const practice = this.encounter.mode === 'practice';

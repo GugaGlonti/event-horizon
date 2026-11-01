@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { CombatSimulation } from '@/engine/combat/CombatSimulation';
 import type { WeaponSlot } from '@/engine/combat/combatTypes';
 import { Encounter } from '@/engine/combat/Encounter';
+import { encounterSpace } from '@/engine/combat/encounterSpace';
 import { missileCanLock } from '@/engine/combat/weapons';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
@@ -38,10 +39,11 @@ export class CombatSession {
     this.command = { flight: input, fire: false, weapon: 1 };
   }
 
-  setWorld(world: SystemRuntime) {
+  setWorld(world: SystemRuntime, resetOperations = true) {
     this.world = world;
     this.simulation.environment = new PlanetaryEnvironment(world);
-    this.simulation.stations = new StationSimulation(world, this.simulation.ships);
+    if (resetOperations || !this.simulation.stations)
+      this.simulation.stations = new StationSimulation(world, this.simulation.ships);
     this.simulation.player.controller.environment = this.simulation.environment;
     this.simulation.clearEncounter();
     this.encounter.reset(world.definition.id);
@@ -110,6 +112,7 @@ export class CombatSession {
 
   private spawnSlot = (slot: Readonly<{ id: string; index: number }>) => {
     const player = this.simulation.player;
+    if (!encounterSpace(this.simulation, player)) return false;
     const practice = this.encounter.mode === 'practice';
     const index = slot.index;
     for (let attempt = 0; attempt < 48; attempt++) {
@@ -146,7 +149,8 @@ export class CombatSession {
   startEncounter(practice = false, count: number = ENCOUNTER_CONFIG.enemies) {
     if (!this.world || this.simulation.player.health.destroyed || this.simulation.ships.size > 1)
       return false;
-    this.setWorld(this.world);
+    if (!encounterSpace(this.simulation, this.simulation.player)) return false;
+    this.setWorld(this.world, false);
     this.encounter.begin(practice, count);
     this.encounter.advance(0, this.simulation.ships, this.spawnSlot);
     this.seedAsteroids();

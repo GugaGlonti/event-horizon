@@ -12,6 +12,7 @@ export class SurfaceSample {
   readonly local = new Vector3();
   readonly center = new Vector3();
   readonly velocity = new Vector3();
+  readonly acceleration = new Vector3();
   readonly rotation = new Quaternion();
   altitude = Infinity;
   density = 0;
@@ -29,6 +30,7 @@ export class PlanetaryEnvironment {
     out.body = null;
     out.altitude = Infinity;
     out.density = out.gravity = 0;
+    out.acceleration.set(0, 0, 0);
     out.zoneId = null;
     out.zoneDistance = Infinity;
     let nearest = Infinity;
@@ -37,6 +39,12 @@ export class PlanetaryEnvironment {
       const center = this.world.positions.get(body.id);
       if (!center) continue;
       const distance = position.distanceTo(center);
+      const gravity = gravityAcceleration(body, distance);
+      if (gravity > 0)
+        out.acceleration.addScaledVector(
+          new Vector3().subVectors(center, position),
+          gravity / Math.max(1, distance),
+        );
       if (distance - body.radius >= nearest) continue;
       nearest = distance - body.radius;
       out.body = body;
@@ -48,7 +56,7 @@ export class PlanetaryEnvironment {
     bodyRotation(body, this.world.time, out.rotation);
     out.local.copy(out.up).applyQuaternion(new Quaternion().copy(out.rotation).invert());
     out.altitude = position.distanceTo(out.center) - body.radius - terrainHeight(body, out.local);
-    out.gravity = gravityAcceleration(body, position.distanceTo(out.center));
+    out.gravity = out.acceleration.length();
     out.density = atmosphericDensity(body, out.altitude);
     if (body.terrain && out.altitude < 2000)
       terrainNormal(body, out.local, out.normal).applyQuaternion(out.rotation);

@@ -99,6 +99,8 @@ export class CombatShip {
   readonly position = new Vector3();
   readonly previous = new Vector3();
   readonly velocity = new Vector3();
+  readonly integratedVelocity = new Vector3();
+  readonly motionVelocity = new Vector3();
   readonly orientation = new Quaternion();
   readonly previousOrientation = new Quaternion();
   readonly home = new Vector3();
@@ -144,7 +146,7 @@ export class CombatShip {
     return this.config.radius;
   }
   get inverseMass() {
-    return 1 / this.config.mass;
+    return this.controller.flightLocked ? 0 : 1 / this.config.mass;
   }
 
   sync() {

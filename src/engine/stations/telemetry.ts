@@ -38,7 +38,11 @@ export function stationTelemetry(
     captureDistance: ship && pose ? ship.position.distanceTo(pose.position) : Infinity,
     approachDistance: ship && pose ? ship.position.distanceTo(pose.approach) : Infinity,
     alignment: ship && pose ? (ship.orientation.angleTo(pose.orientation) * 180) / Math.PI : 180,
-    speed: ship?.velocity.length() ?? 0,
+    speed: ship
+      ? pose
+        ? ship.velocity.clone().sub(pose.velocity).length()
+        : ship.velocity.length()
+      : 0,
     ports:
       station?.ports.map((p) => ({
         id: p.id,

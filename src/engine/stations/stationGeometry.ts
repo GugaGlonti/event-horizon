@@ -9,7 +9,26 @@ export function stationPose(world: SystemRuntime, station: StationDefinition) {
     const parent = world.positions.get(station.parentId);
     if (parent) position.add(parent);
   }
-  return { position, orientation: new Quaternion().fromArray(station.orientation) };
+  const velocity = new Vector3();
+  const addOrbit = (orbit: NonNullable<StationDefinition['orbit']>) => {
+    const angle = orbit.phase + (world.time * Math.PI * 2) / orbit.period,
+      rate = (orbit.radius * Math.PI * 2) / orbit.period;
+    velocity.add(
+      new Vector3(
+        -Math.sin(angle) * rate,
+        Math.cos(angle) * rate * Math.sin(orbit.inclination),
+        Math.cos(angle) * rate * Math.cos(orbit.inclination),
+      ),
+    );
+  };
+  if (station.orbit) addOrbit(station.orbit);
+  let parent = station.parentId;
+  while (parent) {
+    const body = world.definition.bodies.find((b) => b.id === parent);
+    if (body?.orbit) addOrbit(body.orbit);
+    parent = body?.parentId;
+  }
+  return { position, velocity, orientation: new Quaternion().fromArray(station.orientation) };
 }
 export function portPose(
   world: SystemRuntime,
@@ -18,6 +37,7 @@ export function portPose(
 ) {
   const pose = stationPose(world, station);
   return {
+    velocity: pose.velocity,
     position: new Vector3()
       .fromArray(port.position)
       .applyQuaternion(pose.orientation)
@@ -35,13 +55,19 @@ export function traceStation(
   start: Readonly<Vector3>,
   end: Readonly<Vector3>,
   radius: number,
+  dt = 0,
 ) {
-  let hit: { fraction: number; normal: Vector3; stationId: string } | null = null;
+  let hit: { fraction: number; normal: Vector3; stationId: string; velocity: Vector3 } | null =
+    null;
   for (const station of world.definition.stations ?? []) {
     const pose = stationPose(world, station),
       inverse = pose.orientation.clone().invert();
-    const local = new Vector3().subVectors(start, pose.position).applyQuaternion(inverse);
-    const delta = new Vector3().subVectors(end, start).applyQuaternion(inverse);
+    const previous = pose.position.clone().addScaledVector(pose.velocity, -dt);
+    const local = new Vector3().subVectors(start, previous).applyQuaternion(inverse);
+    const delta = new Vector3()
+      .subVectors(end, start)
+      .addScaledVector(pose.velocity, -dt)
+      .applyQuaternion(inverse);
     for (const box of station.boxes) {
       const from = local.clone().sub(new Vector3().fromArray(box.center));
       const half = box.size.map((v) => v / 2 + radius);
@@ -93,7 +119,8 @@ export function traceStation(
         .fromArray([axis === 0 ? sign : 0, axis === 1 ? sign : 0, axis === 2 ? sign : 0])
         .applyQuaternion(pose.orientation);
       if (inside && delta.dot(new Vector3().copy(normal).applyQuaternion(inverse)) >= 0) continue;
-      if (!hit || enter < hit.fraction) hit = { fraction: enter, normal, stationId: station.id };
+      if (!hit || enter < hit.fraction)
+        hit = { fraction: enter, normal, stationId: station.id, velocity: pose.velocity };
     }
   }
   return hit;

@@ -30,6 +30,7 @@ export class FlightController {
   transit = false;
   flightLocked = false;
   impactSpeed = 0;
+  landingClearance = true;
   private readonly surfaceSample = new SurfaceSample();
   private readonly motionStart = new Vector3();
   private readonly config: FlightConfig;
@@ -175,11 +176,16 @@ export class FlightController {
     this.flightLocked = false;
   }
 
-  lockPose(position: Readonly<Vector3>, orientation: Readonly<Quaternion>) {
+  lockPose(
+    position: Readonly<Vector3>,
+    orientation: Readonly<Quaternion>,
+    velocity?: Readonly<Vector3>,
+  ) {
     this.flightLocked = true;
     this.position.copy(position);
     this.orientation.copy(orientation);
-    this.velocity.set(0, 0, 0);
+    if (velocity) this.velocity.copy(velocity);
+    else this.velocity.set(0, 0, 0);
     this.angularVelocity.set(0, 0, 0);
     this.throttle = 0;
     this.boosting = false;
@@ -209,6 +215,10 @@ export class FlightController {
     this.angularVelocity.set(0, 0, 0);
     this.surface.timer += dt;
     this.velocity.copy(sample.velocity);
+    if (this.surface.orientation)
+      this.orientation
+        .copy(sample.rotation)
+        .multiply(this.rotation.fromArray(this.surface.orientation));
     if (this.surface.phase === 'landing' && this.surface.timer >= 0.8) {
       this.surface.phase = 'landed';
       this.surface.timer = 0;
@@ -221,6 +231,7 @@ export class FlightController {
       if (height > 30) {
         this.surface.phase = 'flying';
         this.surface.anchor = null;
+        this.surface.orientation = null;
         this.landingGear = false;
       }
     }
@@ -317,6 +328,21 @@ export class FlightController {
       this.rotation.setFromAxisAngle(this.rotationAxis, angularSpeed * dt);
       this.orientation.multiply(this.rotation).normalize();
     }
+    if (
+      field &&
+      this.assistance &&
+      this.landingGear &&
+      sample.altitude < 60000 &&
+      Math.abs(input.pitch) + Math.abs(input.roll) < 0.001
+    ) {
+      const level = tangentFrame(sample.up);
+      const heading = this.forward
+        .set(0, 0, -1)
+        .applyQuaternion(this.orientation)
+        .applyQuaternion(level.clone().invert());
+      tangentFrame(sample.up, Math.atan2(-heading.x, -heading.z), level);
+      this.orientation.slerp(level, 1 - Math.exp(-1.6 * dt));
+    }
 
     this.forward.set(0, 0, -1).applyQuaternion(this.orientation);
     const forwardSpeed = this.velocity.dot(this.forward);
@@ -387,7 +413,7 @@ export class FlightController {
       if (fallingSpeed) this.velocity.addScaledVector(sample.up, fallingSpeed);
       // Hover assistance cancels most gravity with an explicit residual; disabling it exposes full gravity.
       const compensation = this.assistance ? 0.9 : 0;
-      this.velocity.addScaledVector(sample.up, -sample.gravity * (1 - compensation) * dt);
+      this.velocity.addScaledVector(sample.acceleration, (1 - compensation) * dt);
       this.lateral.copy(this.velocity).sub(sample.velocity);
       this.velocity.addScaledVector(this.lateral, Math.expm1(-density * 0.12 * dt));
     }
@@ -403,6 +429,7 @@ export class FlightController {
         const up = new Vector3(0, 1, 0).applyQuaternion(this.orientation);
         const safe =
           sample.body?.landable &&
+          this.landingClearance &&
           this.landingGear &&
           Math.abs(vertical) <= 3 &&
           horizontal <= 5 &&
@@ -419,9 +446,14 @@ export class FlightController {
             .applyQuaternion(this.orientation)
             .applyQuaternion(target.clone().invert());
           this.orientation.copy(tangentFrame(sample.normal, Math.atan2(-forward.x, -forward.z)));
+          this.surface.orientation = sample.rotation
+            .clone()
+            .invert()
+            .multiply(this.orientation)
+            .toArray();
           this.grounded(0);
         } else {
-          this.impactSpeed = Math.max(13, Math.abs(vertical));
+          this.impactSpeed = Math.abs(vertical) > 3 ? Math.max(13, Math.abs(vertical)) : 0;
           if (vertical < 0) this.velocity.addScaledVector(sample.normal, -vertical * 1.08);
           this.position.addScaledVector(sample.normal, 0.05);
         }

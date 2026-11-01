@@ -176,7 +176,10 @@ import {
 describe('bounded terrain quadtree', () => {
   it('increases detail during descent and respects the patch budget', () => {
     const orbit = selectTerrainPatches(pelagos, new Vector3(0, 0, pelagos.radius * 4));
-    const surface = selectTerrainPatches(pelagos, new Vector3(0, 0, pelagos.radius + 10));
+    const surface = selectTerrainPatches(
+      pelagos,
+      new Vector3(0, 0, pelagos.radius + terrainHeight(pelagos, new Vector3(0, 0, 1)) + 10),
+    );
     expect(surface.length).toBeLessThanOrEqual(150);
     expect(Math.max(...surface.map((p) => p.level))).toBeGreaterThan(
       Math.max(...orbit.map((p) => p.level)),
@@ -232,3 +235,78 @@ it('levels deployed landing gear gradually while retaining explicit pilot pitch 
 });
 
 import { planetaryTelemetry } from '@/engine/planetary/telemetry';
+
+it('flies continuously from orbit through a meaningful atmosphere to a safe landing', () => {
+  const { controller, world, up } = nearSurface(22000);
+  controller.landingGear = true;
+  let time = 0,
+    enteredAt = 0;
+  const sample = new SurfaceSample();
+  while (time < 450 && controller.surface.phase !== 'landed') {
+    controller.environment?.sample(new Vector3().fromArray(controller.snapshot().position), sample);
+    const altitude = sample.altitude - 5;
+    if (!enteredAt && sample.density > 0) enteredAt = time;
+    const vertical = controller.copyVelocity(new Vector3()).dot(up);
+    const input = createFlightInput();
+    if (altitude > 65) input.lift = -1;
+    else if (vertical < -2) input.brake = true;
+    else input.lift = -0.02;
+    world.update(time);
+    controller.step(input, 1 / 120);
+    time += 1 / 120;
+  }
+  expect(controller.surface.phase).toBe('landed');
+  expect(enteredAt).toBeGreaterThan(60);
+  expect(time - enteredAt).toBeGreaterThan(120);
+  expect(time).toBeLessThan(450);
+  expect(controller.impactSpeed).toBe(0);
+}, 15000);
+
+import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
+
+it('retains the terrain impact response after the shared sphere solver advances the ship', () => {
+  const world = new MultiplayerWorld('solara'),
+    pilot = world.addPlayer('impact', 'Impact');
+  const zone = required(pelagos.landingZones?.[0]),
+    up = surfaceDirection(zone.latitude, zone.longitude),
+    center = required(world.system.positions.get(pelagos.id));
+  const point = center.clone().addScaledVector(up, pelagos.radius + zone.elevation + 5.1);
+  pilot.ship.controller.relocate(point, tangentFrame(up));
+  pilot.ship.controller.resolveMotion(point, up.clone().multiplyScalar(-20));
+  pilot.ship.sync();
+  world.step();
+  expect(pilot.ship.velocity.dot(up)).toBeGreaterThan(0);
+  expect(pilot.ship.health.hull).toBe(100);
+});
+it('keeps landed position and orientation attached to a rotating reference frame', () => {
+  const definition = required(SYSTEMS[0]);
+  const body = { ...pelagos, rotation: { tilt: 0, speed: 0.0001 } };
+  const world = new SystemRuntime({
+    ...definition,
+    bodies: definition.bodies.map((b) => (b.id === body.id ? body : b)),
+  });
+  const controller = new FlightController(FLIGHT_CONFIG);
+  controller.environment = new PlanetaryEnvironment(world);
+  const zone = required(body.landingZones?.[0]),
+    up = surfaceDirection(zone.latitude, zone.longitude),
+    center = required(world.positions.get(body.id));
+  const point = center.clone().addScaledVector(up, body.radius + zone.elevation + 5.01);
+  controller.relocate(point, tangentFrame(up));
+  controller.landingGear = true;
+  controller.surface.phase = 'landed';
+  controller.surface.bodyId = body.id;
+  controller.surface.anchor = up.toArray();
+  controller.surface.orientation = tangentFrame(up).toArray();
+  world.update(100);
+  controller.step(createFlightInput(), 1 / 120);
+  const rotated = up.clone().applyQuaternion(bodyRotation(body, 100));
+  const state = controller.snapshot();
+  expect(
+    new Vector3().fromArray(state.position).sub(center).normalize().distanceTo(rotated),
+  ).toBeLessThan(1e-9);
+  expect(
+    new Vector3(0, 1, 0)
+      .applyQuaternion(new Quaternion().fromArray(state.orientation))
+      .dot(rotated),
+  ).toBeCloseTo(1);
+});

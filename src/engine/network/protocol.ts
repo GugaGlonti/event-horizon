@@ -177,6 +177,7 @@ const flightStateSchema = z.strictObject({
     bodyId: id.nullable(),
     timer: scalar,
     anchor: vec.nullable(),
+    orientation: quat.nullable(),
   }),
   landingGear: z.boolean(),
   transit: z.boolean(),

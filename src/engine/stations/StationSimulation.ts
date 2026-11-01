@@ -103,7 +103,8 @@ export class StationSimulation {
     const pose = portPose(this.world, station, port);
     if (ship.position.distanceTo(pose.position) > 45)
       return 'Final capture requires range below 45 m.';
-    if (ship.velocity.length() > 3) return 'Final capture requires speed below 3 m/s.';
+    if (ship.velocity.clone().sub(pose.velocity).length() > 3)
+      return 'Final capture requires speed below 3 m/s.';
     if (ship.orientation.angleTo(pose.orientation) > 0.12)
       return 'Align the ship within 7 degrees of the berth.';
     if (!this.clearance(id, ship.position, pose.position)) return 'Final docking path obstructed.';
@@ -191,7 +192,7 @@ export class StationSimulation {
           state.timer = 0;
         }
       } else if (state.phase === 'docked')
-        ship.controller.lockPose(pose.position, pose.orientation);
+        ship.controller.lockPose(pose.position, pose.orientation, pose.velocity);
       else if (state.phase === 'undocking') {
         const t = Math.min(1, state.timer / 4),
           point = pose.position.clone().lerp(pose.approach, 0.32 * t * t * (3 - 2 * t));
@@ -205,7 +206,7 @@ export class StationSimulation {
           this.remove(id);
           ship.controller.resolveMotion(
             point,
-            new Vector3(0, 0, 12).applyQuaternion(pose.orientation),
+            new Vector3(0, 0, 12).applyQuaternion(pose.orientation).add(pose.velocity),
           );
         }
       }
