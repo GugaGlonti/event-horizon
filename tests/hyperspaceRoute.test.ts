@@ -34,7 +34,7 @@ describe('galactic jump routes', () => {
         const offset = arrival.position.clone().sub(anchor ?? new Vector3());
         offset.addScaledVector(direction, -offset.dot(direction));
         expect(offset.length()).toBeGreaterThan(
-          (body?.radius ?? 0) * (body?.rings?.outer ?? 1) + 180,
+          (body?.radius ?? 0) * (body?.rings?.outer ?? 1) + 1000,
         );
         expect(direction.clone().add(travelDirection(destination, source)).length()).toBeLessThan(
           1e-12,

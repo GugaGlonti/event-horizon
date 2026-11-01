@@ -95,6 +95,7 @@ export class MultiplayerSession {
         simulation.ships.set(state.id, ship);
       }
       this.names.set(ship.id, state.name);
+      simulation.stations?.states.set(ship.id, structuredClone(state.docking));
       if (!own) ship.controller.restore(state.flight);
       ship.health.shields = state.shields;
       ship.health.hull = state.hull;
@@ -113,6 +114,13 @@ export class MultiplayerSession {
       ship.previous.copy(ship.position);
       ship.previousOrientation.copy(ship.orientation);
     }
+    simulation.stations?.occupancy.clear();
+    for (const port of snapshot.ports)
+      if (port.occupant)
+        simulation.stations?.occupancy.set(
+          `${port.stationId}/${port.portId}`,
+          port.occupant === snapshot.playerId ? 'player' : port.occupant,
+        );
     const selected = simulation.targetId && simulation.ships.get(simulation.targetId);
     if (
       !selected ||

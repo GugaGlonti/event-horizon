@@ -11,6 +11,7 @@ import {
   ROOM_NAME,
   type TravelPermit,
 } from '@/engine/network/protocol';
+import { performGameplayAction } from '@/engine/simulation/shipActions';
 import type { ServerConfig } from './config';
 
 interface Ticket {
@@ -115,7 +116,7 @@ export class StarSystemRoom extends Room {
   }
   private sendWelcome(client: Client, id: string) {
     client.send('welcome', {
-      v: 1,
+      v: 2,
       playerId: id,
       systemId: this.world.system.definition.id,
       instanceId: this.world.instanceId,
@@ -138,6 +139,18 @@ export class StarSystemRoom extends Room {
     const pilot = this.world.pilots.get(peer.id);
     if (!pilot) return;
     switch (action.data.kind) {
+      case 'landing-gear':
+      case 'transit':
+      case 'takeoff':
+      case 'dock':
+      case 'capture':
+      case 'cancel-docking':
+      case 'undock':
+      case 'service': {
+        const error = performGameplayAction(this.world.simulation, peer.id, action.data);
+        if (error) this.error(client, 'SHIP_ACTION', error);
+        break;
+      }
       case 'ping':
         client.send('pong', { nonce: action.data.nonce });
         this.sendWelcome(client, peer.id);
@@ -249,6 +262,7 @@ export class StarSystemRoom extends Room {
     const peer = this.peers.get(client.sessionId),
       pilot = peer && this.world.pilots.get(peer.id);
     if (pilot) {
+      this.world.simulation.stations?.cancel(pilot.id);
       pilot.connected = false;
       pilot.inputs.clear();
       pilot.ship.command.fire = false;

@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from 'three';
+import { navigationContacts } from '@/engine/navigation/contacts';
 import { HyperspaceController } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
@@ -101,6 +102,7 @@ export class ExplorationSession {
     if (!enabled) this.audio.stop();
   };
 
+  canDepart: (() => string | null) | null = null;
   authorizeJump: (() => Promise<boolean>) | null = null;
   prepareNetworkDestination: ((id: string, signal: AbortSignal) => Promise<void>) | null = null;
   private authorizing = false;
@@ -131,6 +133,11 @@ export class ExplorationSession {
   };
   private startJump = () => {
     if (this.disposed) return false;
+    const reason = this.canDepart?.();
+    if (reason) {
+      useExplorationStore.setState({ error: reason });
+      return false;
+    }
     const state = useExplorationStore.getState();
     if (
       !this.jump.request(
@@ -331,7 +338,7 @@ export class ExplorationSession {
       navigation: this.navigation.sample(this.world, position, this.lastOrientation),
       chart: {
         ship: [position.x, position.y, position.z],
-        bodies: this.world.definition.bodies.map((body) => {
+        bodies: navigationContacts(this.world.definition).map((body) => {
           const location = this.world.positions.get(body.id) ?? position;
           return {
             id: body.id,

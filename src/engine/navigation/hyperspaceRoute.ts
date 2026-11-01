@@ -1,4 +1,5 @@
 import { Quaternion, quaternionFromBasis, Vector3 } from '@/engine/math/linear';
+import { traceStation } from '@/engine/stations/stationGeometry';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { StarSystemDefinition } from '@/engine/world/worldTypes';
 
@@ -46,6 +47,18 @@ export function departureObstruction(
     closest.copy(start).addScaledVector(direction, along);
     if (closest.distanceToSquared(center) < radius * radius) return body;
   }
+  const stationHit = traceStation(
+    world,
+    start,
+    new Vector3().copy(start).addScaledVector(direction, distance),
+    80,
+  );
+  if (stationHit) {
+    const station = world.definition.stations?.find(
+      (candidate) => candidate.id === stationHit.stationId,
+    );
+    if (station) return { ...station, kind: 'station' as const };
+  }
   return null;
 }
 
@@ -65,11 +78,12 @@ export function routeArrival(
   const up = new Vector3(0, 1, 0).applyQuaternion(orientation);
   const position = new Vector3();
   for (let attempt = 0; attempt < 24; attempt += 1) {
-    const distance = Math.max(4800, anchor.radius * 7) + attempt * 2200;
+    const distance = Math.max(4800, coastDistance + 3000) + attempt * 2200;
     position.copy(center).addScaledVector(direction, -distance);
-    const lateralClearance = anchor.radius * Math.max(1.7, (anchor.rings?.outer ?? 1) * 1.25);
+    const lateralClearance =
+      anchor.radius * Math.max(anchor.atmosphere?.scale ?? 1, anchor.rings?.outer ?? 1) + 22000;
     position.addScaledVector(right, lateralClearance);
-    position.addScaledVector(up, anchor.radius * 0.45 + attempt * 500);
+    position.addScaledVector(up, 2500 + attempt * 500);
     if (!departureObstruction(world, position, direction, coastDistance + 1000))
       return { position, orientation };
   }

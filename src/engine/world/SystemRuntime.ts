@@ -1,4 +1,6 @@
 import { Vector3 } from '@/engine/math/linear';
+import { bodyRotation, surfaceDirection } from '@/engine/planetary/coordinates';
+import { terrainHeight } from '@/engine/planetary/terrain';
 import { validateSystem } from './validateSystem';
 import type { CelestialDefinition, Position3, StarSystemDefinition } from './worldTypes';
 
@@ -36,6 +38,10 @@ export class SystemRuntime {
       this.ordered.push(body);
     };
     for (const body of definition.bodies) visit(body);
+    for (const station of definition.stations ?? []) this.positions.set(station.id, new Vector3());
+    for (const body of definition.bodies)
+      for (const point of [...(body.landingZones ?? []), ...(body.pointsOfInterest ?? [])])
+        this.positions.set(point.id, new Vector3());
     this.update(time);
   }
 
@@ -51,6 +57,28 @@ export class SystemRuntime {
       if (body.parentId) {
         const parent = this.positions.get(body.parentId);
         if (parent) position.add(parent);
+      }
+    }
+    for (const station of this.definition.stations ?? []) {
+      const position = this.positions.get(station.id);
+      if (!position) continue;
+      position.fromArray(station.position);
+      if (station.orbit) position.add(orbitalOffset(station.orbit, time, new Vector3()));
+      const parent = station.parentId && this.positions.get(station.parentId);
+      if (parent) position.add(parent);
+    }
+    for (const body of this.ordered) {
+      const center = this.positions.get(body.id);
+      if (!center) continue;
+      const rotation = bodyRotation(body, time);
+      for (const point of [...(body.landingZones ?? []), ...(body.pointsOfInterest ?? [])]) {
+        const position = this.positions.get(point.id);
+        if (!position) continue;
+        surfaceDirection(point.latitude, point.longitude, position);
+        position
+          .multiplyScalar(body.radius + terrainHeight(body, position) + 2)
+          .applyQuaternion(rotation)
+          .add(center);
       }
     }
   }

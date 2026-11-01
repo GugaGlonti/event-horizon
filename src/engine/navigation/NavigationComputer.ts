@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { navigationContacts } from './contacts';
 
 export interface NavigationSnapshot {
   readonly targetId: string | null;
@@ -25,7 +26,7 @@ export class NavigationComputer {
   }
 
   cycle(system: SystemRuntime) {
-    const bodies = system.definition.bodies.filter((body) => body.kind !== 'star');
+    const bodies = navigationContacts(system.definition).filter((body) => body.kind !== 'star');
     const index = bodies.findIndex((body) => body.id === this.targetId);
     this.targetId = bodies[(index + 1) % bodies.length]?.id ?? null;
   }
@@ -37,7 +38,7 @@ export class NavigationComputer {
   ): NavigationSnapshot {
     let nearestId: string | null = null;
     let nearestDistance = Number.POSITIVE_INFINITY;
-    for (const body of system.definition.bodies) {
+    for (const body of navigationContacts(system.definition)) {
       const location = system.positions.get(body.id);
       if (!location) continue;
       const distance = Math.max(0, position.distanceTo(location) - body.radius);
@@ -47,7 +48,9 @@ export class NavigationComputer {
       }
     }
     const target = system.positions.get(this.targetId ?? '');
-    const body = system.definition.bodies.find((candidate) => candidate.id === this.targetId);
+    const body = navigationContacts(system.definition).find(
+      (candidate) => candidate.id === this.targetId,
+    );
     const distance = target ? position.distanceTo(target) : 0;
     this.direction
       .copy(target ?? position)

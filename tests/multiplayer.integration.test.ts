@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { neutralInput } from '@/engine/network/InputQueue';
 import { ROOM_NAME, type TravelPermit, type WorldSnapshot } from '@/engine/network/protocol';
+import { surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
+import { portPose } from '@/engine/stations/stationGeometry';
 import { serverConfig } from '../server/config';
 import { createGameServer } from '../server/createServer';
 
@@ -30,7 +32,7 @@ function until<T>(
 }
 async function join(name: string, systemId = 'solara', ticket?: string) {
   const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(ROOM_NAME, {
-    v: 1,
+    v: 2,
     name,
     systemId,
     instanceId: 'public',
@@ -193,6 +195,107 @@ describe('real authoritative room protocol', () => {
     await destination.leave();
     await partnerDestination.leave();
   }, 15000);
+
+  it('synchronizes two planetary landings and exclusive station services over real sockets', async () => {
+    const a = await join('Surface Alpha'),
+      b = await join('Surface Bravo');
+    const initial = await until<WorldSnapshot>(a, 'snapshot', (s) => s.players === 2);
+    const room = [...game.rooms].find((r) => r.roomId === a.roomId);
+    if (!room) throw new Error('room');
+    const pilotA = room.world.pilots.get(initial.playerId);
+    const second = await until<WorldSnapshot>(b, 'snapshot');
+    const pilotB = room.world.pilots.get(second.playerId);
+    const body = room.world.system.definition.bodies.find((p) => p.id === 'pelagos'),
+      station = room.world.system.definition.stations?.[0];
+    const zone = body?.landingZones?.[0],
+      center = body && room.world.system.positions.get(body.id),
+      port = station?.ports[0];
+    if (!pilotA || !pilotB || !body || !zone || !center || !station || !port)
+      throw new Error('fixtures');
+    const up = surfaceDirection(zone.latitude, zone.longitude),
+      rotation = tangentFrame(up);
+    const base = center.clone().addScaledVector(up, body.radius + zone.elevation + 5.01);
+    const east = new Vector3(1, 0, 0).applyQuaternion(rotation);
+    const place = (pilot: typeof pilotA, point: Vector3, orientation: Quaternion) => {
+      pilot.ship.controller.relocate(point, orientation);
+      pilot.ship.sync();
+      pilot.ship.previous.copy(point);
+      pilot.ship.previousOrientation.copy(orientation);
+    };
+    place(pilotA, base, rotation);
+    place(pilotB, base.clone().addScaledVector(east, 80), rotation);
+    a.send('action', { kind: 'landing-gear', enabled: true });
+    b.send('action', { kind: 'landing-gear', enabled: true });
+    await until<WorldSnapshot>(a, 'snapshot', (s) =>
+      s.ships.filter((ship) => ship.player).every((ship) => ship.flight.landingGear),
+    );
+    for (const pilot of [pilotA, pilotB]) {
+      pilot.ship.controller.resolveMotion(pilot.ship.position, up.clone().multiplyScalar(-1));
+      pilot.ship.sync();
+    }
+    const landedA = await until<WorldSnapshot>(a, 'snapshot', (s) =>
+      s.ships.filter((ship) => ship.player).every((ship) => ship.flight.surface.phase === 'landed'),
+    );
+    const landedB = await until<WorldSnapshot>(b, 'snapshot', (s) =>
+      s.ships.filter((ship) => ship.player).every((ship) => ship.flight.surface.phase === 'landed'),
+    );
+    expect(landedA.ships.map((ship) => ship.flight.surface.bodyId)).toEqual(
+      landedB.ships.map((ship) => ship.flight.surface.bodyId),
+    );
+    a.send('action', { kind: 'takeoff' });
+    b.send('action', { kind: 'takeoff' });
+    await until<WorldSnapshot>(
+      a,
+      'snapshot',
+      (s) => s.ships.every((ship) => ship.flight.surface.phase === 'flying'),
+      6000,
+    );
+    const berth = portPose(room.world.system, station, port);
+    place(pilotA, berth.approach, berth.orientation);
+    place(pilotB, berth.approach.clone().add(new Vector3(80, 0, 0)), berth.orientation);
+    a.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
+    await until<WorldSnapshot>(b, 'snapshot', (s) =>
+      s.ports.some((p) => p.portId === port.id && p.occupant === pilotA.id),
+    );
+    const denied = until<{ code: string; message: string }>(b, 'error');
+    b.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
+    expect((await denied).message).toMatch(/occupied/);
+    place(pilotA, berth.position.clone().add(new Vector3(0, 0, 20)), berth.orientation);
+    a.send('action', { kind: 'capture' });
+    await until<WorldSnapshot>(b, 'snapshot', (s) =>
+      s.ships.some((ship) => ship.id === pilotA.id && ship.docking.phase === 'docked'),
+    );
+    pilotA.ship.health.hull = 40;
+    pilotA.ship.health.shields = 10;
+    a.send('action', { kind: 'service', service: 'repair' });
+    await until<WorldSnapshot>(a, 'snapshot', (s) =>
+      s.ships.some((ship) => ship.id === pilotA.id && ship.hull === 100),
+    );
+    expect(pilotA.ship.controller.flightLocked).toBe(true);
+    a.send('input', {
+      ...neutralInput(1),
+      paused: false,
+      fire: true,
+      flight: { ...neutralInput().flight, throttle: 1, boost: true },
+    });
+    await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack === 1);
+    expect(
+      room.world.simulation.projectiles.filter((shot) => shot.owner === pilotA.id),
+    ).toHaveLength(0);
+    a.send('action', { kind: 'undock' });
+    await until<WorldSnapshot>(
+      b,
+      'snapshot',
+      (s) => s.ports.some((p) => p.portId === port.id && p.occupant === null),
+      6000,
+    );
+    b.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
+    await until<WorldSnapshot>(a, 'snapshot', (s) =>
+      s.ports.some((p) => p.portId === port.id && p.occupant === pilotB.id),
+    );
+    await a.leave();
+    await b.leave();
+  }, 22000);
   it('reconnects within grace without creating a duplicate and recovers cancelled transfers', async () => {
     const a = await join('Reconnect');
     const initial = await until<WorldSnapshot>(a, 'snapshot');

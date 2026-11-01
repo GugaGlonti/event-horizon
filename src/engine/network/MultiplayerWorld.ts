@@ -318,6 +318,16 @@ export class MultiplayerWorld {
         player: ship.team === 'player',
         stationary: ship.stationary,
         flight: ship.controller.snapshot(),
+        docking: {
+          ...(this.simulation.stations?.state(ship.id) ?? {
+            phase: 'undocked' as const,
+            stationId: null,
+            portId: null,
+            timer: 0,
+            start: null,
+            orientation: null,
+          }),
+        },
         shields: ship.health.shields,
         hull: ship.health.hull,
         protection: ship.health.invulnerability,
@@ -335,7 +345,7 @@ export class MultiplayerWorld {
     const nearby = (position: Vector3) =>
       position.distanceToSquared(pilot.ship.position) <= relevance ** 2;
     return {
-      v: 1,
+      v: 2,
       tick: this.tick,
       time: this.time,
       systemId: this.system.definition.id,
@@ -349,6 +359,13 @@ export class MultiplayerWorld {
       tickMs: 0,
       overruns: 0,
       roster: [...this.simulation.ships.keys()],
+      ports: (this.system.definition.stations ?? []).flatMap((station) =>
+        station.ports.map((port) => ({
+          stationId: station.id,
+          portId: port.id,
+          occupant: this.simulation.stations?.occupancy.get(`${station.id}/${port.id}`) ?? null,
+        })),
+      ),
       ships,
       projectiles: this.simulation.projectiles
         .filter((shot) => nearby(shot.position))

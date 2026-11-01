@@ -6,6 +6,8 @@ import { planetaryTelemetry } from '@/engine/planetary/telemetry';
 import { FixedStepLoop } from '@/engine/simulation/FixedStepLoop';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
+import { type GameplayAction, performGameplayAction } from '@/engine/simulation/shipActions';
+import { stationTelemetry } from '@/engine/stations/telemetry';
 import { RenderOrigin } from '@/engine/world/RenderOrigin';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
@@ -24,6 +26,7 @@ import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
 import { usePlanetaryStore } from '@/stores/planetaryStore';
+import { useStationStore } from '@/stores/stationStore';
 
 /** One player session. Logical poses stay in system coordinates; GPU poses use renderOrigin. */
 export class FlightSession {
@@ -31,7 +34,20 @@ export class FlightSession {
   get planetaryReadout() {
     return usePlanetaryStore.getState().readout ?? planetaryTelemetry(this.controller);
   }
+  get stationReadout() {
+    return (
+      useStationStore.getState().readout ??
+      stationTelemetry(this.combat.simulation, 'player', this.exploration.navigation.targetId)
+    );
+  }
   private publishPlanetary() {
+    useStationStore.setState({
+      readout: stationTelemetry(
+        this.combat.simulation,
+        'player',
+        this.exploration.navigation.targetId,
+      ),
+    });
     usePlanetaryStore.setState({ readout: planetaryTelemetry(this.controller) });
   }
   readonly controller = new FlightController(FLIGHT_CONFIG);
@@ -138,6 +154,10 @@ export class FlightSession {
         this.snapPose();
       },
     );
+    this.exploration.canDepart = () =>
+      this.controller.flightLocked || this.controller.surface.phase !== 'flying'
+        ? 'Take off or undock before engaging hyperdrive.'
+        : null;
     this.multiplayer.network.onTravelExpired = () =>
       this.exploration.cancelJump('Travel permit expired. Holding safely in the current system.');
     this.exploration.prepareNetworkDestination = async (_id, signal) => {
@@ -261,6 +281,24 @@ export class FlightSession {
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
+    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyO'].includes(event.code)) {
+      if (
+        useFlightStore.getState().phase !== 'flying' ||
+        this.exploration.jump.busy ||
+        useExplorationStore.getState().overlay
+      )
+        return;
+      event.preventDefault();
+      if (event.code === 'KeyK')
+        this.shipAction({ kind: 'landing-gear', enabled: !this.controller.landingGear });
+      if (event.code === 'KeyU')
+        this.shipAction({ kind: this.stationReadout.phase === 'docked' ? 'undock' : 'takeoff' });
+      if (event.code === 'KeyO')
+        this.shipAction({ kind: 'transit', enabled: !this.controller.transit });
+      if (event.code === 'KeyI') this.shipAction({ kind: 'cancel-docking' });
+      if (event.code === 'KeyP') this.requestDocking();
+      return;
+    }
     if (['KeyB', 'KeyN', 'KeyG', 'KeyH', 'Tab'].includes(event.code)) {
       if (event.code === 'Tab' && tag === 'BUTTON') return;
       if (
@@ -413,6 +451,20 @@ export class FlightSession {
     );
     this.audioMix.update(this.combatActivity, delta);
   }
+  shipAction = (action: GameplayAction) => {
+    if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
+    if (this.multiplayer.enabled) this.multiplayer.network.action(action);
+    else {
+      const error = performGameplayAction(this.combat.simulation, 'player', action);
+      if (error) useFlightStore.getState().setNotice(error);
+    }
+    this.publishPlanetary();
+  };
+  requestDocking = () => {
+    const docking = this.stationReadout;
+    if (['approaching', 'aligning'].includes(docking.phase)) this.shipAction({ kind: 'capture' });
+    else if (docking.stationId) this.shipAction({ kind: 'dock', stationId: docking.stationId });
+  };
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
     if (this.multiplayer.enabled) this.multiplayer.network.action({ kind: 'encounter', practice });

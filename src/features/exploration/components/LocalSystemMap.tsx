@@ -1,5 +1,6 @@
 import { instrumentButtonClassName } from '@/components/ui/InstrumentButton';
-import type { CelestialDefinition, Position3 } from '@/engine/world/worldTypes';
+import { type NavigationContact, navigationContacts } from '@/engine/navigation/contacts';
+import type { Position3 } from '@/engine/world/worldTypes';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -7,7 +8,10 @@ import { useExplorationStore } from '@/stores/explorationStore';
 export function formatDistance(metres: number) {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`;
 }
-export function bodyLabel(body: CelestialDefinition) {
+export function bodyLabel(body: Pick<NavigationContact, 'kind'>) {
+  if (body.kind === 'station') return 'Station';
+  if (body.kind === 'landing-zone') return 'Landing zone';
+  if (body.kind === 'surface-poi') return 'Surface landmark';
   return body.kind === 'gas-giant'
     ? 'Gas giant'
     : body.kind === 'rocky'
@@ -23,12 +27,13 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
   const targetId = useExplorationStore((state) => state.navigation.targetId);
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
   if (!system) return null;
+  const contacts = navigationContacts(system);
   const range =
     Math.max(1, ...chart.bodies.map((body) => Math.hypot(body.position[0], body.position[2]))) *
     1.2;
   const project = (position: Position3) =>
     [50 + (position[0] / range) * 42, 50 + (position[2] / range) * 42] as const;
-  const marker = (body: CelestialDefinition) => {
+  const marker = (body: NavigationContact) => {
     const position = chart.bodies.find((candidate) => candidate.id === body.id)?.position ?? [
       0, 0, 0,
     ];
@@ -49,7 +54,7 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
       <div className="border-b border-line p-5 tablet:border-r tablet:border-b-0 tablet:p-8">
         <div className="flex justify-between font-mono text-[10px] tracking-widest text-phosphor-dim">
           <span>{system.name.toUpperCase()} / LOCAL CHART</span>
-          <span>{system.bodies.length} CONTACTS</span>
+          <span>{contacts.length} CONTACTS</span>
         </div>
         <div className="relative mx-auto mt-4 aspect-square w-full max-w-[440px] overflow-hidden border border-line crt-grid bg-[#030905]">
           <svg className="absolute inset-0 size-full" viewBox="0 0 100 100" aria-hidden="true">
@@ -86,7 +91,7 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
                 );
               })}
           </svg>
-          {system.bodies.map((body) => {
+          {contacts.map((body) => {
             const location = marker(body);
             return (
               <button
@@ -99,7 +104,7 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
                   left: `${location[0]}%`,
                   top: `${location[1]}%`,
                 }}
-                className={`absolute grid size-7 -translate-1/2 cursor-pointer place-items-center border border-transparent hover:border-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:border-current aria-pressed:bg-current/10 ${body.kind === 'star' ? 'text-instrument' : 'text-phosphor'}`}
+                className={`absolute grid size-7 -translate-1/2 cursor-pointer place-items-center border border-transparent hover:border-current focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus aria-pressed:border-current aria-pressed:bg-current/10 ${body.kind === 'star' || body.kind === 'station' ? 'text-instrument' : 'text-phosphor'}`}
               >
                 <span
                   className={`rounded-full border border-current ${body.kind === 'star' ? 'size-3 bg-current/30' : body.kind === 'moon' ? 'size-1 bg-current' : 'size-2'}`}
@@ -142,7 +147,7 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
           <span>Surface range</span>
         </div>
         <div className="mt-5 grid gap-1.5">
-          {system.bodies.map((body) => (
+          {contacts.map((body) => (
             <button
               key={body.id}
               type="button"

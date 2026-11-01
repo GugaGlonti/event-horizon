@@ -1,8 +1,9 @@
 import { z } from 'zod';
 import type { CombatEvent } from '@/engine/combat/combatTypes';
 import type { FlightController } from '@/engine/simulation/FlightController';
+import type { DockingState } from '@/engine/stations/stationTypes';
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 export const ROOM_NAME = 'star-system';
 const axis = z.number().finite().min(-1).max(1);
 const id = z.string().min(1).max(80);
@@ -38,7 +39,18 @@ export const inputSchema = z.strictObject({
   paused: z.boolean(),
   assistance: z.boolean(),
 });
+export const gameplayActionSchemas = [
+  z.strictObject({ kind: z.literal('landing-gear'), enabled: z.boolean() }),
+  z.strictObject({ kind: z.literal('transit'), enabled: z.boolean() }),
+  z.strictObject({ kind: z.literal('takeoff') }),
+  z.strictObject({ kind: z.literal('dock'), stationId: id, portId: id.optional() }),
+  z.strictObject({ kind: z.literal('capture') }),
+  z.strictObject({ kind: z.literal('cancel-docking') }),
+  z.strictObject({ kind: z.literal('undock') }),
+  z.strictObject({ kind: z.literal('service'), service: z.enum(['repair', 'shields', 'weapons']) }),
+] as const;
 export const actionSchema = z.discriminatedUnion('kind', [
+  ...gameplayActionSchemas,
   z.strictObject({
     kind: z.literal('travel'),
     destination: z.enum(['solara', 'vesper', 'aether']),
@@ -59,6 +71,7 @@ export interface ShipState {
   player: boolean;
   stationary: boolean;
   flight: FlightState;
+  docking: DockingState;
   shields: number;
   hull: number;
   protection: number;
@@ -98,7 +111,7 @@ export interface EffectState {
   lifetime: number;
 }
 export interface WorldSnapshot {
-  v: 1;
+  v: 2;
   tick: number;
   time: number;
   systemId: string;
@@ -112,6 +125,7 @@ export interface WorldSnapshot {
   tickMs: number;
   overruns: number;
   roster: string[];
+  ports: { stationId: string; portId: string; occupant: string | null }[];
   ships: ShipState[];
   projectiles: ShotState[];
   effects: EffectState[];
@@ -132,7 +146,7 @@ export interface TravelPermit {
   expiresIn: number;
 }
 export interface Welcome {
-  v: 1;
+  v: 2;
   playerId: string;
   systemId: string;
   instanceId: string;
@@ -183,8 +197,24 @@ const eventSchema = z.discriminatedUnion('kind', [
     hull: scalar,
   }),
 ]);
+const dockingStateSchema: z.ZodType<DockingState> = z.strictObject({
+  phase: z.enum([
+    'undocked',
+    'requested',
+    'approaching',
+    'aligning',
+    'docking',
+    'docked',
+    'undocking',
+  ]),
+  stationId: id.nullable(),
+  portId: id.nullable(),
+  timer: scalar,
+  start: vec.nullable(),
+  orientation: quat.nullable(),
+});
 export const snapshotSchema: z.ZodType<WorldSnapshot> = z.strictObject({
-  v: z.literal(1),
+  v: z.literal(PROTOCOL_VERSION),
   tick: scalar,
   time: scalar,
   systemId: id,
@@ -198,6 +228,7 @@ export const snapshotSchema: z.ZodType<WorldSnapshot> = z.strictObject({
   tickMs: scalar,
   overruns: scalar,
   roster: z.array(id).max(42),
+  ports: z.array(z.strictObject({ stationId: id, portId: id, occupant: id.nullable() })).max(32),
   ships: z
     .array(
       z.strictObject({
@@ -206,6 +237,7 @@ export const snapshotSchema: z.ZodType<WorldSnapshot> = z.strictObject({
         player: z.boolean(),
         stationary: z.boolean(),
         flight: flightStateSchema,
+        docking: dockingStateSchema,
         shields: scalar,
         hull: scalar,
         protection: scalar,
@@ -271,7 +303,7 @@ export const snapshotSchema: z.ZodType<WorldSnapshot> = z.strictObject({
     .max(32),
 });
 export const welcomeSchema: z.ZodType<Welcome> = z.strictObject({
-  v: z.literal(1),
+  v: z.literal(PROTOCOL_VERSION),
   playerId: id,
   systemId: id,
   instanceId: id,

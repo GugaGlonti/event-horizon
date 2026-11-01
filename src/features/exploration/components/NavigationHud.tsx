@@ -1,3 +1,4 @@
+import { navigationContacts } from '@/engine/navigation/contacts';
 import { bodyLabel, formatDistance } from '@/features/exploration/components/LocalSystemMap';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
@@ -8,8 +9,12 @@ export function NavigationHud({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
   const navigation = useExplorationStore((state) => state.navigation);
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
-  const target = system?.bodies.find((body) => body.id === navigation.targetId);
-  const nearest = system?.bodies.find((body) => body.id === navigation.nearestId);
+  const target = (system ? navigationContacts(system) : []).find(
+    (body) => body.id === navigation.targetId,
+  );
+  const nearest = (system ? navigationContacts(system) : []).find(
+    (body) => body.id === navigation.nearestId,
+  );
   return (
     <section
       aria-label="Navigation target"
