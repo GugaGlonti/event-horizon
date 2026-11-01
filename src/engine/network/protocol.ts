@@ -57,6 +57,7 @@ export interface ShipState {
   id: string;
   name: string;
   player: boolean;
+  stationary: boolean;
   flight: FlightState;
   shields: number;
   hull: number;
@@ -194,6 +195,7 @@ export const snapshotSchema: z.ZodType<WorldSnapshot> = z.strictObject({
         id,
         name: z.string().max(24),
         player: z.boolean(),
+        stationary: z.boolean(),
         flight: flightStateSchema,
         shields: scalar,
         hull: scalar,

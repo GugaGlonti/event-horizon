@@ -46,7 +46,7 @@ export class Vector3 {
     return this.addScaledVector(v, -1);
   }
   subVectors(a: VectorLike, b: VectorLike) {
-    return this.copy(a).sub(b);
+    return this.set(a.x - b.x, a.y - b.y, a.z - b.z);
   }
   addScaledVector(v: VectorLike, s: number) {
     this.x += v.x * s;
