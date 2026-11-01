@@ -1,9 +1,9 @@
 # Architecture and extension guide
 
-Milestone 5 keeps the existing client architecture and adds shared protocol/simulation modules plus
-Node/Colyseus star-system rooms. The server owns gameplay; browser prediction and presentation are
-separate. See [multiplayer architecture and protocol](multiplayer.md) for lifecycle, authority,
-reconciliation, room transfers, security bounds and extension rules.
+Milestones 6–7 retain the shared simulation and Node/Colyseus authority and add planetary fields,
+terrain LOD, landing and station operations. See [planetary architecture and configuration](planetary-exploration.md)
+for scale, deterministic terrain, coordinates, docking, ownership and extension recipes, and
+[multiplayer architecture](multiplayer.md) for transport lifecycle and authority boundaries.
 
 ## Dependencies and ownership
 
@@ -13,7 +13,8 @@ App → FlightSession → FlightInputManager + FixedStepLoop + FlightController 
                    → ExplorationSession → SystemRuntime + NavigationComputer + HyperspaceController
 App → FlightHud + ExplorationOverlay → detached store read models / session actions
 SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + CombatScene + HyperspaceTunnel
-SystemScene → shared celestial geometry + CelestialBody + sky + local references
+SystemScene → celestial geometry + CelestialBody + PlanetTerrain workers/cache + AtmosphericSky
+            → StationScene + surface facilities + local references
 ```
 
 Authoritative engine modules import engine contracts and renderer-independent engine/math operations.
@@ -21,21 +22,23 @@ They cannot import Three.js, React, DOM, stores, features, renderer objects or c
 audio and render-origin utilities are client adapters outside the authoritative import graph. `worldTypes.ts` contains serializable tuples/metadata, not Three
 objects. Feature orchestration composes engine services and supplies browser adapters/loaders.
 
-| Owner                           | Responsibility                                                                         |
-| ------------------------------- | -------------------------------------------------------------------------------------- |
-| `engine/simulation`             | Private flight state, quaternion integration, explicit fixed ticks                     |
-| `engine/physics`                | Continuous sphere contacts, logical doubles, bounded mass-weighted impulse solve       |
-| `engine/combat`                 | Entity lifetime, shared commands, health, weapons, target leading and AI               |
-| `CombatSession`                 | System collider adapter, encounter spawning, read models and optional combat audio     |
-| `engine/world`                  | Definition contracts/validation, analytical hierarchy, safe arrival, render conversion |
-| `engine/navigation`             | Target validity, logical distances/ship-relative bearings, pure jump state machine     |
-| `features/exploration/data`     | Handcrafted catalogue, explicitly cancellable preparation boundary                     |
-| `ExplorationSession`            | One journey, preparation token/abort, active runtime, commit, audio lifetime           |
-| `FlightSession`                 | Input lifetime, interpolated logical pose, render origin/pose, arrival/flight handoff  |
-| `FlightCamera`                  | Presentation-only follow, rebase compensation, FOV and optional vibration              |
-| `SystemScene` / `CelestialBody` | Shared geometry, per-body shader uniforms, world-to-render transforms                  |
-| `HyperspaceTunnel`              | Depth-tested corridor mask; the shared Starfield owns point-to-trail morphs            |
-| `stores`                        | Discrete state and detached scalar/tuple snapshots; never authoritative transforms     |
+| Owner                           | Responsibility                                                                          |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `engine/simulation`             | Private flight state, quaternion integration, explicit fixed ticks                      |
+| `engine/physics`                | Continuous sphere contacts, logical doubles, bounded mass-weighted impulse solve        |
+| `engine/planetary`              | Deterministic heights/frames, gravity/density, terrain sweeps and landing configuration |
+| `engine/stations`               | Analytical facilities, cached box sweeps, exclusive docking leases and services         |
+| `engine/combat`                 | Entity lifetime, shared commands, health, weapons, target leading and AI                |
+| `CombatSession`                 | System collider adapter, encounter spawning, read models and optional combat audio      |
+| `engine/world`                  | Definition contracts/validation, analytical hierarchy, safe arrival, render conversion  |
+| `engine/navigation`             | Target validity, logical distances/ship-relative bearings, pure jump state machine      |
+| `features/exploration/data`     | Handcrafted catalogue, explicitly cancellable preparation boundary                      |
+| `ExplorationSession`            | One journey, preparation token/abort, active runtime, commit, audio lifetime            |
+| `FlightSession`                 | Input lifetime, interpolated logical pose, render origin/pose, arrival/flight handoff   |
+| `FlightCamera`                  | Presentation-only follow, rebase compensation, FOV and optional vibration               |
+| `SystemScene` / `CelestialBody` | Shared geometry, per-body shader uniforms, world-to-render transforms                   |
+| `HyperspaceTunnel`              | Depth-tested corridor mask; the shared Starfield owns point-to-trail morphs             |
+| `stores`                        | Discrete state and detached scalar/tuple snapshots; never authoritative transforms      |
 
 ## Flight and timing
 
@@ -95,8 +98,10 @@ and emits new shots at end-of-tick muzzles. Collision-adjusted position/velocity
 assistance settings do not change NPC assistance. Health/regeneration/cooldowns and all entity
 lifetimes use fixed simulation time. Presentation interpolates ship and projectile endpoints.
 
-Ship and asteroid shapes are conservative spheres. Stars, planets and moons use their surface radii;
-atmospheres, rings and beacons are non-solid. `sweepSphere` solves relative segment/sphere time of
+Ship and asteroid shapes are conservative spheres. Non-landable celestial bodies use surface radii;
+atmospheres, rings and beacons are non-solid. Pelagos uses independent deterministic height sweeps,
+and stations use cached oriented boxes. These contacts retain their response velocity through the
+sphere solve. Grounded/docked ships have infinite collision mass. `sweepSphere` solves relative segment/sphere time of
 impact, including initial overlap, using a stable quadratic root. `SphereSolver` advances bodies
 together to the earliest impact, separates overlap, applies a mass-weighted impulse with 0.15
 restitution and retains tangential velocity. Environment bodies have infinite mass; moon velocity
@@ -107,8 +112,8 @@ Impact damage is bounded, energy-scaled arcade tuning with a 12 m/s harmless-con
 
 Rapier was evaluated against its official [CCD documentation](https://rapier.rs/docs/user_guides/javascript/rigid_bodies/)
 and [determinism contract](https://rapier.rs/docs/user_guides/javascript/determinism/). It offers richer
-rigid-body contacts and deterministic WASM simulation. This foundation only needs spheres and arcade
-flight already integrated in logical double precision. A second body world would require a local
+rigid-body contacts and deterministic WASM simulation. The shared arcade controller already integrates
+logical doubles, with focused analytical sphere, height-field and box queries. A second body world would require a local
 physics origin, kinematic/velocity handoff and lifetime synchronization. The focused analytical
 solver keeps one movement authority and adds no dependency. Reconsider Rapier when contact torque,
 complex rigid shapes, debris or larger scenes are actual requirements. This solver guarantees neither
@@ -216,8 +221,8 @@ world time continues. Combat rewind remains future work. See [the complete netwo
 
 ## Logical coordinates and render origin
 
-Each system has its own logical coordinate frame. Positions and radii are compressed metres suitable
-for travel at 180 m/s cruise and 360 m/s boost. Definitions use parent-relative tuples or circular
+Each system has its own logical coordinate frame. Positions and radii are gameplay metres with 138–405 km planets
+and 25.5–54 km moons. Normal cruise/boost remains 180/360 m/s; bounded transit covers longer distances. Definitions use parent-relative tuples or circular
 orbital parameters. `SystemRuntime` validates/sorts parents once and reuses CPU `Vector3` positions.
 A moon inherits its parent's translated position, without inheriting the parent's axial spin.
 
@@ -226,8 +231,9 @@ positions subtract that origin. Physics, navigation distances, spawn selection, 
 change when rendering rebases. `FlightCamera` first translates its existing position by the origin
 delta, then follows the new local target, preventing a damping lurch at grid boundaries.
 
-Bodies farther than 60 km from the origin are hidden and their render transform is zeroed. Reference
-beacons receive the same treatment. Sky/tunnel effects follow the nearby camera, and dust wraps
+Celestial surfaces farther than 18,000 km are hidden and zeroed. Reference beacons remain
+bounded to 60 km. Terrain uses patch-local vertices and logical anchors, with a 20,000 km logarithmic
+camera depth range. Sky/tunnel effects follow the nearby camera, and dust wraps
 through a 4 km periodic field only when the origin changes. No enormous logical positions enter GPU
 transforms. Stable system IDs and logical positions are the network synchronization keys. Floating-origin
 changes remain client-only; cross-platform bitwise determinism is not promised.
@@ -280,7 +286,9 @@ the logical frame while the camera compensates both origin and ship translation,
 position, orientation and FOV. A reset still explicitly snaps the camera.
 
 EXITING stays at zero progress with full coverage until the matching destination SystemScene reports
-its first frame. Stale source frames cannot unlock it. Both CPU preparation and renderer readiness have
+its first frame after every terrain body has complete six-face base coverage. The renderer reports
+readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
+Both CPU preparation and renderer readiness have
 bounded 12-second deadlines. The first 14% of exit remains opaque; coverage falls over 14–23% (about
 0.1 seconds), coordinated with star contraction, a restrained exposure crest and the exit impulse.
 The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
@@ -506,8 +514,8 @@ and broader hardware profiling are future improvements, not a promise of univers
    chart, fly near its primary world, then jump in/out in both camera modes and a narrow viewport.
 
 Adding a surface pattern requires a typed pattern, validation entry and one shared shader branch;
-never fork the entire system renderer for a single world. Future planetary LOD/terrain should remain
-presentation data layered over the same logical hierarchy and coordinate contract.
+never fork the entire system renderer for a single world. Planetary LOD is presentation layered over
+the same deterministic height field and logical hierarchy; use the detailed extension recipe linked above.
 
 ## Verification and future work
 
@@ -530,4 +538,5 @@ momentum/energy, AI state transitions, complete five-ship combat, all-system pra
 
 Authoritative multiplayer PvP/cooperative PvE is implemented in Milestone 5. See the
 [dated verification record](milestone-5.md) for real-client tests, two-browser checks and 2/8/16-client
-load measurements. Planetary atmospheres, terrain and landing are the next milestone.
+load measurements. Milestones 6–7 add planetary/station systems; see the
+[acceptance record](milestones-6-7.md) for their current evidence and limits.

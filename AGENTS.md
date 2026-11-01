@@ -1,10 +1,10 @@
 # Event Horizon — agent instructions
 
 Event Horizon is a TypeScript/React browser space flight, exploration and multiplayer combat game.
-Milestone 5 adds Node/Colyseus system rooms, guest reconnection, shared PvP/PvE authority,
-flight prediction/reconciliation and cinematic room transfers to the existing three-system game.
-Offline flight/combat remain supported. Planetary atmospheres, terrain and landing are next;
-large battles, squadrons, missions and persistent progression remain future work.
+Milestones 6–7 add gameplay planetary scale, deterministic Pelagos terrain/atmosphere, shared gravity,
+landing/takeoff, Solara Orbital's hangar and Vesper Outpost docking/services. Offline and authoritative
+multiplayer combat/navigation/hyperspace remain supported. Missions, contracts and player progression
+are next. Do not add economy, inventory, characters or weather without a task requirement.
 
 ## Before changing code
 
@@ -28,6 +28,11 @@ large battles, squadrons, missions and persistent progression remain future work
 - `server`: Colyseus room lifecycle, configuration, clocks, validated messages, travel/reconnect and metrics.
 - `src/features/multiplayer`: browser transport, prediction/read-model adapter, interpolation and UI.
 - `scripts/loadTest.ts`: real-client load harness; document actual measurements and their limits.
+- `src/engine/planetary`: shared deterministic height/density/gravity queries, body/tangent frames,
+  landing state/telemetry and configurable flight tuning. No render patches, browser or stores.
+- `src/engine/stations`: serializable facilities, oriented-box sweeps, docking leases and services.
+  Initial facilities are fixed; analytical orbital velocity is available for relative approach checks.
+- `src/features/stations`: modular meshes/signage/lights and docking presentation only.
 - `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
 - `src/engine/combat`: shared command-driven ships, damage, weapons/heat, targeting, AI, pure encounter
   scheduling, detached serializable snapshots and bounded attributed gameplay events/entity lifetime;
@@ -40,7 +45,8 @@ large battles, squadrons, missions and persistent progression remain future work
   Player engine sound consumes reusable scalar snapshots; keep audio inertia separate from physics.
 - `src/features/exploration`: handcrafted catalogue, cancellable system preparation, journey orchestration,
   maps/navigation read models, hyperdrive presentation and recorded/synthesized audio adapter.
-- `src/features/planets`: shared procedural surface, atmosphere and ring rendering.
+- `src/features/planets`: shared celestial/atmosphere rendering, terrain workers/cache, surface
+  facilities and HUD. Keep terrain heights shared with authority, never derived from a rendered mesh.
 - `src/features/spacecraft`: bundled ship models, shared asset lifetime and engine visuals; no simulation imports.
 - `src/components/ui`: reusable DOM UI with no feature or engine dependencies.
 - `src/stores`: low-frequency shared state. `src/hooks`: reusable subscriptions and UI hooks.
@@ -142,6 +148,29 @@ large battles, squadrons, missions and persistent progression remain future work
   arrival; mouse recapture requires a user gesture. Preserve the inverted pitch and arrow-roll/QE-yaw
   mapping unless requested otherwise.
 
+## Planetary and docking contracts
+
+- Use shared `engine/planetary/config.ts` for gravity assistance, drag, atmospheric handling, transit
+  and precision gear jets. Planetary forces run inside the existing FlightController, once per tick.
+  Keep the terrain response velocity when feeding corrected motion through the sphere solver.
+- Surface state includes a rotating body-local anchor/orientation. Never teleport to simulate entry,
+  landing or takeoff. Landing requires safe velocity/attitude/slope and nearby-ship clearance.
+- StationSimulation owns exclusive leases, capture, services and continuous undocking. Free leases on
+  removal/destruction. Keep docked leases through reconnect grace; release approaching disconnects.
+  Flight-locked ships cannot fire or steer. Repair only live docked ships through validated intentions.
+- Protocol v2 transports full surface/lock state, docking state and bounded shared occupancy. Keep
+  positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
+- Navigation IDs span bodies, stations, zones and landmarks. Keep chart/HUD ranges and safe hyperspace
+  corridors consistent with changed radii, physical atmospheres and station collision geometry.
+- Use logarithmic depth for the 20,000 km far plane. Custom world/foreground shaders must use matching
+  vertex/fragment depth chunks and common helpers. The atmosphere sky must depth-test behind solid
+  geometry; the hyperspace mask uses an 80 m logarithmic foreground boundary.
+- Copy scalar quaternion components across engine/Three boundaries. Three.multiply reads private
+  fields; do not pass an engine quaternion into it. Test actual renderer-math boundary conversions.
+- QA fixtures live only in scripts/planetaryVerification.ts / planetaryFixtures.ts, never game protocol
+  or normal authority. Distinguish fixture-assisted browser checks from continuous manual flight.
+  Use LOAD_SCENARIO=low/station for representative load and record actual hardware/viewport limits.
+
 ## Performance and resource lifetime
 
 - Dispose of Three.js resources correctly. Fiber handles declaratively mounted geometry/materials;
@@ -161,8 +190,9 @@ large battles, squadrons, missions and persistent progression remain future work
   audio in logical space and consume muted/paused effects without replaying them. Keep weapon/hit
   cues above the engine bed.
 - Avoid per-frame allocations, unnecessary rerenders, and expensive graphics features without profiling.
-- Keep device pixel ratio bounded. Add LOD, richer terrain, adaptive quality or post-processing as
-  focused future work, backed by measurements and an actual feature requirement.
+- Keep device pixel ratio bounded. Terrain uses a 150-leaf quadtree, 256-patch retention target and hard 384-patch cache ceiling;
+  retain parent coverage, morph new detail and cover mixed LOD seams. Terminate workers and dispose
+  cached resources on teardown. Add richer terrain/adaptive quality only with measured need.
 
 ## Tests and verification
 

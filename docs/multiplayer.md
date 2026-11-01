@@ -1,4 +1,4 @@
-# Milestone 5 — Multiplayer PvP and cooperative PvE
+# Multiplayer authority, PvP and cooperative PvE
 
 This is the current multiplayer contract. The Milestone 4 record remains a historical acceptance
 record for the offline game. The original implementation had reusable commands, deterministic flight,
@@ -98,9 +98,10 @@ as client prediction. Other configured rates divide each authority tick into app
 substeps, with the identical subdivision on predicting clients. Colyseus bounds fixed-tick catch-up
 to five steps; packet arrival never advances simulation.
 
-The join payload declares protocol version 1, callsign, system/instance and an optional single-use
-travel ticket. Client messages are `input` or `action`; action kinds are travel, cancel-travel, ready,
-respawn, encounter and ping. Server messages are welcome, snapshot (including confirmed combat
+The join payload declares protocol version 2, callsign, system/instance and an optional single-use
+travel ticket. Client messages are `input` or `action`; actions include travel, cancel-travel, ready,
+respawn, encounter, gear, transit, takeoff, docking request/capture/cancel, undock, services and ping.
+Server messages are welcome, snapshot (including confirmed combat
 events and input acknowledgement), travel permit, error and pong. Unknown versions, extra input
 properties, nonfinite/out-of-range axes and invalid weapons are rejected. WebSocket payloads are
 limited to 4096 bytes inbound. Joins accept bounded plain callsigns, not HTML or client state.
@@ -184,6 +185,14 @@ Full rooms can place friends in separate instances. Snapshot bandwidth grows wit
 measure before increasing capacity. Remote labels are limited to ten nearby pilots and renderer
 slots to 32 players plus ten AI. No cross-platform bitwise determinism is promised.
 
-Next: planetary atmospheres, terrain and landing, preserving shared logical/collision authority.
+Milestones 6–7 extend this authority with planetary fields, landing, station docking/occupancy and
+services. See [planetary architecture](planetary-exploration.md) and the
+[dated acceptance record](milestones-6-7.md).
+Next: Missions, Contracts & Player Progression.
 Later: larger battles, squadrons, missions and persistent progression, backed by longer load tests
 and smaller/delta snapshots rather than speculative distributed infrastructure.
+
+Protocol v2 additionally replicates body-local surface attachments, gear/transit/flight-lock state,
+per-ship docking phase and the shared bounded port roster. Landing, takeoff, docking, undocking and
+free services are strict intentions validated by the same authority as combat. No client may send
+poses, terrain outcomes, repair amounts or occupancy mutations.
