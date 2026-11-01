@@ -1,8 +1,9 @@
 # Architecture and extension guide
 
-Milestone 4 extends the existing flight session with shared combat simulation. Flight, collision,
-damage, AI, world definitions, navigation, jump timing, GPU presentation and React overlays remain
-distinct. No networking or server infrastructure is implemented.
+Milestone 5 keeps the existing client architecture and adds shared protocol/simulation modules plus
+Node/Colyseus star-system rooms. The server owns gameplay; browser prediction and presentation are
+separate. See [multiplayer architecture and protocol](multiplayer.md) for lifecycle, authority,
+reconciliation, room transfers, security bounds and extension rules.
 
 ## Dependencies and ownership
 
@@ -15,8 +16,9 @@ SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + CombatScene +
 SystemScene → shared celestial geometry + CelestialBody + sky + local references
 ```
 
-Engine modules import only engine contracts and Three.js math. They cannot import React, DOM, stores,
-features, renderer objects or clocks. `worldTypes.ts` contains serializable tuples/metadata, not Three
+Authoritative engine modules import engine contracts and renderer-independent engine/math operations.
+They cannot import Three.js, React, DOM, stores, features, renderer objects or clocks. Browser input,
+audio and render-origin utilities are client adapters outside the authoritative import graph. `worldTypes.ts` contains serializable tuples/metadata, not Three
 objects. Feature orchestration composes engine services and supplies browser adapters/loaders.
 
 | Owner                           | Responsibility                                                                         |
@@ -77,7 +79,7 @@ player `FlightController` into `CombatSimulation`; there is no duplicate player 
 movement integrator. `CombatShip` holds a stable ID, team, controller, health, cooldown and previous/
 current endpoints. `ShipCommand` contains a flight snapshot, fire flag and optional selected weapon slot. Browser input and
 `ShipAi` produce the same command shape. AI cannot set orientation or teleport; it consumes the same
-acceleration, damping and turn-rate limits. Configurations live in `features/combat/config.ts` and are
+acceleration, damping and turn-rate limits. Configurations live in `engine/combat/config.ts` and are
 passed into the engine, including mass/radius, handling, shield/hull, gun/missile/railgun/flak statistics and AI ranges.
 
 The fixed tick advances analytical celestial positions, prepares environment velocities, integrates
@@ -180,13 +182,13 @@ these results and never choose a target or alter physics.
 on per-ship reaction timers while retained commands feed every fixed tick. Time and an ID-derived
 phase seed bounded aim error and weaving; no wall clock or global randomness is used. Reaction time,
 aim error, aggression, preferred engagement distance, steering response and critical hull threshold
-are feature configuration. AI predicts relative movement, steers in its local quaternion frame,
+are shared combat configuration. AI predicts relative movement, steers in its local quaternion frame,
 avoids nearby spherical obstacles and fires only while aligned in attack. Critical hull triggers
 retreat without firing. Disengagement returns home before reacquiring. FlightController still owns
 actual acceleration, speed, inertia and turning constraints. This is steering, not pathfinding or
 strategic planning.
 
-Maps/focus loss/pause stop the shared clock and clear fire as well as flight input. Hyperdrive
+In offline mode, maps/focus loss/pause stop the shared clock and clear fire as well as flight input. Hyperdrive
 departure clears the encounter and suspends normal collision/combat simulation. Arrival or abort
 rebuilds celestial colliders at the matching runtime's current time; existing masked handoff rules
 are unchanged. Player damage persists across jumps. Teardown clears entities and closes audio;
@@ -200,10 +202,11 @@ respawn action. Camera impact offsets are bounded, decay with simulation time an
 motion. `CombatAudio` uses gesture-started synthesis, consumes each effect ID once, caps transient voices at ten,
 and stops/disconnects nodes on pause/mute/departure/disposal; audio never gates simulation.
 
-Future authority can validate commands and replay fixed ticks against stable system/entity IDs and
-shared configurations, detached snapshots and attributed gameplay events. A server implementation
-still needs validated/versioned snapshot import, command validation, tick transport, synchronization,
-prediction/reconciliation, lag compensation and authoritative encounter/orbital policy. None of those are represented as implemented networking here.
+Multiplayer authority consumes these same ship/weapon/AI rules through `engine/network/MultiplayerWorld`.
+`server/createServer` validates intentions and owns room ticks, guest reconnection and transfers.
+`features/multiplayer` predicts flight and adapts confirmed snapshots to the existing combat renderer;
+it never runs client-authoritative weapons or AI. Multiplayer menus send neutral input while server
+world time continues. Combat rewind remains future work. See [the complete network contract](multiplayer.md).
 
 ## Logical coordinates and render origin
 
@@ -220,8 +223,8 @@ delta, then follows the new local target, preventing a damping lurch at grid bou
 Bodies farther than 60 km from the origin are hidden and their render transform is zeroed. Reference
 beacons receive the same treatment. Sky/tunnel effects follow the nearby camera, and dust wraps
 through a 4 km periodic field only when the origin changes. No enormous logical positions enter GPU
-transforms. Stable system IDs plus logical positions are suitable future synchronization keys; no
-protocol or cross-platform determinism guarantee is implied.
+transforms. Stable system IDs and logical positions are the network synchronization keys. Floating-origin
+changes remain client-only; cross-platform bitwise determinism is not promised.
 
 ## Definition preparation and safe arrivals
 
@@ -460,7 +463,7 @@ and broader hardware profiling are future improvements, not a promise of univers
 
 ## Adding weapons and enemy configurations
 
-- For another laser loadout, define a `ShipConfig` in `features/combat/config.ts`. Set local -Z-forward
+- For another laser loadout, define a `ShipConfig` in `engine/combat/config.ts`. Set local -Z-forward
   hardpoint tuples, alternating/synchronized mode, projectile speed/damage/range/lifetime, inherited
   velocity fraction, cooldown and heat per bolt/cooling/resume threshold. Place muzzles ahead of the
   hull. Synchronized salvos reserve all slots before consuming cooldown/heat. Keep the shared sweep,
@@ -481,7 +484,7 @@ and broader hardware profiling are future improvements, not a promise of univers
 
 ## Adding a system, planet or moon
 
-1. Add a JSON-compatible `StarSystemDefinition` to `features/exploration/data/systems.ts` with a new
+1. Add a JSON-compatible `StarSystemDefinition` to `engine/world/systems.ts` with a new
    stable system ID, chart position, distinct galactic position and environment palette. Galactic axes
    share local +Y up and -Z chart north; do not infer routes from decorative chart coordinates. The catalogue validation runs on import.
 2. Give its central star a fixed position and unique body ID. Add three or more worlds as desired,
@@ -519,6 +522,6 @@ regeneration timing, high-speed ship and relative projectile sweeps, moving moon
 momentum/energy, AI state transitions, complete five-ship combat, all-system practice encounters,
 30/60/144 FPS replay, ten-enemy lifetime bounds, map/departure/respawn cleanup and audio teardown.
 
-Authoritative multiplayer PvP follows as a separate milestone,
-with input validation, serialization, prediction and reconciliation built around stable system IDs and
-logical poses. No speculative server implementation is included here.
+Authoritative multiplayer PvP/cooperative PvE is implemented in Milestone 5. See the
+[dated verification record](milestone-5.md) for real-client tests, two-browser checks and 2/8/16-client
+load measurements. Planetary atmospheres, terrain and landing are the next milestone.

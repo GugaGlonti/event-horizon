@@ -2,14 +2,33 @@
 
 A browser-based space flight, exploration, and PvE combat game, built one system at a time.
 
-**Milestone 4 — Combat & PvE consolidation.** Pilot the Kestrel through three handcrafted
-systems, engage a hostile patrol, and survive a complete dogfight. Lasers, shields, hull damage,
-swept collisions, cannon heat, target leading, AI retreat and timed enemy respawn share the existing
-fixed-step flight loop. This is the authoritative single-player target before multiplayer PvP and
-cooperative PvE. Galaxy exploration, charts and cinematic hyperspace remain available. Multiplayer, detailed terrain
-and landings belong to later milestones.
+**Milestone 5 — Multiplayer PvP & Cooperative PvE.** Fly the Kestrel through Solara, Vesper
+and Aether alone or with other guest pilots. A Node/Colyseus server owns movement, shared AI,
+weapons, damage, respawns and system transfers. Shared flight prediction and remote interpolation
+keep browser controls responsive. The existing maps, cameras, floating origin, procedural worlds
+and cinematic hyperspace remain in use. Terrain and landing are the next milestone.
 
-## Start exploring
+## Start multiplayer
+
+```bash
+npm ci
+npm run server  # terminal one, default ws://127.0.0.1:2567
+npm run dev     # terminal two
+```
+
+Open the Vite URL in two tabs/windows, enter callsigns, choose **Connect multiplayer**, then
+**Keyboard flight**. Guests in the same public system instance share PvP and AI encounters.
+Menus release controls while the server keeps simulating; other ships can still damage you.
+Use the galaxy map for authoritative cinematic transfers between rooms. Reconnection restores a
+guest within the default 15-second grace; expired guests cleanly rejoin with a new identity.
+
+Optional settings are listed in `.env.example`. `VITE_MULTIPLAYER_URL` is the public endpoint;
+Node settings control host/port, tick/snapshot rates, capacity, relevance and reconnection grace.
+Development diagnostics expose RTT, tick/FPS, corrections, room IDs and latency/jitter/loss controls.
+See [multiplayer setup, protocol and architecture](docs/multiplayer.md) and the
+[Milestone 5 verification record](docs/milestone-5.md) for measured limits and remaining caveats.
+
+## Start exploring offline
 
 Requires **Node.js 22.12+ on the 22.x line, or Node.js 24+**, npm 10+, and a desktop keyboard with a
 modern WebGL 2 browser. Hardware acceleration is recommended. `.nvmrc` selects Node 22.
@@ -177,7 +196,7 @@ range or when hit, retreats below 25% hull, avoids nearby obstacles, and returns
 disengaging. Decisions run every 0.15 s; ID-seeded aim error, aggression, preferred distance and
 steering response are configurable. The flight controller still bounds acceleration, speed and turns.
 Enemies use the same flight controller, collision solver, weapon and damage rules as the player. Strafe, brake and boost
-to spoil their aim. Destroyed enemies are removed immediately. Player destruction pauses combat and
+to spoil their aim. Destroyed enemies are removed immediately. In offline mode, player destruction pauses combat and
 offers **Respawn / keyboard flight** at a safe arrival, restoring hull, shields and boost with three
 seconds of protection. Maps, Escape, focus/visibility loss and pointer-lock release pause the fight
 and clear held fire. Jumping leaves the encounter behind and preserves player damage.
@@ -189,10 +208,10 @@ movement. Reduced motion suppresses impact shake and moving combat particles.
 hyperdrive audio retains its separate map setting. Sound unlocks through a flight-start gesture.
 
 Ship mass/radius/handling, defenses, gun/missile/railgun/flak stats, AI thresholds and encounter size live in
-`src/features/combat/config.ts`. The default is five enemies; configuration supports up to ten.
+`src/engine/combat/config.ts` (re-exported by the feature configuration). The default is five enemies; configuration supports up to ten.
 The shared simulation exposes detached JSON snapshots and bounded, attributed spawn/fire/impact/
-damage/destruction events. These are local authority boundaries; there is no networking, progression,
-mission system or persistent combat save. See the [combat acceptance record](docs/milestone-4.md) and
+damage/destruction events. The multiplayer room consumes these same authority rules. Progression, missions and persistent
+combat saves remain future work. See the [combat acceptance record](docs/milestone-4.md) and
 [weapon/enemy extension instructions](docs/architecture.md#adding-weapons-and-enemy-configurations).
 
 ## Spacecraft audio
@@ -283,29 +302,35 @@ Essential alignment, orbital positions, charge feedback, and travel remain avail
 ## Stack and commands
 
 React 19, strict TypeScript 7, Vite 8, Three.js r182, React Three Fiber 9, Drei 10, Zustand 5,
-Tailwind CSS 4, Biome 2, and Vitest 5. Resolved versions are in `package-lock.json`. Three is pinned to
+Tailwind CSS 4, Biome 2, Vitest 5, Colyseus 0.18, Zod 4 and the tsx Node runner. Resolved versions are in `package-lock.json`. Three is pinned to
 r182 because Fiber 9 constructs `Clock`, deprecated in later Three releases; update the matching types
 and verify Fiber compatibility before changing that pin.
 
-| Command             | Behavior                                          |
-| ------------------- | ------------------------------------------------- |
-| `npm run dev`       | Vite development server                           |
-| `npm run build`     | Strict type check and production build to `dist/` |
-| `npm run preview`   | Serve the built `dist/` locally                   |
-| `npm run lint`      | Biome formatting/import/lint checks               |
-| `npm run format`    | Apply formatting, import organization, safe fixes |
-| `npm run typecheck` | Check app, tests, Vite configuration              |
-| `npm test`          | Run unit tests                                    |
-| `npm run check`     | Lint, tests, type-checked production build        |
+| Command                    | Behavior                                          |
+| -------------------------- | ------------------------------------------------- |
+| `npm run server`           | Start the Node multiplayer authority              |
+| `npm run server:dev`       | Watch authority/shared source changes             |
+| `npm run test:integration` | Real server/client lifecycle and combat tests     |
+| `npm run test:load`        | Simulated 2/8/16-client measurements              |
+| `npm run dev`              | Vite development server                           |
+| `npm run build`            | Strict type check and production build to `dist/` |
+| `npm run preview`          | Serve the built `dist/` locally                   |
+| `npm run lint`             | Biome formatting/import/lint checks               |
+| `npm run format`           | Apply formatting, import organization, safe fixes |
+| `npm run typecheck`        | Check client, authority, tests and scripts        |
+| `npm test`                 | Run unit and real-server integration tests        |
+| `npm run check`            | Lint, tests, type-checked production build        |
 
 CI runs npm ci, lint, tests, and build. Hosting is not configured; `dist/` can be served as static
-files. No environment file is needed. Future `VITE_` variables are public client configuration, never
-secrets.
+files. Defaults work without an environment file. `.env.example` documents optional client/server settings;
+`VITE_` values are public client configuration, never secrets.
 
 ## Architecture and coordinates
 
 ```text
 src/engine/
+  math/                   Renderer-independent vector/quaternion operations
+  network/                Validated protocol, authoritative world, prediction and interpolation
   input/                  Active-flight keyboard and pointer-lock adapter
   simulation/             Fixed-step flight physics and scalar telemetry
   physics/                Continuous sphere sweeps and mass-weighted impact response
@@ -313,9 +338,10 @@ src/engine/
   world/                  Serializable definitions, validation, analytical orbits, render origin
   navigation/             Pure target/bearing calculations and hyperspace state machine
 src/features/
+  multiplayer/            Guest transport, prediction adapter, remote presentation and UI
   combat/                 Encounter/world adapter, bounded effects, HUD and optional audio
   exploration/
-    data/systems.ts       Handcrafted catalogue and cancellable bundled-definition loader
+    data/systems.ts       Compatibility export of the shared engine/world catalogue
     ExplorationSession.ts Preparation, jump lifecycle, system commit, navigation publication
     HyperdriveAudio.ts    Gesture-started layered jump audio and cleanup
     audio/                Local CC0 stems, cached decoding and recorded voice lifetime
@@ -325,6 +351,8 @@ src/features/
   planets/                Reusable celestial geometry, surface/atmosphere/ring shaders
   spacecraft/             Original Kestrel model, independent of physics
   space/                  Seeded stars, nebula backdrop, periodic dust and approach beacons
+server/                   Colyseus system rooms, guest/travel lifecycle and fixed authority loop
+scripts/loadTest.ts       Real-client load and bandwidth measurements
 src/stores/               Discrete choices and detached read models, published at 10 Hz
 ```
 
@@ -340,11 +368,11 @@ before applying follow damping. Celestial transforms subtract the same origin; d
 culled before large transforms reach the GPU. The sky and hyperdrive are camera-relative, and local
 dust wraps through a bounded periodic field. HUD distances always use logical coordinates.
 
-Flight remains fixed at **120 Hz**, bounded to **0.1 seconds / 12 catch-up ticks**, with interpolated
-presentation. Telemetry/navigation publish at **10 Hz**; idle paused navigation does not republish.
-React and stores never own frame-rate transforms. The engine has no React, DOM, feature, store,
-renderer, clock, or network dependency. Stable IDs, explicit system time, analytical orbits, and
-logical coordinates prepare the boundary for future networking; they do not implement it.
+Offline flight remains fixed at **120 Hz**, bounded to **0.1 seconds / 12 catch-up ticks**.
+The server defaults to **30 Hz inputs / 20 Hz snapshots**, with four shared physics substeps per
+authority tick. Local prediction restores acknowledged state and replays newer inputs; remote poses
+use quaternion interpolation and bounded extrapolation. Flight/combat HUD telemetry publishes at
+**10 Hz**. Authoritative rules use shared math without React, Three.js, DOM, features or stores.
 
 See [architecture and extension guide](docs/architecture.md), including how to add a system or moon.
 
@@ -365,7 +393,7 @@ Weapon tests cover all four slots, reload preservation, bounded missile steering
 railgun charge/cancellation, central emission under rotation, nearest-hit/range rules, tracer expiry,
 flak spread/inherited velocity, short-range damage, complete-salvo capacity and frame-rate replay.
 
-The consolidation run passed **295 tests across 28 files**, TypeScript checking, Biome linting
+The historical Milestone 4 consolidation run passed **295 tests across 28 files**, TypeScript checking, Biome linting
 and the production build. Browser playtesting covered practice kills in all three systems, keyboard
 and left-mouse fire, overheat feedback, live patrol kills, incoming damage, player destruction/respawn,
 chase/cockpit cameras, maps, the complete Solara → Vesper → Aether → Solara journey and the opaque
@@ -383,11 +411,11 @@ and exact regeneration timing are covered by headless tests. See the
 - Rapier was evaluated for CCD and deterministic rigid-body support. This milestone extends the
   existing double-precision movement model with an analytical sphere solver instead of adding a
   second integrator and WASM dependency. See the architecture notes for the tradeoff.
-- Encounters are local, automatically scheduled after arrival and reset on departure. Practice remains
+- Offline encounters are local, automatically scheduled after arrival and reset on departure. Practice remains
   an opt-in finite exercise. AI uses simple steering and obstacle avoidance;
   it has no tactical planning or pathfinding. Aim leading assumes constant target velocity.
 - Bundled procedural systems are prepared in memory; there is no network asset streaming or save-game
-  persistence. Reloading starts in Solara. There is no touch/gamepad piloting.
+  persistence. Offline reloading starts in Solara; multiplayer can recover a guest in its current room. There is no touch/gamepad piloting.
 - Hyperdrive audio uses transformed CC0 preview recordings (about 1.1 MB of local PCM assets) and a
   synthesized fallback. It is an original film-inspired interpretation; source fidelity is limited by
   the public MP3 previews. Broader environmental sound and post-processing remain future work.
@@ -396,8 +424,10 @@ and exact regeneration timing are covered by headless tests. See the
   adaptive quality/LOD remain future work.
 - Vite retains its large-chunk advisory for Three.js application/scene bundles. Unsupported WebGL
   browsers receive a fallback; automatic graphics-context recovery is not implemented.
-- No server authority, state synchronization, prediction/reconciliation, or cross-platform bitwise
-  determinism is implemented.
+- Multiplayer is an in-memory guest prototype, tested locally up to 16 clients. Snapshot bandwidth
+  increases with close combat; there is no persistence, combat rewind, distributed hosting or verified
+  thousand-player capacity. Cross-platform bitwise determinism is not promised. See the measured
+  [network limitations](docs/multiplayer.md#extension-rules-and-remaining-limits).
 
 ## Roadmap
 
@@ -408,7 +438,9 @@ and exact regeneration timing are covered by headless tests. See the
 - [x] Milestone 4 — **Space Combat & PvE**: shared ships, swept collisions, lasers, damage, AI,
   heat/overheat, combat targeting, automatic patrols and timed reinforcements, destruction/respawn,
   HUD, audio, JSON snapshots and gameplay events
-- [ ] Milestone 5 — Multiplayer PvP & Cooperative PvE with authoritative synchronization
-- [ ] Later — Terrain/landings, wider hardware support, richer audio and quality settings
+- [x] Milestone 5 — Multiplayer PvP & Cooperative PvE: authoritative rooms, prediction, interpolation,
+  shared AI/combat, guest reconnection and cinematic cross-system transfers
+- [ ] Milestone 6 — Planetary Atmospheres, Terrain & Landing
+- [ ] Later — Larger battles, squadrons, missions, persistent multiplayer progression, wider hardware support
 
 Licensed under [MIT](LICENSE).

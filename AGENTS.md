@@ -1,11 +1,10 @@
 # Event Horizon — agent instructions
 
-Event Horizon is a TypeScript/React browser-based space flight, exploration and PvE combat game.
-Milestone 4 extends three handcrafted systems, procedural celestial bodies, maps, floating-origin
-rendering and cinematic hyperspace with shared ship simulation, continuous sphere collisions,
-four weapons, cannon heat, shields/hull, targeting, timed AI patrols/respawn and JSON combat snapshots.
-Multiplayer PvP/cooperative PvE, detailed terrain
-and landings remain future work; add them only when the current task requests them.
+Event Horizon is a TypeScript/React browser space flight, exploration and multiplayer combat game.
+Milestone 5 adds Node/Colyseus system rooms, guest reconnection, shared PvP/PvE authority,
+flight prediction/reconciliation and cinematic room transfers to the existing three-system game.
+Offline flight/combat remain supported. Planetary atmospheres, terrain and landing are next;
+large battles, squadrons, missions and persistent progression remain future work.
 
 ## Before changing code
 
@@ -22,7 +21,13 @@ and landings remain future work; add them only when the current task requests th
 - `src/engine/rendering`: renderer policy and common graphics infrastructure.
 - `src/engine/audio`: shared gesture-unlocked normal-flight mix, channel headroom and cue ducking.
 - `src/engine/simulation`: browser/framework-independent flight math and bounded fixed-step clock.
-  Three.js Vector3/Quaternion math is allowed here; rendering, React, DOM, and stores are not.
+  Use engine/math operations; Three.js, React, DOM, features and stores are forbidden in authority.
+- `src/engine/math`: small renderer-independent vector/quaternion operations. Preserve aliasing safety.
+- `src/engine/network`: shared versioned/runtime-validated protocol, bounded input/prediction/snapshot
+  buffers and pure MultiplayerWorld authority. No browser, React, Three.js, stores or feature imports.
+- `server`: Colyseus room lifecycle, configuration, clocks, validated messages, travel/reconnect and metrics.
+- `src/features/multiplayer`: browser transport, prediction/read-model adapter, interpolation and UI.
+- `scripts/loadTest.ts`: real-client load harness; document actual measurements and their limits.
 - `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
 - `src/engine/combat`: shared command-driven ships, damage, weapons/heat, targeting, AI, pure encounter
   scheduling, detached serializable snapshots and bounded attributed gameplay events/entity lifetime;
@@ -72,17 +77,33 @@ and landings remain future work; add them only when the current task requests th
 - Write animated transforms to Three.js refs in `useFrame`; reuse vectors and scratch objects.
 - Update frame-rate scalar shader uniforms through the mounted ShaderMaterial ref. Fiber copies
   uniform wrappers from props; updating the original numeric prop wrapper does not update the GPU.
-- Keep simulation independent of React, DOM events, stores, and the renderer. Use Three.js math for
+- Keep simulation independent of React, DOM events, stores, and the renderer. Use engine/math for
   flight vectors/quaternions; do not introduce Euler-based orientation integration.
 - Keep input collection, simulation integration, rendering, and HUD presentation separate.
 - Use metres, seconds, radians, local forward -Z and up +Y. `FlightController.step` consumes explicit
   input snapshots and fixed dt. `FixedStepLoop` runs at 120 Hz with a 0.1-second/12-tick catch-up cap.
-- Keep flight tuning in `features/flight/config.ts` and combat/AI tuning in
-  `features/combat/config.ts`; pass configuration into the engine.
-- `FlightSession` composes exploration and combat, owns the player controller and browser input;
+- Shared flight tuning lives in `engine/simulation/config.ts`, combat/AI tuning in
+  `engine/combat/config.ts`, and the catalogue in `engine/world/systems.ts`. Feature configuration
+  explicitly re-exports shared values and owns presentation tuning. Never import features on the server.
+- Offline `FlightSession` composes exploration and combat, owns the player controller and browser input;
   `CombatSimulation` steps that same controller and NPC controllers once per fixed tick. Presentation
   consumes interpolated poses. Celestial colliders advance from explicit analytical time before each tick.
   Cameras must never mutate simulation state. Telemetry snapshots are scalar and read-only.
+- In multiplayer, Colyseus runs a configurable 30 Hz authority loop with shared physics substeps;
+  each recipient defaults to 20 Hz relevance-filtered snapshots. MultiplayerWorld owns players/AI,
+  combat, celestial time, safe spawns, statistics and restrictions. Clients send bounded intentions,
+  never position, damage, hit or configuration mutations. Validate messages and protocol versions.
+- The browser predicts flight only, restores complete authoritative state and replays unacknowledged
+  inputs. Never replay weapons/effects during reconciliation. Preserve bounded input/snapshot buffers,
+  sequence acknowledgement, neutral timeouts and rate limits. Keep correction smoothing in presentation.
+- Maps, pause, blur and visibility loss clear multiplayer fire/steering immediately but do not pause
+  server time or grant menu immunity. Server death/respawn controls health. Keep remote ships on the
+  shared asset/origin path; name/readout publication remains at 10 Hz. Replicate compact archetypes.
+- Travel uses single-use destination-bound server permits and preserves health/statistics. Keep the
+  source until admission, adopt a safe destination after admission, and never let late async work
+  resurrect a cancelled/disposed journey. Reconnect must recover transfer holds or cleanly rejoin.
+- Guest IDs/tokens are temporary, per-tab and in memory. Do not add accounts or persistence without a
+  task requirement. Never claim production/large-scale capacity from short local load tests.
 - Publish flight/combat HUD telemetry at 10 Hz, not at the simulation/render rate. Keep discrete state
   in Zustand. Keep collision/gameplay coordinates independent of render-origin changes. Bound ships,
   projectiles/effects/events and audio voices; clear encounters and reinforcement timers on
@@ -154,7 +175,8 @@ and landings remain future work; add them only when the current task requests th
   `npm run typecheck`, `npm run lint`, `npm run test`, and `npm run build`.
 - `npm run format` applies formatting, import organization, and safe lint fixes. `npm run check`
   runs lint, tests, and a type-checked build. Keep all scripts working.
-- For visual/input changes, verify the running app, controls, narrow viewport, and browser console.
+- For multiplayer changes, run real-server integration tests and 2/8/16-client load tests where feasible;
+  report tick time, binary bandwidth, latency, CPU/RSS and overruns. For visual/input changes, verify the running app, controls, narrow viewport, and browser console.
   Unit tests and successful compilation do not prove WebGL rendering works.
 - For exploration changes, exercise target selection and the Solara → Vesper → Aether → Solara
   journey, both cameras, map suppression/focus, abort/reset, and the fully masked system handoff.
