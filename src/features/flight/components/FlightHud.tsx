@@ -216,7 +216,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
               </div>
               <div className="flex max-w-56 justify-between gap-2 text-[10px] text-phosphor-dim short-mobile:hidden">
                 <span>CRS {FLIGHT_CONFIG.maxSpeed}</span>
-                <span>MAX {FLIGHT_CONFIG.boostMaxSpeed}</span>
+                <span>BST {FLIGHT_CONFIG.boostMaxSpeed}</span>
               </div>
               <SpeedTrendIndicator trend={speedTrend} active={active} />
             </section>
@@ -332,8 +332,10 @@ export function FlightHud({ session }: { session: FlightSession }) {
         starts a patrol encounter. Use Shift with W for boost, C for camera, F for assistance, and
         Escape to pause. M opens the galaxy map; L opens the local system map. T cycles navigation
         targets; X clears the target. K toggles landing gear. U takes off or undocks. P requests or
-        captures docking; I cancels clearance. O toggles space transit. Maps pause offline flight.
-        Controls are available in the flight briefing.
+        captures docking; I cancels clearance. O toggles space transit and planetary approach. J
+        assists landing at the selected zone; manual input cancels. V/R use planet-relative
+        descent/lift near landable worlds. Maps pause offline flight. Controls are available in the
+        flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

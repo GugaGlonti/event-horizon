@@ -25,7 +25,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
   return (
     <section
       aria-label="Planetary and docking guidance"
-      className="pointer-events-auto absolute max-h-[calc(100svh-390px)] overflow-y-auto pr-1 top-52 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
+      className="pointer-events-auto absolute max-h-[max(100px,calc(100svh-530px))] overflow-y-auto overscroll-contain pr-1 top-52 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:max-h-[calc(100svh-390px)] tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
     >
       {surface && (!nearStation || station.phase === 'undocked') && (
         <>
@@ -43,7 +43,24 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
             <dd>{planet.gravity.toFixed(1)} m/s²</dd>
             <dt className="text-phosphor-dim">SURFACE HDG</dt>
             <dd>{Math.round(planet.heading) % 360}°</dd>
+            {planet.descentEta !== null && planet.phase !== 'landed' && (
+              <>
+                <dt className="text-phosphor-dim">DESCENT ETA</dt>
+                <dd>~{Math.ceil(planet.descentEta)} s</dd>
+              </>
+            )}
           </dl>
+          {planet.phase !== 'landed' && planet.phase !== 'taking-off' && (
+            <p role={planet.brakeNow ? 'alert' : undefined} className="mt-2 text-instrument">
+              {planet.brakeNow ? 'BRAKE / S — descent too fast' : planet.approachStage}
+              {planet.verticalSpeed < -3 && (
+                <span className="mt-1 block text-phosphor-dim">
+                  STOP {formatDistance(planet.brakingDistance)} / V LIMIT{' '}
+                  {Math.round(planet.descentLimit)} m/s
+                </span>
+              )}
+            </p>
+          )}
           <p className="mt-2 text-instrument">{planet.phase.toUpperCase()}</p>
           <div className="mt-1 flex flex-wrap gap-1">
             <InstrumentButton
@@ -189,7 +206,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
         aria-pressed={planet?.transit ?? false}
         onClick={() => session.shipAction({ kind: 'transit', enabled: !planet?.transit })}
       >
-        O / Transit {planet?.transit ? 'ON' : 'OFF'}
+        O / {surface ? 'Approach' : 'Transit'} {planet?.transit ? 'ON' : 'OFF'}
       </InstrumentButton>
     </section>
   );

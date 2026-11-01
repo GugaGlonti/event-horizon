@@ -1,5 +1,9 @@
 import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
-import { approachSpeedLimit, descentSpeedLimit } from '@/engine/planetary/approach';
+import {
+  approachSpeedLimit,
+  gearTranslationSpeed,
+  surfaceDescentSpeed,
+} from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG, type PlanetaryFlightConfig } from '@/engine/planetary/config';
 import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
@@ -274,7 +278,7 @@ export class FlightController {
     this.orientation.slerp(level, 1 - Math.exp(-2.5 * dt));
     const aligned =
       this.forward.set(0, 1, 0).applyQuaternion(this.orientation).dot(sample.up) > 0.995;
-    const speed = descentSpeedLimit(sample.altitude - 5, this.planetaryConfig);
+    const speed = surfaceDescentSpeed(sample.altitude - 5, true, this.planetaryConfig);
     const descent = aligned && distance < 10 ? -speed : 0;
     this.translation.add(sample.velocity).addScaledVector(sample.up, descent);
     this.lateral
@@ -418,23 +422,11 @@ export class FlightController {
                 100,
             )
           : Infinity;
-      surfaceJetSpeed = descentSpeedLimit(
+      surfaceJetSpeed = surfaceDescentSpeed(
         Math.min(sample.altitude - 5, corridor),
+        this.landingGear,
         this.planetaryConfig,
       );
-      if (this.landingGear && sample.altitude < this.planetaryConfig.gearSlowAltitude)
-        surfaceJetSpeed = Math.min(
-          surfaceJetSpeed,
-          this.planetaryConfig.gearJetSpeed +
-            (this.config.strafeMaxSpeed - this.planetaryConfig.gearJetSpeed) *
-              MathUtils.clamp(
-                (sample.altitude - this.planetaryConfig.gearPrecisionAltitude) /
-                  (this.planetaryConfig.gearSlowAltitude -
-                    this.planetaryConfig.gearPrecisionAltitude),
-                0,
-                1,
-              ),
-        );
     }
     const config = this.config;
     const previousSpeed = this.speed;
@@ -587,18 +579,7 @@ export class FlightController {
         .clampLength(0, 1)
         .multiplyScalar(
           this.landingGear && field
-            ? Math.min(
-                config.strafeMaxSpeed,
-                this.planetaryConfig.gearJetSpeed +
-                  (config.strafeMaxSpeed - this.planetaryConfig.gearJetSpeed) *
-                    MathUtils.clamp(
-                      (sample.altitude - this.planetaryConfig.gearPrecisionAltitude) /
-                        (this.planetaryConfig.gearSlowAltitude -
-                          this.planetaryConfig.gearPrecisionAltitude),
-                      0,
-                      1,
-                    ),
-              )
+            ? gearTranslationSpeed(sample.altitude, config.strafeMaxSpeed, this.planetaryConfig)
             : config.strafeMaxSpeed,
         );
       if (reversing) this.translation.z = config.reverseMaxSpeed;

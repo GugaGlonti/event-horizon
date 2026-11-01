@@ -19,6 +19,28 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('player engine audio lifetime', () => {
+  it('owns one bounded airflow loop, fades it with the engines and reuses its buffer', async () => {
+    const audio = new EngineAudio(async () => bytes()),
+      input = { ...createEngineSoundInput(), density: 1, atmosphericSpeed: 700 };
+    audio.unlock();
+    audio.update(input, 0.1, true);
+    const context = ContextStub.instances[0];
+    if (!context) throw new Error('context');
+    await vi.waitFor(() => expect(context.sources).toHaveLength(8));
+    const wind = context.sources.find((source) => source.buffer && source.buffer.id === undefined);
+    expect(wind?.loop).toBe(true);
+    for (let i = 0; i < 300; i++) audio.update(input, 1 / 60, true);
+    expect(context.sources).toHaveLength(8);
+    const gain = wind?.connect.mock.lastCall?.[0];
+    expect(gain?.gain.setTargetAtTime.mock.lastCall?.[0]).toBeGreaterThan(0.1);
+    audio.stop();
+    context.finishStopped();
+    expect(wind?.stop).toHaveBeenCalled();
+    audio.update(input, 0.1, true);
+    expect(context.sources.filter((source) => source.buffer === wind?.buffer)).toHaveLength(2);
+    audio.dispose();
+    expect(context.sources.every((source) => source.onended === null)).toBe(true);
+  });
   it('requires a gesture, keeps idle quiet, reuses decoding and fades every voice on pause', async () => {
     const loader = vi.fn(async (_signal: AbortSignal) => bytes());
     const audio = new EngineAudio(loader),

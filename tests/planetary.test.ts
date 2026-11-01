@@ -254,7 +254,8 @@ it('flies continuously from orbit through a meaningful atmosphere to a safe land
   expect(controller.surface.phase).toBe('landed');
   expect(enteredAt).toBeGreaterThan(5);
   expect(time - enteredAt).toBeGreaterThan(15);
-  expect(time).toBeLessThan(90);
+  expect(time).toBeGreaterThanOrEqual(45);
+  expect(time).toBeLessThanOrEqual(75);
   expect(controller.impactSpeed).toBe(0);
 }, 15000);
 

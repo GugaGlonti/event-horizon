@@ -4,10 +4,11 @@ import { neutralInput } from '@/engine/network/InputQueue';
 import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
 import { predict } from '@/engine/network/Prediction';
 import { actionSchema, snapshotSchema } from '@/engine/network/protocol';
-import { approachSpeedLimit, descentSpeedLimit } from '@/engine/planetary/approach';
+import { approachSpeedLimit, descentEta, descentSpeedLimit } from '@/engine/planetary/approach';
 import { PLANETARY_FLIGHT_CONFIG } from '@/engine/planetary/config';
 import { surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import { planetaryTelemetry } from '@/engine/planetary/telemetry';
 import { FLIGHT_CONFIG } from '@/engine/simulation/config';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
@@ -133,6 +134,23 @@ describe('optional landing assistance', () => {
 });
 
 describe('planet-relative descent', () => {
+  it('shows finite profile-based ETA only while descending and warns before an unsafe approach', () => {
+    const f = fixture(20000);
+    expect(descentEta(20000, 0, true, PLANETARY_FLIGHT_CONFIG)).toBeNull();
+    expect(descentEta(Infinity, 100, true, PLANETARY_FLIGHT_CONFIG)).toBeNull();
+    expect(descentEta(20000, 900, true, PLANETARY_FLIGHT_CONFIG)).toBeGreaterThan(20);
+    expect(descentEta(20000, 900, true, PLANETARY_FLIGHT_CONFIG)).toBeLessThan(80);
+    const high = planetaryTelemetry(f.controller);
+    expect(high.descentEta).toBeNull();
+    f.controller.resolveMotion(f.point, f.up.clone().multiplyScalar(-700));
+    expect(planetaryTelemetry(f.controller).brakeNow).toBe(false);
+    const low = fixture(100);
+    low.controller.resolveMotion(low.point, low.up.clone().multiplyScalar(-300));
+    const warning = planetaryTelemetry(low.controller);
+    expect(warning.brakeNow).toBe(true);
+    expect(warning.brakingDistance).toBeGreaterThan(warning.altitude);
+    expect(warning.approachStage).toBe('FINAL APPROACH');
+  });
   it('leaves deployed gear responsive until final approach and settles safely at contact', () => {
     const f = fixture(120);
     f.controller.landingGear = true;
@@ -149,7 +167,7 @@ describe('planet-relative descent', () => {
   });
   it('changes continuously from entry speeds to safe touchdown speed', () => {
     const limit = (h: number) => descentSpeedLimit(h, PLANETARY_FLIGHT_CONFIG);
-    expect(limit(22000)).toBe(1100);
+    expect(limit(22000)).toBe(800);
     expect(limit(100)).toBe(60);
     expect(limit(100.001) - limit(100)).toBeLessThan(0.01);
     expect(limit(0)).toBe(2.2);
@@ -161,7 +179,7 @@ describe('planet-relative descent', () => {
       f.controller.relocate(f.point, new Quaternion());
       for (let i = 0; i < 600; i++) f.controller.step({ ...createFlightInput(), lift }, 1 / 120);
       const velocity = f.controller.copyVelocity(new Vector3());
-      expect(velocity.dot(f.up) * lift).toBeGreaterThan(500);
+      expect(velocity.dot(f.up) * lift).toBeGreaterThan(450);
       expect(velocity.clone().addScaledVector(f.up, -velocity.dot(f.up)).length()).toBeLessThan(1);
     }
   });

@@ -41,6 +41,8 @@ export class EngineAudio {
   private machinery: Machinery | null = null;
   private reactor: Voice | null = null;
   private winding: Voice | null = null;
+  private wind: Loop | null = null;
+  private windBuffer: AudioBuffer | null = null;
   private active = false;
   private generation = 0;
 
@@ -180,6 +182,23 @@ export class EngineAudio {
       });
   }
 
+  private airflow() {
+    const context = this.context;
+    if (!context) return null;
+    if (!this.windBuffer) {
+      this.windBuffer = context.createBuffer(1, context.sampleRate * 2, context.sampleRate);
+      const samples = this.windBuffer.getChannelData(0);
+      let seed = 7391,
+        previous = 0;
+      for (let i = 0; i < samples.length; i++) {
+        seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+        previous = previous * 0.7 + ((seed / 0xffffffff) * 2 - 1) * 0.3;
+        samples[i] = previous;
+      }
+    }
+    return this.loop(this.windBuffer);
+  }
+
   update(input: Readonly<EngineSoundInput>, delta: number, enabled: boolean) {
     if (!enabled) {
       if (this.active) this.stop();
@@ -189,10 +208,13 @@ export class EngineAudio {
     try {
       if (!this.active) this.start();
       this.model.step(input, delta);
-      const { power, boost, jets, cabin, strain, pulse } = this.model;
+      const { power, boost, jets, cabin, strain, pulse, air } = this.model;
       const time = this.context.currentTime;
       this.master.gain.setTargetAtTime(0.4 * (1 - cabin * 0.2), time, 0.06);
       this.filter.frequency.setTargetAtTime(3200 - cabin * 1800, time, 0.12);
+      if (air > 0.005) this.wind ??= this.airflow();
+      this.wind?.gain.gain.setTargetAtTime(air * 0.16 * (1 - cabin * 0.7), time, 0.1);
+      this.wind?.source.playbackRate.setTargetAtTime(0.8 + air * 0.5, time, 0.2);
       this.reactor?.gain.gain.setTargetAtTime(0.003 + power * 0.003, time, 0.12);
       this.winding?.gain.gain.setTargetAtTime(
         power * (this.machinery ? 0.0012 : 0.018) * (1 - cabin * 0.35),
@@ -258,6 +280,7 @@ export class EngineAudio {
     this.generation += 1;
     this.model.reset();
     this.machinery = null;
+    this.wind = null;
     this.buffers = null;
     this.reactor = this.winding = null;
     const time = this.context?.currentTime ?? 0;
@@ -291,6 +314,8 @@ export class EngineAudio {
     this.machinery = null;
     this.buffers = null;
     this.master = this.filter = null;
+    this.wind = null;
+    this.windBuffer = null;
     this.reactor = this.winding = null;
     this.model.reset();
     if (this.ownsMix) this.mix.dispose();

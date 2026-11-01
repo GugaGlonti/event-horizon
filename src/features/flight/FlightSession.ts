@@ -455,6 +455,11 @@ export class FlightSession {
     input.braking = this.input.brake && !(this.input.reverse && input.throttle === 0);
     input.translation = engineTranslationEffort(this.input);
     input.cockpit = state.cameraMode === 'cockpit';
+    input.density = this.planetaryReadout.density;
+    input.atmosphericSpeed = Math.hypot(
+      this.planetaryReadout.verticalSpeed,
+      this.planetaryReadout.groundSpeed,
+    );
     this.engineAudio.update(
       input,
       delta,

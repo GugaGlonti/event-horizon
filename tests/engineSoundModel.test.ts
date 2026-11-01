@@ -6,6 +6,21 @@ import {
 } from '@/features/flight/audio/EngineSoundModel';
 
 describe('engine sound response', () => {
+  it('builds airflow from actual density and relative speed and settles in vacuum or at rest', () => {
+    const model = new EngineSoundModel(),
+      input = { ...createEngineSoundInput(), density: 1, atmosphericSpeed: 700 };
+    for (let i = 0; i < 30; i++) model.step(input, 0.1);
+    expect(model.air).toBeGreaterThan(0.99);
+    input.density = 0;
+    for (let i = 0; i < 30; i++) model.step(input, 0.1);
+    expect(model.air).toBeLessThan(0.001);
+    input.density = 1;
+    input.atmosphericSpeed = 0;
+    for (let i = 0; i < 30; i++) model.step(input, 0.1);
+    expect(model.air).toBeLessThan(0.001);
+    model.reset();
+    expect(model.air).toBe(0);
+  });
   it('supports optional translation jets and gives forward thrust priority over reverse', () => {
     expect(engineTranslationEffort({ throttle: 0 })).toBe(0);
     expect(engineTranslationEffort({ throttle: 0, strafe: -1 })).toBe(1);

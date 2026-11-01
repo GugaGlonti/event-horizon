@@ -7,6 +7,8 @@ export interface EngineSoundInput {
   braking: boolean;
   translation: number;
   cockpit: boolean;
+  density: number;
+  atmosphericSpeed: number;
 }
 
 export function createEngineSoundInput(): EngineSoundInput {
@@ -19,6 +21,8 @@ export function createEngineSoundInput(): EngineSoundInput {
     braking: false,
     translation: 0,
     cockpit: false,
+    density: 0,
+    atmosphericSpeed: 0,
   };
 }
 
@@ -48,6 +52,7 @@ export class EngineSoundModel {
   boost = 0;
   jets = 0;
   cabin = 0;
+  air = 0;
   strain = 0;
   pulse = 1;
   engage = false;
@@ -84,6 +89,12 @@ export class EngineSoundModel {
       0.1,
     );
     this.cabin = follow(this.cabin, input.cockpit ? 1 : 0, dt, 0.38);
+    this.air = follow(
+      this.air,
+      Math.sqrt(bounded(input.density)) * bounded(input.atmosphericSpeed / 700),
+      dt,
+      0.3,
+    );
     this.strain = this.boost * (1 - bounded(input.boostReserve)) ** 2;
     this.pulse = 0.96 + Math.sin(this.elapsed * 31) ** 2 * 0.04;
     this.wasBoosting = boosting;
@@ -92,7 +103,7 @@ export class EngineSoundModel {
   }
 
   reset() {
-    this.power = this.boost = this.jets = this.cabin = this.strain = this.elapsed = 0;
+    this.power = this.boost = this.jets = this.cabin = this.air = this.strain = this.elapsed = 0;
     this.releaseCooldown = 0;
     this.pulse = 1;
     this.engage = this.release = this.wasBoosting = this.wasThrusting = this.primed = false;
