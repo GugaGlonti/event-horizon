@@ -1,4 +1,11 @@
-/** Serializable world data. Distances are compressed metres; time is simulation seconds. */
+import type {
+  GravityDefinition,
+  LandingZoneDefinition,
+  SurfacePointDefinition,
+  TerrainDefinition,
+} from '@/engine/planetary/planetTypes';
+
+/** Serializable world data. Distances are gameplay metres; time is simulation seconds. */
 export type Position3 = readonly [number, number, number];
 export type Rotation4 = readonly [number, number, number, number];
 export type BodyKind = 'star' | 'rocky' | 'gas-giant' | 'moon';
@@ -10,6 +17,11 @@ export interface CelestialDefinition {
   readonly description: string;
   readonly kind: BodyKind;
   readonly radius: number;
+  readonly gravity?: GravityDefinition;
+  readonly terrain?: TerrainDefinition;
+  readonly landable?: boolean;
+  readonly landingZones?: readonly LandingZoneDefinition[];
+  readonly pointsOfInterest?: readonly SurfacePointDefinition[];
   readonly parentId?: string;
   readonly position?: Position3;
   readonly orbit?: {
@@ -29,6 +41,9 @@ export interface CelestialDefinition {
     readonly color: string;
     readonly strength: number;
     readonly scale: number;
+    readonly height?: number;
+    readonly scaleHeight?: number;
+    readonly density?: number;
   };
   /** Ring radii are multiples of body radius. Tilt is relative to the body's equator. */
   readonly rings?: {

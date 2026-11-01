@@ -1,3 +1,4 @@
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { validateCatalog } from '@/engine/world/validateSystem';
 import type {
   CelestialDefinition,
@@ -12,7 +13,7 @@ function star(id: string, name: string, color: string, brightness: number): Cele
     name,
     description: 'The central light of this system.',
     kind: 'star',
-    radius: 900,
+    radius: 720_000,
     position: [0, 0, 0],
     rotation: { tilt: 0, speed: 0.015 },
     surface: { pattern: 'bands', palette: [color, '#ffffff', color], seed: 11, brightness },
@@ -28,19 +29,36 @@ function planet(
   pattern: SurfacePattern,
   palette: readonly [string, string, string],
   description: string,
-  extra: Partial<Pick<CelestialDefinition, 'atmosphere' | 'rings'>> = {},
+  extra: Partial<
+    Pick<
+      CelestialDefinition,
+      'atmosphere' | 'rings' | 'terrain' | 'landable' | 'landingZones' | 'pointsOfInterest'
+    >
+  > = {},
 ): CelestialDefinition {
   return {
     id,
     name,
     description,
     kind: pattern === 'bands' ? 'gas-giant' : 'rocky',
-    radius,
+    radius: radius * 300,
+    gravity: { surfaceAcceleration: pattern === 'bands' ? 14 : 7.8, influenceRadius: radius * 900 },
     parentId,
-    position,
-    rotation: { tilt: 0.2, speed: 0.018 },
+    position: [position[0] * 300, position[1] * 300, position[2] * 300],
     surface: { pattern, palette, seed: radius * 0.017, brightness: 1 },
     ...extra,
+    ...(extra.atmosphere
+      ? {
+          atmosphere: {
+            ...extra.atmosphere,
+            height: radius * 300 * (extra.atmosphere.scale - 1),
+            scaleHeight: 3500,
+            density: 1,
+          },
+        }
+      : {}),
+    // The reference surface is tidally fixed; other worlds retain analytical axial spin.
+    rotation: { tilt: id === 'pelagos' ? 0 : 0.2, speed: id === 'pelagos' ? 0 : 0.00006 },
   };
 }
 
@@ -58,10 +76,16 @@ function moon(
     name,
     description: 'A quiet satellite, charted by the Kestrel survey program.',
     kind: 'moon',
-    radius,
+    radius: radius * 300,
+    gravity: { surfaceAcceleration: 1.4, influenceRadius: radius * 1200 },
     parentId,
-    orbit: { radius: orbitRadius, period: 240 + orbitRadius * 0.08, phase, inclination: 0.17 },
-    rotation: { tilt: 0.1, speed: 0.012 },
+    orbit: {
+      radius: orbitRadius * 300,
+      period: (240 + orbitRadius * 0.08) * 300,
+      phase,
+      inclination: 0.17,
+    },
+    rotation: { tilt: 0.1, speed: 0.00004 },
     surface: { pattern: 'cratered', palette, seed: radius, brightness: 1 },
   };
 }
@@ -91,7 +115,31 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
         'ocean',
         ['#123567', '#47886e', '#d8e6df'],
         'A blue world of deep oceans and broad cloud systems.',
-        { atmosphere: { color: '#64bfff', strength: 0.7, scale: 1.045 } },
+        {
+          atmosphere: { color: '#64bfff', strength: 0.7, scale: 1 + 14000 / 186000 },
+          landable: true,
+          terrain: {
+            seed: 7319,
+            relief: 1400,
+            frequency: 12,
+            octaves: 6,
+            patchResolution: 16,
+            maxLevel: 11,
+          },
+          landingZones: [
+            {
+              id: 'pelagos-survey',
+              name: 'Pelagos Survey Base',
+              latitude: 0,
+              longitude: Math.atan2(0.8, -0.6),
+              radius: 350,
+              elevation: 420,
+            },
+          ],
+          pointsOfInterest: [
+            { id: 'pelagos-ridge', name: 'Western Ridge', latitude: 0.025, longitude: 2.22 },
+          ],
+        },
       ),
       moon('lyra', 'Lyra', 'pelagos', 105, 1380, -0.4, ['#4c5362', '#a4a7ad', '#d8d7d2']),
       planet(
@@ -120,8 +168,10 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
       {
         id: 'pelagos-approach',
         bodyId: 'pelagos',
-        offset: [300, 180, 1900],
-        orientation: [0, 0, 0, 1],
+        offset: [-124800, 0, 166400],
+        orientation: new Quaternion()
+          .setFromUnitVectors(new Vector3(0, 0, -1), new Vector3(0.6, 0, -0.8))
+          .toArray(),
       },
     ],
     arrivalId: 'pelagos-approach',
@@ -185,7 +235,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
       {
         id: 'nacre-approach',
         bodyId: 'nacre',
-        offset: [550, 500, 3600],
+        offset: [0, 20000, 740000],
         orientation: [0, 0, 0, 1],
       },
     ],
@@ -249,7 +299,7 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
       {
         id: 'serein-approach',
         bodyId: 'serein',
-        offset: [350, 210, 2150],
+        offset: [0, 5000, 235000],
         orientation: [0, 0, 0, 1],
       },
     ],

@@ -30,6 +30,52 @@ export function validateSystem(system: StarSystemDefinition): void {
   for (const body of system.bodies) {
     if (!body.id || !body.name.trim() || !kinds.has(body.kind) || !positive(body.radius))
       fail('Invalid celestial metadata.');
+    if (
+      body.gravity &&
+      (!positive(body.gravity.surfaceAcceleration) ||
+        !positive(body.gravity.influenceRadius) ||
+        body.gravity.influenceRadius <= body.radius)
+    )
+      fail(`Invalid gravity for ${body.id}.`);
+    if (body.landable && (body.kind === 'gas-giant' || body.kind === 'star' || !body.terrain))
+      fail(`Invalid landing capability for ${body.id}.`);
+    if (
+      body.terrain &&
+      (!Number.isInteger(body.terrain.seed) ||
+        !positive(body.terrain.relief) ||
+        !positive(body.terrain.frequency) ||
+        !Number.isInteger(body.terrain.octaves) ||
+        body.terrain.octaves < 1 ||
+        body.terrain.octaves > 8 ||
+        ![8, 16, 32].includes(body.terrain.patchResolution) ||
+        !Number.isInteger(body.terrain.maxLevel) ||
+        body.terrain.maxLevel < 1 ||
+        body.terrain.maxLevel > 14)
+    )
+      fail(`Invalid terrain for ${body.id}.`);
+    const zoneIds = new Set<string>();
+    for (const zone of body.landingZones ?? []) {
+      if (
+        !zone.id ||
+        zoneIds.has(zone.id) ||
+        !zone.name.trim() ||
+        !Number.isFinite(zone.latitude) ||
+        Math.abs(zone.latitude) > Math.PI / 2 ||
+        !Number.isFinite(zone.longitude) ||
+        !positive(zone.radius) ||
+        !Number.isFinite(zone.elevation)
+      )
+        fail(`Invalid landing zone for ${body.id}.`);
+      zoneIds.add(zone.id);
+    }
+    if (
+      body.atmosphere?.height !== undefined &&
+      (!positive(body.atmosphere.height) ||
+        !positive(body.atmosphere.scaleHeight ?? 0) ||
+        !positive(body.atmosphere.density ?? 0) ||
+        Math.abs(body.atmosphere.height - body.radius * (body.atmosphere.scale - 1)) > 0.01)
+    )
+      fail(`Invalid physical atmosphere for ${body.id}.`);
     if (Boolean(body.position) === Boolean(body.orbit))
       fail(`${body.id} needs a position or an orbit, exclusively.`);
     if (body.position && !tuple(body.position, 3)) fail(`Invalid position for ${body.id}.`);

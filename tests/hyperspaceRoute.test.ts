@@ -48,10 +48,10 @@ describe('galactic jump routes', () => {
     if (!system) throw new Error('Missing fixture.');
     const world = new SystemRuntime(system);
     expect(
-      departureObstruction(world, new Vector3(0, 0, 2000), new Vector3(0, 0, -1), 4000)?.kind,
+      departureObstruction(world, new Vector3(0, 0, 1000000), new Vector3(0, 0, -1), 2000000)?.kind,
     ).toBe('star');
     expect(
-      departureObstruction(world, new Vector3(0, 0, 2000), new Vector3(0, 0, 1), 4000),
+      departureObstruction(world, new Vector3(0, 0, 1000000), new Vector3(0, 0, 1), 2000000),
     ).toBeNull();
   });
 

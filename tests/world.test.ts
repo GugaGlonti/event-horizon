@@ -129,7 +129,7 @@ describe('world coordinates and celestial motion', () => {
     );
     expect(
       direct.positions.get('lyra')?.distanceTo(required(direct.positions.get('pelagos'))),
-    ).toBeCloseTo(1380);
+    ).toBeCloseTo(414000);
   });
 
   it('keeps GPU coordinates bounded and round-trips large logical coordinates without mutating them', () => {
@@ -174,13 +174,13 @@ describe('world coordinates and celestial motion', () => {
     const definition = solara();
     const system = new SystemRuntime({
       ...definition,
-      spawns: [{ ...required(definition.spawns[0]), offset: [1380, 0, 0] }],
+      spawns: [{ ...required(definition.spawns[0]), offset: [414000, 0, 0] }],
       bodies: definition.bodies.map((body) =>
         body.id === 'lyra' ? { ...body, orbit: { ...required(body.orbit), phase: 0 } } : body,
       ),
     });
     const arrival = new Vector3().fromArray(system.arrival().position);
-    expect(arrival.distanceTo(required(system.positions.get('lyra')))).toBeGreaterThan(205);
+    expect(arrival.distanceTo(required(system.positions.get('lyra')))).toBeGreaterThan(31600);
   });
 });
 
@@ -201,14 +201,14 @@ describe('local navigation', () => {
     const system = new SystemRuntime(solara());
     const navigation = new NavigationComputer();
     navigation.select('pelagos', system);
-    let sample = navigation.sample(system, new Vector3(7800, 0, 2000), new Quaternion());
-    expect(sample.distance).toBe(2000);
-    expect(sample.surfaceDistance).toBe(1380);
+    let sample = navigation.sample(system, new Vector3(2340000, 0, 200000), new Quaternion());
+    expect(sample.distance).toBe(200000);
+    expect(sample.surfaceDistance).toBe(14000);
     expect(sample.aligned).toBe(true);
-    sample = navigation.sample(system, new Vector3(7800, 0, -2000), new Quaternion());
+    sample = navigation.sample(system, new Vector3(2340000, 0, -200000), new Quaternion());
     expect(sample.behind).toBe(true);
     expect(sample.bearingX).toBe(1);
-    sample = navigation.sample(system, new Vector3(5800, 0, 0), new Quaternion());
+    sample = navigation.sample(system, new Vector3(2140000, 0, 0), new Quaternion());
     expect(sample.bearingX).toBe(1);
     expect(sample.nearestId).toBe('pelagos');
   });
