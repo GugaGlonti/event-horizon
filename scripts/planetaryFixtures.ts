@@ -7,6 +7,7 @@ export const verificationScenarios = [
   'deep',
   'orbit',
   'entry',
+  'descent',
   'low',
   'land',
   'station',
@@ -40,11 +41,13 @@ export function placeVerificationPilots(world: MultiplayerWorld, scenario: Verif
         ? 400000
         : scenario === 'orbit'
           ? 22000
-          : scenario === 'entry'
-            ? 13000
-            : scenario === 'low'
-              ? 120
-              : 5.01;
+          : scenario === 'descent'
+            ? 6000
+            : scenario === 'entry'
+              ? 13000
+              : scenario === 'low'
+                ? 120
+                : 5.01;
     const direction = up
       .clone()
       .multiplyScalar(body.radius)
@@ -64,7 +67,8 @@ export function placeVerificationPilots(world: MultiplayerWorld, scenario: Verif
       orientation.copy(pose.orientation);
     }
     ship.controller.relocate(point, orientation);
-    ship.controller.landingGear = scenario === 'land' || scenario === 'low';
+    ship.controller.landingGear =
+      scenario === 'land' || scenario === 'low' || scenario === 'descent';
     if (scenario === 'land') ship.controller.resolveMotion(point, up.clone().multiplyScalar(-1));
     ship.health.hull = 100;
     ship.health.shields = 100;

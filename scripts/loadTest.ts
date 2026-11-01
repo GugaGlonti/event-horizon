@@ -91,12 +91,14 @@ try {
           const command = {
             ...neutralInput(seq),
             paused: false,
-            fire: true,
+            fire: scenario !== 'descent',
             flight: {
               ...neutralInput().flight,
-              throttle: scenario === 'low' || scenario === 'land' ? 0 : 0.5,
+              throttle:
+                scenario === 'low' || scenario === 'land' || scenario === 'descent' ? 0 : 0.5,
+              lift: scenario === 'descent' ? -1 : 0,
               strafe: scenario === 'low' ? 0.08 : 0,
-              yaw: Math.sin(seq / 80 + i) * 0.25,
+              yaw: scenario === 'descent' ? 0 : Math.sin(seq / 80 + i) * 0.25,
             },
           };
           sent[i]?.set(seq, performance.now());

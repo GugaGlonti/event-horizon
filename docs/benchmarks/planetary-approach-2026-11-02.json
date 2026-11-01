@@ -1,0 +1,82 @@
+{
+  "dateLocal": "2026-11-02",
+  "timezone": "Asia/Tbilisi",
+  "scope": "10-second local descent runs, server and bots in one process; no production/WAN capacity claim.",
+  "continuousDescent": {
+    "stepHz": 120,
+    "initialHeightMetres": 22000,
+    "seconds": 45.3,
+    "atmosphericEntrySeconds": 13.975,
+    "final200mSeconds": 11.092,
+    "peakSpeedMps": 800.006,
+    "impactSpeedMps": 0,
+    "result": "landed"
+  },
+  "load": {
+    "runtime": "v22.20.0",
+    "platform": "darwin",
+    "measurement": "Single process: server plus bots; binary transport payload sizes exclude WebSocket/TCP headers. JSON sizes are diagnostic.",
+    "results": [
+      {
+        "scenario": "descent",
+        "players": 2,
+        "seconds": 10,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 30,
+        "meanTickMs": 0.562,
+        "maxTickMs": 3.8208329999999933,
+        "overruns": 0,
+        "cpuPercentOneCore": 7.2,
+        "rssMiB": 103.1,
+        "rssDeltaMiB": -35.2,
+        "meanBinaryMessageBytes": 1727,
+        "perClientDownKiBPerSecond": 33.9,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 2487,
+        "p95SnapshotJsonBytes": 2491,
+        "perClientJsonKiBPerSecond": 48.6,
+        "p95InputAckMs": 20
+      },
+      {
+        "scenario": "descent",
+        "players": 8,
+        "seconds": 10,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 30,
+        "meanTickMs": 1.027,
+        "maxTickMs": 2.9981250000000728,
+        "overruns": 0,
+        "cpuPercentOneCore": 9.3,
+        "rssMiB": 115.9,
+        "rssDeltaMiB": 11.2,
+        "meanBinaryMessageBytes": 5727,
+        "perClientDownKiBPerSecond": 112.4,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 8471,
+        "p95SnapshotJsonBytes": 8481,
+        "perClientJsonKiBPerSecond": 165.4,
+        "p95InputAckMs": 37
+      },
+      {
+        "scenario": "descent",
+        "players": 16,
+        "seconds": 10.01,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 29.98,
+        "meanTickMs": 2.444,
+        "maxTickMs": 15.158458999998402,
+        "overruns": 0,
+        "cpuPercentOneCore": 16,
+        "rssMiB": 122.6,
+        "rssDeltaMiB": 6.3,
+        "meanBinaryMessageBytes": 11071,
+        "perClientDownKiBPerSecond": 217.2,
+        "perClientUpKiBPerSecond": 3.9,
+        "meanSnapshotJsonBytes": 16440,
+        "p95SnapshotJsonBytes": 16463,
+        "perClientJsonKiBPerSecond": 320.9,
+        "p95InputAckMs": 52
+      }
+    ]
+  }
+}
