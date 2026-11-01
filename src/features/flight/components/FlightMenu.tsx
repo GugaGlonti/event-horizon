@@ -2,6 +2,7 @@ import { InstrumentButton } from '@/components/ui/InstrumentButton';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { MultiplayerPanel } from '@/features/multiplayer/MultiplayerPanel';
 import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -106,8 +107,9 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             <p className="mt-3 max-w-lg text-[12px] leading-5 normal-case text-phosphor-dim">
               {phase === 'ready'
                 ? `Welcome to ${system?.name ?? 'Solara'}. A patrol arrives after eight seconds of flight. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
-                : `Position and momentum held in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
+                : `Controls suspended in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
             </p>
+            <MultiplayerPanel session={session} />
             <div className="order-2 mt-5 flex justify-between border-b border-line pb-2 text-[10px] tracking-widest tablet:order-none">
               <span>Control reference</span>
               <span className="text-phosphor-dim">DESKTOP / KEYBOARD</span>
@@ -153,7 +155,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <InstrumentButton
-                disabled={!ready || hostiles > 0}
+                disabled={!ready || (!session.multiplayer.enabled && hostiles > 0)}
                 className="flex-1"
                 onClick={() => {
                   session.startEncounter(true);
@@ -163,7 +165,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
                 Practice target
               </InstrumentButton>
               <InstrumentButton
-                disabled={!ready || hostiles > 0}
+                disabled={!ready || (!session.multiplayer.enabled && hostiles > 0)}
                 className="flex-1"
                 onClick={() => {
                   session.startEncounter();

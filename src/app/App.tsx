@@ -4,6 +4,7 @@ import { SceneMessage } from '@/components/ui/SceneMessage';
 import { ExplorationOverlay } from '@/features/exploration/components/ExplorationOverlay';
 import { FlightHud } from '@/features/flight/components/FlightHud';
 import { FlightSession } from '@/features/flight/FlightSession';
+import { MultiplayerHud } from '@/features/multiplayer/MultiplayerPanel';
 
 const SpaceScene = lazy(() => import('@/features/space/components/SpaceScene'));
 
@@ -39,6 +40,7 @@ export function App() {
           aria-hidden="true"
         />
         <FlightHud session={session} />
+        <MultiplayerHud session={session} />
         <ExplorationOverlay session={session} />
         <div aria-hidden="true" className="crt-overlay absolute inset-0 z-50" />
       </SceneErrorBoundary>

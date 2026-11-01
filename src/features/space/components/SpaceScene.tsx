@@ -3,6 +3,7 @@ import { PlanetMarkersProjection } from '@/features/exploration/rendering/Planet
 import { FlightWorld } from '@/features/flight/components/FlightWorld';
 import { GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import { RemotePilotProjection } from '@/features/multiplayer/RemotePilotProjection';
 
 export default function SpaceScene({ session }: { session: FlightSession }) {
   return (
@@ -18,6 +19,7 @@ export default function SpaceScene({ session }: { session: FlightSession }) {
     >
       <FlightWorld session={session} />
       <PlanetMarkersProjection session={session} />
+      <RemotePilotProjection session={session} />
     </SceneCanvas>
   );
 }

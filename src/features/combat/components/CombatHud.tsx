@@ -26,7 +26,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
           </h2>
           <p className="mt-4 text-sm leading-6 normal-case text-phosphor-dim">
             {readout.kills} contacts destroyed. Respawn at a safe arrival in this system with full
-            shields, hull and three seconds of protection. The encounter will reset.
+            shields, hull and three seconds of protection. Flight resumes in this system.
           </p>
           <InstrumentButton primary onClick={session.respawn} className="mt-6 w-full" autoFocus>
             Respawn / keyboard flight
@@ -60,7 +60,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
               : 'CANNONS READY'}
         </p>
         <p className="mt-3 text-instrument [@media(max-height:650px)]:mt-1">
-          {readout.hostiles} HOSTILES / {readout.kills} KILLS
+          {readout.hostiles} CONTACTS / {readout.kills} KILLS
         </p>
         <p className="mt-3 text-[10px] text-phosphor-dim [@media(max-height:650px)]:mt-1">
           WEAPON / {WEAPON_CHOICES.find((choice) => choice.slot === readout.weapon)?.label}

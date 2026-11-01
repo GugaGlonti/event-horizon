@@ -62,7 +62,7 @@ function EnemySlot({
         material.current.opacity = ship.hitFlash * 1.4;
         material.current.color.set(ship.shieldHit ? '#77dfff' : '#ffac55');
       }
-      enginePower.current = 0.3 + ship.controller.enginePower;
+      enginePower.current = ship.controller.isBoosting ? 1.8 : 0.3 + ship.controller.enginePower;
     }
   }, -0.5);
   return (
@@ -91,6 +91,7 @@ function EnemySlot({
   );
 }
 
+const remoteSlots = Array.from({ length: 32 }, (_, i) => i);
 const slots = Array.from({ length: ENCOUNTER_CONFIG.maximumEnemies }, (_, i) => i);
 
 /** Fixed-capacity instance buffers; transforms never pass through React or Zustand. */
@@ -109,7 +110,25 @@ export function CombatScene({
     () => Array(ENCOUNTER_CONFIG.maximumEnemies).fill(null),
     [],
   );
-  useFrame(() => syncEnemySlots(enemySlots, session.combat.simulation.ships), -1);
+  const pilotSlots = useMemo<Array<string | null>>(() => Array(32).fill(null), []);
+  useFrame(() => {
+    const ships = session.combat.simulation.ships;
+    syncEnemySlots(enemySlots, ships);
+    for (let slot = 0; slot < pilotSlots.length; slot++) {
+      const id = pilotSlots[slot];
+      if (id && (!ships.has(id) || ships.get(id)?.team !== 'player')) pilotSlots[slot] = null;
+    }
+    for (const [id, ship] of ships) {
+      if (
+        ship === session.combat.simulation.player ||
+        ship.team !== 'player' ||
+        pilotSlots.includes(id)
+      )
+        continue;
+      const index = pilotSlots.indexOf(null);
+      if (index >= 0) pilotSlots[index] = id;
+    }
+  }, -1);
   const bolts = useRef<InstancedMesh>(null),
     rocks = useRef<InstancedMesh>(null);
   const flashes = useRef<InstancedMesh>(null);
@@ -258,6 +277,17 @@ export function CombatScene({
           reducedMotion={reducedMotion}
         />
       ))}
+      {remoteSlots.map((slot) => (
+        <EnemySlot
+          key={`pilot-${slot}`}
+          slot={slot}
+          slots={pilotSlots}
+          session={session}
+          hull={spacecraft.player}
+          effectTimeRef={effectTimeRef}
+          reducedMotion={reducedMotion}
+        />
+      ))}
       <instancedMesh ref={bolts} args={[undefined, undefined, 192]} frustumCulled={false}>
         <boxGeometry args={[1, 1, 1]} />
         <meshBasicMaterial toneMapped={false} />
@@ -347,7 +377,14 @@ function CombatProjection({ session }: { session: FlightSession }) {
       weapon === 4 ? simulation.player.config.flak : simulation.player.config.laser;
     velocity
       .copy(target.velocity)
-      .addScaledVector(simulation.player.velocity, -projectile.velocityInheritance);
+      .addScaledVector(
+        scratch.velocity.set(
+          simulation.player.velocity.x,
+          simulation.player.velocity.y,
+          simulation.player.velocity.z,
+        ),
+        -projectile.velocityInheritance,
+      );
     const time =
       weapon === 1 || weapon === 4
         ? leadTime(
