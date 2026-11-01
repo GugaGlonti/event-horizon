@@ -1,4 +1,5 @@
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { sweepSphere } from '@/engine/physics/spheres';
 import { orbitalOffset, type SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { DockingPortDefinition, StationDefinition } from './stationTypes';
 
@@ -49,7 +50,33 @@ export function portPose(
     orientation: pose.orientation.clone().multiply(new Quaternion().fromArray(port.orientation)),
   };
 }
-/** Continuous sphere/expanded oriented-box sweep, including initial overlaps. */
+const colliderCache = new WeakMap<
+  StationDefinition,
+  {
+    extent: number;
+    boxes: { center: Vector3; half: Vector3; rotation: Quaternion; inverse: Quaternion }[];
+  }
+>();
+function colliders(station: StationDefinition) {
+  const existing = colliderCache.get(station);
+  if (existing) return existing;
+  const boxes = station.boxes.map((box) => {
+    const rotation = new Quaternion().fromArray(box.orientation ?? [0, 0, 0, 1]);
+    return {
+      center: new Vector3().fromArray(box.center),
+      half: new Vector3().fromArray(box.size).multiplyScalar(0.5),
+      rotation,
+      inverse: rotation.clone().invert(),
+    };
+  });
+  const data = {
+    extent: Math.max(...boxes.map((box) => box.center.length() + box.half.length())),
+    boxes,
+  };
+  colliderCache.set(station, data);
+  return data;
+}
+/** Continuous sphere/expanded oriented-box sweep. Cached shapes, no per-box allocation. */
 export function traceStation(
   world: SystemRuntime,
   start: Readonly<Vector3>,
@@ -59,44 +86,47 @@ export function traceStation(
 ) {
   let hit: { fraction: number; normal: Vector3; stationId: string; velocity: Vector3 } | null =
     null;
+  const from = new Vector3(),
+    boxDelta = new Vector3(),
+    normal = new Vector3();
   for (const station of world.definition.stations ?? []) {
     const pose = stationPose(world, station),
-      inverse = pose.orientation.clone().invert();
-    const previous = pose.position.clone().addScaledVector(pose.velocity, -dt);
-    const local = new Vector3().subVectors(start, previous).applyQuaternion(inverse);
+      inverse = pose.orientation.clone().invert(),
+      data = colliders(station);
+    const local = new Vector3()
+      .subVectors(start, pose.position)
+      .addScaledVector(pose.velocity, dt)
+      .applyQuaternion(inverse);
     const delta = new Vector3()
       .subVectors(end, start)
       .addScaledVector(pose.velocity, -dt)
       .applyQuaternion(inverse);
-    for (const box of station.boxes) {
-      const boxRotation = new Quaternion().fromArray(box.orientation ?? [0, 0, 0, 1]),
-        boxInverse = boxRotation.clone().invert();
-      const from = local
-        .clone()
-        .sub(new Vector3().fromArray(box.center))
-        .applyQuaternion(boxInverse);
-      const boxDelta = delta.clone().applyQuaternion(boxInverse);
-      const half = box.size.map((v) => v / 2 + radius);
-      const coords = from.toArray(),
-        motion = boxDelta.toArray();
+    if (
+      sweepSphere(local.x, local.y, local.z, delta.x, delta.y, delta.z, data.extent + radius) ===
+      null
+    )
+      continue;
+    for (const box of data.boxes) {
+      from.copy(local).sub(box.center).applyQuaternion(box.inverse);
+      boxDelta.copy(delta).applyQuaternion(box.inverse);
       let enter = 0,
         exit = 1,
         axis = -1,
         sign = 1,
         inside = true,
-        depth = Infinity;
-      let valid = true;
+        nearest = Infinity,
+        nearestAxis = 0,
+        nearestSign = 1,
+        valid = true;
       for (let i = 0; i < 3; i++) {
-        const p = coords[i] ?? 0,
-          d = motion[i] ?? 0,
-          h = half[i] ?? 0;
+        const p = i === 0 ? from.x : i === 1 ? from.y : from.z;
+        const d = i === 0 ? boxDelta.x : i === 1 ? boxDelta.y : boxDelta.z;
+        const h = (i === 0 ? box.half.x : i === 1 ? box.half.y : box.half.z) + radius;
         if (Math.abs(p) > h) inside = false;
-        if (h - Math.abs(p) < depth) {
-          depth = h - Math.abs(p);
-          if (inside) {
-            axis = i;
-            sign = Math.sign(p) || 1;
-          }
+        if (h - Math.abs(p) < nearest) {
+          nearest = h - Math.abs(p);
+          nearestAxis = i;
+          nearestSign = Math.sign(p) || 1;
         }
         if (Math.abs(d) < 1e-12) {
           if (Math.abs(p) > h) {
@@ -120,14 +150,24 @@ export function traceStation(
           break;
         }
       }
-      if (!valid || enter > 1 || exit < 0 || enter < 0 || axis < 0) continue;
-      const normal = new Vector3()
-        .fromArray([axis === 0 ? sign : 0, axis === 1 ? sign : 0, axis === 2 ? sign : 0])
-        .applyQuaternion(boxRotation)
+      if (!valid || enter > 1 || exit < 0 || enter < 0) continue;
+      if (inside) {
+        axis = nearestAxis;
+        sign = nearestSign;
+        const motion = axis === 0 ? boxDelta.x : axis === 1 ? boxDelta.y : boxDelta.z;
+        if (motion * sign >= -1e-10) continue;
+      }
+      if (axis < 0 || (hit && enter >= hit.fraction)) continue;
+      normal
+        .set(axis === 0 ? sign : 0, axis === 1 ? sign : 0, axis === 2 ? sign : 0)
+        .applyQuaternion(box.rotation)
         .applyQuaternion(pose.orientation);
-      if (inside && delta.dot(new Vector3().copy(normal).applyQuaternion(inverse)) >= 0) continue;
-      if (!hit || enter < hit.fraction)
-        hit = { fraction: enter, normal, stationId: station.id, velocity: pose.velocity };
+      hit = {
+        fraction: enter,
+        normal: normal.clone(),
+        stationId: station.id,
+        velocity: pose.velocity,
+      };
     }
   }
   return hit;
