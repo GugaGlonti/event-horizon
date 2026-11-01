@@ -1,4 +1,5 @@
 export const celestialVertex = /* glsl */ `
+  #include <logdepthbuf_pars_vertex>
   varying vec3 vLocal;
   varying vec3 vWorld;
   varying vec3 vNormalWorld;
@@ -8,6 +9,7 @@ export const celestialVertex = /* glsl */ `
     vWorld = world.xyz;
     vNormalWorld = normalize(mat3(modelMatrix) * normal);
     gl_Position = projectionMatrix * viewMatrix * world;
+    #include <logdepthbuf_vertex>
   }
 `;
 
@@ -28,11 +30,13 @@ const noise = /* glsl */ `
 `;
 
 export const surfaceFragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   uniform vec3 uA, uB, uC, uLight;
   uniform float uSeed, uPattern, uStar, uBrightness, uAmbient;
   varying vec3 vLocal, vWorld, vNormalWorld;
   ${noise}
   void main() {
+    #include <logdepthbuf_fragment>
     vec3 p = normalize(vLocal);
     float n = fbm(p * 4.2 + uSeed);
     vec3 color;
@@ -77,10 +81,12 @@ export const surfaceFragment = /* glsl */ `
 `;
 
 export const atmosphereFragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   uniform vec3 uColor, uLight;
   uniform float uStrength, uStar;
   varying vec3 vWorld, vNormalWorld;
   void main() {
+    #include <logdepthbuf_fragment>
     vec3 normal = normalize(vNormalWorld);
     float rim = pow(1.0 - abs(dot(normal, normalize(cameraPosition - vWorld))), 3.0);
     float daylight = mix(0.18 + max(0.0, dot(normal, normalize(uLight))), 1.0, uStar);
@@ -91,10 +97,12 @@ export const atmosphereFragment = /* glsl */ `
 `;
 
 export const ringFragment = /* glsl */ `
+  #include <logdepthbuf_pars_fragment>
   uniform vec3 uColor, uLight, uCenter;
   uniform float uInner, uOuter, uRadius;
   varying vec3 vLocal, vWorld, vNormalWorld;
   void main() {
+    #include <logdepthbuf_fragment>
     float r = length(vLocal.xy);
     float band = sin(r * 170.0) * 0.5 + 0.5;
     float fine = sin(r * 490.0 + sin(r * 71.0)) * 0.5 + 0.5;

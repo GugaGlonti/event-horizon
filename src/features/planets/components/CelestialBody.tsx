@@ -71,7 +71,7 @@ export function CelestialBody({
     const star = world.positions.get(starId);
     if (!group.current || !position) return;
     origin.toRender(position, group.current.position);
-    group.current.visible = group.current.position.lengthSq() < 60000 ** 2;
+    group.current.visible = group.current.position.length() - body.radius < 18_000_000;
     if (!group.current.visible) {
       group.current.position.set(0, 0, 0);
       return;
@@ -85,7 +85,7 @@ export function CelestialBody({
   return (
     <group ref={group} scale={body.radius}>
       <group rotation={[0, 0, body.rotation.tilt]}>
-        <mesh ref={surface}>
+        <mesh ref={surface} visible={!body.terrain}>
           <primitive object={geometry} attach="geometry" />
           <shaderMaterial
             vertexShader={celestialVertex}

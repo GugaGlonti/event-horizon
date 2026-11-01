@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { FlightAudioMix } from '@/engine/audio/FlightAudioMix';
 import { FlightInputManager } from '@/engine/input/FlightInputManager';
 import type { JoinOptions, TravelPermit } from '@/engine/network/protocol';
+import { planetaryTelemetry } from '@/engine/planetary/telemetry';
 import { FixedStepLoop } from '@/engine/simulation/FixedStepLoop';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
@@ -22,10 +23,17 @@ import { MultiplayerSession } from '@/features/multiplayer/MultiplayerSession';
 import { useCombatStore } from '@/stores/combatStore';
 import { useExplorationStore } from '@/stores/explorationStore';
 import { useFlightStore } from '@/stores/flightStore';
+import { usePlanetaryStore } from '@/stores/planetaryStore';
 
 /** One player session. Logical poses stay in system coordinates; GPU poses use renderOrigin. */
 export class FlightSession {
   resetVersion = 0;
+  get planetaryReadout() {
+    return usePlanetaryStore.getState().readout ?? planetaryTelemetry(this.controller);
+  }
+  private publishPlanetary() {
+    usePlanetaryStore.setState({ readout: planetaryTelemetry(this.controller) });
+  }
   readonly controller = new FlightController(FLIGHT_CONFIG);
   readonly position = new Vector3();
   readonly renderPosition = new Vector3();
@@ -467,6 +475,7 @@ export class FlightSession {
       this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
         state.publishTelemetry(this.controller.getTelemetry(), this.telemetryElapsed);
+        this.publishPlanetary();
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
         if (!flying && !this.exploration.jump.busy)
           this.exploration.syncPose(this.position, this.orientation);
@@ -486,6 +495,7 @@ export class FlightSession {
       this.telemetryElapsed += Math.min(delta, GAME_CONFIG.maxFrameTime);
       if (this.telemetryElapsed >= GAME_CONFIG.telemetryInterval) {
         state.publishTelemetry(this.controller.getTelemetry(), this.telemetryElapsed);
+        this.publishPlanetary();
         this.telemetryElapsed %= GAME_CONFIG.telemetryInterval;
         this.combat.publish();
       }

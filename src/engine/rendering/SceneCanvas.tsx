@@ -17,7 +17,12 @@ export function SceneCanvas({ children, onReady, cameraSettings, label }: SceneC
       camera={cameraSettings ?? { position: INITIAL_CAMERA_POSITION, fov: 42, near: 0.1, far: 200 }}
       onCreated={() => onReady?.()}
       dpr={[1, 1.75]}
-      gl={{ antialias: true, alpha: false, powerPreference: 'high-performance' }}
+      gl={{
+        logarithmicDepthBuffer: true,
+        antialias: true,
+        alpha: false,
+        powerPreference: 'high-performance',
+      }}
       fallback={
         <SceneMessage title="A window into space needs WebGL 2.">
           Open this page in a compatible browser with hardware acceleration enabled to explore the

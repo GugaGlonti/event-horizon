@@ -166,3 +166,44 @@ describe('shared planetary flight', () => {
     expect(b.controller.snapshot()).toEqual(a.controller.snapshot());
   });
 });
+
+import {
+  buildTerrainPatch,
+  cubeDirection,
+  selectTerrainPatches,
+} from '@/engine/planetary/terrainLod';
+
+describe('bounded terrain quadtree', () => {
+  it('increases detail during descent and respects the patch budget', () => {
+    const orbit = selectTerrainPatches(pelagos, new Vector3(0, 0, pelagos.radius * 4));
+    const surface = selectTerrainPatches(pelagos, new Vector3(0, 0, pelagos.radius + 10));
+    expect(surface.length).toBeLessThanOrEqual(150);
+    expect(Math.max(...surface.map((p) => p.level))).toBeGreaterThan(
+      Math.max(...orbit.map((p) => p.level)),
+    );
+    expect(Math.max(...surface.map((p) => p.level))).toBe(pelagos.terrain?.maxLevel);
+  });
+  it('shares cube-edge samples and continuous normals, with bounded local geometry', () => {
+    expect(cubeDirection(0, 1, 0).distanceTo(cubeDirection(5, -1, 0))).toBeCloseTo(0);
+    const a = buildTerrainPatch(pelagos, { face: 4, level: 10, x: 512, y: 512 });
+    const b = buildTerrainPatch(pelagos, { face: 4, level: 10, x: 513, y: 512 });
+    const resolution = pelagos.terrain?.patchResolution ?? 16,
+      width = resolution + 1;
+    for (let y = 0; y < width; y++) {
+      const i = y * width + resolution,
+        j = y * width;
+      const pa = new Vector3()
+        .fromArray(a.positions.subarray(i * 3, i * 3 + 3))
+        .add(new Vector3().fromArray(a.anchor));
+      const pb = new Vector3()
+        .fromArray(b.positions.subarray(j * 3, j * 3 + 3))
+        .add(new Vector3().fromArray(b.anchor));
+      expect(pa.distanceTo(pb)).toBeLessThan(0.001);
+      expect([...a.normals.subarray(i * 3, i * 3 + 3)]).toEqual([
+        ...b.normals.subarray(j * 3, j * 3 + 3),
+      ]);
+    }
+    expect(Math.max(...a.positions.map(Math.abs))).toBeLessThan(1000);
+    expect(a.indices.length).toBe((resolution * resolution * 2 + resolution * 4 * 2) * 3);
+  });
+});

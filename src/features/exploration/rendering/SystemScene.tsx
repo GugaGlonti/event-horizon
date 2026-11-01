@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef } from 'react';
 import { type DirectionalLight, SphereGeometry, Vector3 } from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
+import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
+import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
 import { FlightEnvironment } from '@/features/space/components/FlightEnvironment';
 import { SpaceBackdrop } from '@/features/space/components/SpaceBackdrop';
 
@@ -40,6 +42,12 @@ export function SystemScene({ session }: { session: FlightSession }) {
           geometry={geometry}
         />
       ))}
+      {world.definition.bodies
+        .filter((body) => body.terrain)
+        .map((body) => (
+          <PlanetTerrain key={body.id} body={body} session={session} />
+        ))}
+      <AtmosphericSky session={session} />
       <FlightEnvironment world={world} origin={session.origin} />
     </>
   );
