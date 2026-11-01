@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 import {
   COLLISION_LAYERS,
   collides,
@@ -33,6 +33,7 @@ export class CombatSimulation {
   readonly tracers: RailgunTrace[] = [];
   readonly obstacles: Obstacle[] = [];
   readonly player: CombatShip;
+  pvp = false;
   targetId: string | null = null;
   kills = 0;
   time = 0;
@@ -76,7 +77,11 @@ export class CombatSimulation {
     id = `hostile-${++this.sequence}`,
     protection = 0,
   ) {
-    if (this.ships.size >= 11 || this.ships.has(id)) return null;
+    if (
+      [...this.ships.values()].filter((s) => s.team === 'hostile').length >= 10 ||
+      this.ships.has(id)
+    )
+      return null;
     const ship = new CombatShip(id, 'hostile', config);
     ship.controller.relocate(position, orientation);
     ship.sync();
@@ -183,7 +188,7 @@ export class CombatSimulation {
     const shield = ship.health.shields > 0;
     const beforeShield = ship.health.shields,
       beforeHull = ship.health.hull;
-    if (!ship.health.damage(amount)) return;
+    if (ship.transferring || !ship.health.damage(amount)) return;
     this.event(ship.id, ship.position, {
       kind: 'damage',
       sourceId,
@@ -204,7 +209,7 @@ export class CombatSimulation {
       ship.position,
       ship.team,
     );
-    if (ship.health.destroyed && ship !== this.player) {
+    if (ship.health.destroyed && ship.team === 'hostile') {
       this.kills++;
       this.ships.delete(ship.id);
       if (this.targetId === ship.id) this.cycleTarget();
@@ -234,12 +239,11 @@ export class CombatSimulation {
       .set(0, ship.weapon === 2 ? -0.4 : 0, -6)
       .applyQuaternion(ship.orientation)
       .add(ship.position);
-    const target =
-      ship.team === 'player' && this.targetId
+    const target = ship.targetId
+      ? this.ships.get(ship.targetId)
+      : ship === this.player && this.targetId
         ? this.ships.get(this.targetId)
-        : ship.team === 'hostile'
-          ? this.player
-          : undefined;
+        : undefined;
     if (ship.weapon === 3) {
       const railgun = ship.config.railgun;
       ship.cooldown = railgun.interval;
@@ -372,7 +376,13 @@ export class CombatSimulation {
     this.hitShip = null;
     this.hitDetected = false;
     for (const ship of this.ships.values()) {
-      if (ship.id === owner || ship.team === team || ship.health.destroyed) continue;
+      if (
+        ship.id === owner ||
+        (ship.team === team && !(this.pvp && team === 'player')) ||
+        ship.health.destroyed ||
+        ship.transferring
+      )
+        continue;
       if (
         !collides(
           COLLISION_LAYERS.projectile,
@@ -433,7 +443,12 @@ export class CombatSimulation {
       const travel = Math.min(dt, shot.life, shot.range / shot.speed);
       if (shot.kind === 'missile' && shot.targetId) {
         const target = this.ships.get(shot.targetId);
-        if (!target || target.health.destroyed || target.team === shot.team) shot.targetId = null;
+        if (
+          !target ||
+          target.health.destroyed ||
+          (target.team === shot.team && !(this.pvp && shot.team === 'player'))
+        )
+          shot.targetId = null;
         else {
           this.aim.subVectors(target.position, shot.position);
           this.relativeVelocity.subVectors(target.velocity, shot.inheritedVelocity);
@@ -470,7 +485,7 @@ export class CombatSimulation {
     }
   }
 
-  step(command: ShipCommand, dt: number) {
+  step(command: ShipCommand, dt: number, commands?: ReadonlyMap<string, ShipCommand>) {
     if (!Number.isFinite(dt) || dt <= 0 || dt > 0.1) throw new RangeError('Invalid combat tick.');
     if (command.weapon && command.weapon !== this.player.weapon) {
       this.player.railgunCharge = 0;
@@ -505,9 +520,34 @@ export class CombatSimulation {
       ship.cooldown = Math.max(0, ship.cooldown - dt);
       ship.heat = Math.max(0, ship.heat - ship.config.laser.heat.coolingRate * dt);
       if (ship.overheated && ship.heat <= ship.config.laser.heat.resumeAt) ship.overheated = false;
-      if (ship.health.destroyed) continue;
-      if (ship !== this.player) this.ai.step(ship, this.player, this.obstacles, this.aiConfig, dt);
-      const input = ship === this.player ? command.flight : ship.command.flight;
+      if (ship.health.destroyed || ship.transferring) continue;
+      if (ship.team === 'hostile') {
+        let target = this.player;
+        let distance = Infinity;
+        for (const candidate of this.ships.values()) {
+          if (candidate.team !== 'player' || candidate.health.destroyed || candidate.transferring)
+            continue;
+          const next = candidate.position.distanceToSquared(ship.position);
+          if (next < distance) {
+            target = candidate;
+            distance = next;
+          }
+        }
+        ship.targetId = distance < Infinity ? target.id : null;
+        this.ai.step(ship, target, this.obstacles, this.aiConfig, dt);
+        if (distance === Infinity) ship.command.fire = false;
+      } else if (commands) {
+        const next = commands.get(ship.id);
+        if (next) {
+          Object.assign(ship.command.flight, next.flight);
+          ship.command.fire = next.fire;
+          if (next.weapon && next.weapon !== ship.weapon) {
+            ship.railgunCharge = 0;
+            ship.weapon = next.weapon;
+          }
+        } else ship.command.fire = false;
+      }
+      const input = commands || ship !== this.player ? ship.command.flight : command.flight;
       ship.controller.step(input, dt);
       ship.sync();
       ship.position.copy(ship.previous);
@@ -522,7 +562,8 @@ export class CombatSimulation {
     this.advanceProjectiles(dt);
     // New projectiles start at the end of the tick, avoiding a one-tick target motion error.
     for (const ship of this.ships.values()) {
-      const firing = ship === this.player ? command.fire : ship.command.fire;
+      const firing =
+        !ship.transferring && (commands || ship !== this.player ? ship.command.fire : command.fire);
       if (ship.weapon === 3) {
         if (!firing || ship.health.destroyed || ship.cooldown > 1e-9) ship.railgunCharge = 0;
         else {

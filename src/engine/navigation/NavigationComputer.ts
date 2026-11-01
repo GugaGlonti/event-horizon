@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 
 export interface NavigationSnapshot {

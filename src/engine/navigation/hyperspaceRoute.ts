@@ -1,4 +1,4 @@
-import { Matrix4, Quaternion, Vector3 } from 'three';
+import { Quaternion, quaternionFromBasis, Vector3 } from '@/engine/math/linear';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { StarSystemDefinition } from '@/engine/world/worldTypes';
 
@@ -13,16 +13,22 @@ export function travelDirection(
 }
 
 /** Stable, level orientation with local forward -Z, including near-vertical routes. */
-export function routeOrientation(direction: Readonly<Vector3>, out = new Quaternion()) {
+export function routeOrientation(
+  direction: { readonly x: number; readonly y: number; readonly z: number },
+  out = new Quaternion(),
+) {
   const up = Math.abs(direction.y) > 0.99 ? new Vector3(0, 0, 1) : new Vector3(0, 1, 0);
-  return out.setFromRotationMatrix(new Matrix4().lookAt(new Vector3(), direction, up));
+  const z = new Vector3().copy(direction).normalize().negate();
+  const x = new Vector3().crossVectors(up, z).normalize();
+  const y = new Vector3().crossVectors(z, x);
+  return quaternionFromBasis(out, x, y, z);
 }
 
 /** Swept corridor including rings, atmosphere and six seconds of possible moon displacement. */
 export function departureObstruction(
   world: SystemRuntime,
   start: Readonly<Vector3>,
-  direction: Readonly<Vector3>,
+  direction: { readonly x: number; readonly y: number; readonly z: number },
   distance: number,
 ) {
   const offset = new Vector3();
@@ -46,7 +52,7 @@ export function departureObstruction(
 /** Approach from the source-facing side. A lateral offset keeps the destination off the reticle. */
 export function routeArrival(
   world: SystemRuntime,
-  direction: Readonly<Vector3>,
+  direction: { readonly x: number; readonly y: number; readonly z: number },
   coastDistance: number,
 ) {
   const anchor = world.definition.bodies.find(

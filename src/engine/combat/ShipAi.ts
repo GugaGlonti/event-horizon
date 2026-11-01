@@ -1,4 +1,4 @@
-import { MathUtils, Quaternion, Vector3 } from 'three';
+import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
 import type { AiConfig, AiState, CombatShip, Obstacle } from './combatTypes';
 import { leadTime } from './targeting';
 

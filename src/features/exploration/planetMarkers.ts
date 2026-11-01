@@ -43,7 +43,7 @@ export class PlanetMarkerProjector {
     world: SystemRuntime,
     ship: Readonly<Vector3>,
     camera: Readonly<PerspectiveCamera>,
-    origin: Readonly<Vector3>,
+    origin: { readonly x: number; readonly y: number; readonly z: number },
     viewport: Viewport,
   ): readonly PlanetMarker[] {
     const { width, height } = viewport;

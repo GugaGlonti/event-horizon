@@ -1,4 +1,4 @@
-import type { Vector3 } from 'three';
+import type { Vector3 } from '@/engine/math/linear';
 import type { CombatShip } from './combatTypes';
 
 export interface TargetingConfig {
@@ -8,7 +8,9 @@ export interface TargetingConfig {
 
 export function validTarget(ship: CombatShip, player: CombatShip, range: number) {
   return (
-    ship.team !== player.team &&
+    ship.id !== player.id &&
+    (ship.team !== player.team || ship.team === 'player') &&
+    !ship.transferring &&
     !ship.health.destroyed &&
     ship.position.distanceToSquared(player.position) <= range * range
   );

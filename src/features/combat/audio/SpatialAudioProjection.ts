@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 
 /** Logical-space source projection. The listener remains at the audio origin, facing local -Z. */
 export class SpatialAudioProjection {

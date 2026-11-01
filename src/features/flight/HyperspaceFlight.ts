@@ -29,7 +29,7 @@ export class HyperspaceFlight {
   begin(
     position: Readonly<Vector3>,
     orientation: Readonly<Quaternion>,
-    direction: Readonly<Vector3>,
+    direction: { readonly x: number; readonly y: number; readonly z: number },
   ) {
     this.active = true;
     this.departure.copy(position);
@@ -43,6 +43,11 @@ export class HyperspaceFlight {
   arrive(world: SystemRuntime) {
     const pose = routeArrival(world, this.direction, EXIT_COAST_DISTANCE);
     this.arrival.copy(pose.position);
+  }
+
+  setArrival(position: readonly number[], orientation: readonly number[]) {
+    this.arrival.fromArray(position).addScaledVector(this.direction, -EXIT_COAST_DISTANCE);
+    this.alignedOrientation.fromArray(orientation);
   }
 
   sample(jump: HyperspaceController, position: Vector3, orientation: Quaternion, reduced = false) {

@@ -1,4 +1,4 @@
-import { MathUtils, Quaternion, Vector3 } from 'three';
+import { MathUtils, Quaternion, Vector3 } from '@/engine/math/linear';
 import type { FlightConfig, FlightInput, FlightTelemetry } from './flightTypes';
 
 function approach(current: number, target: number, amount: number) {
@@ -69,9 +69,12 @@ export class FlightController {
     this.distance = 0;
   }
 
-  copyTransform(position: Vector3, orientation: Quaternion) {
-    position.copy(this.position);
-    orientation.copy(this.orientation);
+  copyTransform(
+    position: { set(x: number, y: number, z: number): unknown },
+    orientation: { set(x: number, y: number, z: number, w: number): unknown },
+  ) {
+    position.set(this.position.x, this.position.y, this.position.z);
+    orientation.set(this.orientation.x, this.orientation.y, this.orientation.z, this.orientation.w);
   }
 
   copyVelocity(out: Vector3) {
@@ -93,6 +96,20 @@ export class FlightController {
       assistance: this.assistance,
       distance: this.distance,
     };
+  }
+
+  restore(state: ReturnType<FlightController['snapshot']>) {
+    this.position.fromArray(state.position);
+    this.velocity.fromArray(state.velocity);
+    this.orientation.fromArray(state.orientation).normalize();
+    this.angularVelocity.fromArray(state.angularVelocity);
+    this.throttle = state.throttle;
+    this.boostCharge = state.boostCharge;
+    this.boostDelay = state.boostDelay;
+    this.boostExhausted = state.boostExhausted;
+    this.boosting = state.boosting;
+    this.assistance = state.assistance;
+    this.distance = state.distance;
   }
 
   /** Collision solver handoff; never resets engine reserve or orientation. */

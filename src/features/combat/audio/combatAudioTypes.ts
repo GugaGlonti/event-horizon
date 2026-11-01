@@ -1,4 +1,4 @@
-import type { Quaternion, Vector3 } from 'three';
+import type { Quaternion, Vector3 } from '@/engine/math/linear';
 
 /** Read-only audio projection, structurally supplied by the combat simulation at composition. */
 export interface AudioShip {

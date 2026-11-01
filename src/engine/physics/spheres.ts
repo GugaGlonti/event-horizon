@@ -1,4 +1,4 @@
-import { Vector3 } from 'three';
+import { Vector3 } from '@/engine/math/linear';
 
 /** Earliest contact between a relative segment and a sphere, including initial overlap. */
 export function sweepSphere(

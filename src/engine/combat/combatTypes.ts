@@ -1,4 +1,4 @@
-import { Quaternion, Vector3 } from 'three';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { COLLISION_LAYERS } from '@/engine/physics/spheres';
 import { FlightController } from '@/engine/simulation/FlightController';
 import {
@@ -108,6 +108,8 @@ export class CombatShip {
   aiTime = 0;
   aiReaction = 0;
   readonly aiPhase: number;
+  targetId: string | null = null;
+  transferring = false;
   cooldown = 0;
   railgunCharge = 0;
   weapon: WeaponSlot = 1;

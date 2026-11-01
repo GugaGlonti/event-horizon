@@ -11,7 +11,7 @@ export class RenderOrigin {
     this.cellSize = cellSize;
   }
 
-  update(logical: Readonly<Vector3>) {
+  update(logical: { readonly x: number; readonly y: number; readonly z: number }) {
     const size = this.cellSize;
     this.position.set(
       Math.round(logical.x / size) * size,
@@ -20,7 +20,7 @@ export class RenderOrigin {
     );
   }
 
-  toRender(logical: Readonly<Vector3>, out: Vector3) {
+  toRender(logical: { readonly x: number; readonly y: number; readonly z: number }, out: Vector3) {
     return out.copy(logical).sub(this.position);
   }
   toLogical(render: Readonly<Vector3>, out: Vector3) {
