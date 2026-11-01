@@ -63,6 +63,20 @@ describe('planetary approach envelope', () => {
 });
 
 describe('planet-relative descent', () => {
+  it('leaves deployed gear responsive until final approach and settles safely at contact', () => {
+    const f = fixture(120);
+    f.controller.landingGear = true;
+    for (let i = 0; i < 120; i++) f.controller.step({ ...createFlightInput(), lift: -1 }, 1 / 120);
+    expect(-f.controller.copyVelocity(new Vector3()).dot(f.up)).toBeGreaterThan(40);
+    let seconds = 1;
+    while (seconds < 20 && f.controller.surface.phase !== 'landed') {
+      f.controller.step({ ...createFlightInput(), lift: -1 }, 1 / 120);
+      seconds += 1 / 120;
+    }
+    expect(f.controller.surface.phase).toBe('landed');
+    expect(f.controller.impactSpeed).toBe(0);
+    expect(seconds).toBeLessThan(15);
+  });
   it('changes continuously from entry speeds to safe touchdown speed', () => {
     const limit = (h: number) => descentSpeedLimit(h, PLANETARY_FLIGHT_CONFIG);
     expect(limit(22000)).toBe(1100);
