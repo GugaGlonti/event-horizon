@@ -5,7 +5,10 @@ import { describe, expect, it } from 'vitest';
 import manifest from '@/features/spacecraft/assets/manifest.json';
 import {
   createShipEffectAttributes,
+  engineEffectPower,
+  PARTICLES_PER_ENGINE,
   particleReach,
+  TRAIL_LAYERS,
   visualEnginePower,
 } from '@/features/spacecraft/shipEffects';
 import { createHullLighting } from '@/features/spacecraft/spacecraftLighting';
@@ -60,7 +63,17 @@ describe('spacecraft visibility effects', () => {
         expect(nearest).toBeLessThan(0.036);
       }
       const attributes = createShipEffectAttributes(metadata.engines, lighting);
-      expect(attributes.count).toBeLessThanOrEqual(116);
+      expect(attributes.count).toBeLessThanOrEqual(200);
+      const kinds = Array.from(
+        { length: attributes.count },
+        (_, i) => attributes.parameters[i * 4 + 1],
+      );
+      expect(kinds.filter((kind) => kind === 3)).toHaveLength(
+        metadata.engines.length * PARTICLES_PER_ENGINE,
+      );
+      expect(kinds.filter((kind) => kind === 5)).toHaveLength(
+        metadata.engines.length * TRAIL_LAYERS,
+      );
       expect(attributes.origins.length).toBe(attributes.count * 3);
       expect(attributes.parameters.length).toBe(attributes.count * 4);
       expect(
@@ -86,6 +99,19 @@ describe('spacecraft visibility effects', () => {
       geometry.dispose();
     },
   );
+
+  it('scales exhaust from zero through full throttle with a distinct boost range', () => {
+    expect(engineEffectPower(0, false)).toBe(0);
+    let previous = 0;
+    for (const throttle of [0.1, 0.25, 0.5, 0.75, 1]) {
+      const power = engineEffectPower(throttle, false);
+      expect(power).toBeGreaterThan(previous);
+      expect(engineEffectPower(throttle, true)).toBeGreaterThan(1);
+      previous = power;
+    }
+    expect(engineEffectPower(1, true)).toBe(2.4);
+    expect(engineEffectPower(Infinity, false)).toBe(0);
+  });
 
   it('bounds GPU power and particle travel through idle, boost and invalid input', () => {
     expect(particleReach(2.4)).toBeGreaterThan(particleReach(0.25));

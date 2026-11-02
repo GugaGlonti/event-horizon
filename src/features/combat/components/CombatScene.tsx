@@ -14,6 +14,7 @@ import {
 import { leadTime } from '@/engine/combat/targeting';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
+import { engineEffectPower } from '@/features/spacecraft/shipEffects';
 import type { SpacecraftModel, SpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useCombatStore } from '@/stores/combatStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -64,7 +65,10 @@ function EnemySlot({
         material.current.opacity = ship.hitFlash * 1.4;
         material.current.color.set(ship.shieldHit ? '#77dfff' : '#ffac55');
       }
-      enginePower.current = ship.controller.isBoosting ? 1.8 : 0.3 + ship.controller.enginePower;
+      enginePower.current = engineEffectPower(
+        ship.controller.enginePower,
+        ship.controller.isBoosting,
+      );
     }
   }, -0.5);
   return (

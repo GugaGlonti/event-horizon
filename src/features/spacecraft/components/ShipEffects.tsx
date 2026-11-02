@@ -36,8 +36,8 @@ export function ShipEffects({
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uPower: { value: 0.25 },
-      uReach: { value: particleReach(0.25) },
+      uPower: { value: 0 },
+      uReach: { value: particleReach(0) },
       uMotion: { value: 1 },
       uPhase: { value: phase },
       uViewportHeight: { value: 900 },
