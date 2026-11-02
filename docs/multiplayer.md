@@ -146,7 +146,11 @@ Travel tickets last 30 seconds, are destination-bound and consumed once. A sourc
 noncombatant while transferring, and a request starts a 13-second server cooldown, including aborted
 requests, to prevent invulnerability toggling. The destination computes a clear route/spawn, carries
 health, boost reserve, flight distance and statistics, removes the source ship and its projectiles/targets, and holds the new ship
-until ready. Safe arrival checks include other ships and revalidate occupancy at release; swept corridors include rings and moon motion.
+until ready. Safe arrival checks include other ships and revalidate occupancy at release. Swept
+clearance includes the backwards cinematic lead-in, spawn offsets, terrain, atmosphere, rings and
+moving bodies/facilities. The receiver's time window includes the client's remaining distance-scaled
+transit, scene-readiness wait and exit. A locally blocked course shows flight guidance before a
+permit is requested; both client and authority recheck clearance at launch.
 Before destination admission, failure/cancellation keeps the source. After admission, recovery holds
 the destination; late cancelled preparation cannot revive a journey. Reconnection during a transfer
 adopts the server's current system and releases the safe arrival hold. Client cinematics and audio

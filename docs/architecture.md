@@ -277,24 +277,40 @@ an operation generation and abort its signal; late success/failure cannot affect
 → IDLE transitions. Exported timing is configurable. Its only inputs are a validated destination,
 preparation readiness and bounded dt. It never changes a world, ship, camera, audio node or store.
 
-`ExplorationSession.beginJump` derives a shared travel axis from the source/destination galactic
-positions, checks the swept departure lane, clears/restricts input, starts preparation and optional
-Web Audio. `HyperspaceFlight` samples an analytical quaternion alignment/bank, quadratic departure surge,
-and decelerating arrival coast. Its distance derivative matches the 100 m/s physics handoff. Paused
-normal physics never integrates hyperspeed. Abort adopts the currently displayed pose with zero speed.
+`ExplorationSession.beginJump` derives heading and light-year distance from shared galactic
+coordinates. The controller scales transit by distance and keeps planned progress separate from
+active elapsed time, so readiness holds can show HOLD without falsifying the flight timer. Detached
+HUD snapshots publish at 10 Hz. Shared motion constants and the exit integral live in
+`engine/navigation/HyperspaceController.ts`; feature configuration reuses them.
 
-The 1.3-second entry gives stars a readable buildup: full extension by 48%, ignition at 55%, and tunnel
-reveal after 72%. The 5.2 km departure and camera/audio impact share the ignition threshold, keeping the
-actual launch under 0.6 seconds. A small continuous star sweep prevents a frozen long-streak hold;
-most virtual travel occurs at ignition. Each star supplies its own outward exposure trail, with varied
-depths/widths, a white core, cyan shoulders and a soft blue halo. No particles recycle or morph to
-another layout. The stars fade through one exposure crest into layered cloud walls. Exit contracts the
-same field back into points. `hyperspaceVisuals` owns continuous stretch/travel/exposure envelopes and
-damped camera recoil/rattle. Reduced motion suppresses these effects.
+Blocked plans remain outside the jump state machine and network authorization. The pure
+`hyperspaceDeparture` planner compares ten bounded capsule-boundary escape candidates, checks clear
+local flight segments and chooses the shortest valid candidate. It never steers or assigns authority
+state. Guidance refreshes after 0.5 seconds or 500 m of movement; launch availability publishes at
+10 Hz and is checked again on confirmation. The session closes the chart and restores keyboard
+flight, then accepts Tab or the HUD button when the lane is clear. Cancellation/destination changes
+clear the suggestion. Compact layouts reserve room for the guidance banner and flight instruments.
+
+`HyperspaceFlight` samples analytical alignment/bank, a quadratic departure surge and a decelerating
+arrival coast. Its derivative matches the 100 m/s physics handoff. Normal physics never integrates
+hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
+cancellation follows the authoritative admission/recovery path.
+
+The 3.4-second entry reaches full extension by 36%, ignites at 55%, and begins tunnel coverage at
+80%, leaving about 1.5 seconds of clear full stretch. The persistent star field supplies every trail;
+no particles recycle into another layout. White cores, cyan shoulders and restrained blue halos fade
+through one exposure crest into cloud walls. `hyperspaceVisuals` owns continuous envelopes, recoil,
+rattle and smooth seeded noise. Per-journey variation affects only presentation. Camera impulses and
+small rotations are removed before each follow update, preventing accumulation. Reduced motion
+suppresses these effects; active journey time drives clouds without a separate render clock.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
-`routeArrival` rechecks a source-facing corridor against surfaces, atmosphere, rings and six seconds of
-possible moon displacement. On entry to EXITING the runtime swaps atomically. `FlightSession` changes
+`routeArrival` rechecks a source-facing corridor against conservative terrain/foundation, atmosphere,
+ring and ancestor orbital-motion bounds. Source clearance covers entry, the distance-scaled transit
+and preparation waits. Receiver clearance includes transit remaining after admission, readiness waits
+and the exit coast. Cached facility extents bound orbital and rotational movement. Arrival validation
+covers the backwards client lead-in as well as forward travel, including authority spawn offsets.
+On entry to EXITING the runtime swaps atomically. `FlightSession` changes
 the logical frame while the camera compensates both origin and ship translation, preserving relative
 position, orientation and FOV. A reset still explicitly snaps the camera.
 
@@ -302,11 +318,11 @@ EXITING stays at zero progress with full coverage until the matching destination
 its first frame after every terrain body has complete six-face base coverage. The renderer reports
 readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
 Both CPU preparation and renderer readiness have
-bounded 12-second deadlines. The first 14% of exit remains opaque; coverage falls over 14–23% (about
-0.1 seconds), coordinated with star contraction, a restrained exposure crest and the exit impulse.
+bounded 12-second deadlines. The first 30% of the 2.1-second exit remains opaque; coverage falls over
+30–70% (about 0.84 seconds), coordinated with star contraction, exposure and the exit impulse.
 The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
 distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
-in flight/config.ts and the full swept corridor uses those same bounds. Celestial assets use
+in engine/navigation/HyperspaceController.ts and the full swept corridor uses those same bounds. Celestial assets use
 procedural geometry/shaders. The shared spacecraft GLB library stays mounted
 across handoffs. The old keyed SystemScene releases its owned resources.
 
@@ -472,7 +488,8 @@ The original Kestrel canopy has ribs, instrument housings and faint procedural g
 It follows the craft's nominal cockpit pose while the camera impulse moves relative to it.
 
 The transparent depth-tested tunnel mask draws after celestial transparency (order 10), preserving
-nearby opaque ship/cockpit depth. Star trails draw next (20), with bounded virtual depth during transit;
+nearby opaque ship/cockpit depth at a logarithmic 80 m boundary. Star trails draw next (20): normal
+stars stay celestial, while stretched optical exposures approach that same foreground boundary;
 glass highlights follow (25) and exhaust draws last (30). Fiber owns every declarative geometry,
 material and light. These are ordered scene draws, with no render targets or post-processing.
 
@@ -483,7 +500,7 @@ geometry or publish React state per frame. The flight frame callback has priorit
 origin and camera update before world/effect presentation. No positive-priority callback takes over
 rendering.
 
-Reduced motion disables dynamic FOV, recoil/rattle, tunnel animation, star trails, exposure flashes,
+Reduced motion disables dynamic FOV, turbulence, recoil/rattle, tunnel animation, star trails, exposure flashes,
 moving light/glass highlights, alignment bank and axial spin. The tunnel still
 masks a transition and progress remains legible. Device pixel ratio stays bounded. LOD/adaptive quality
 and broader hardware profiling are future improvements, not a promise of universal 60 FPS.

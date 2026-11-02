@@ -4,6 +4,10 @@ Authoritative single-player target established on 2026-11-01. The next milestone
 PvP & Cooperative PvE**. Networking, progression, complex missions, detailed terrain and landings
 are outside this milestone.
 
+Later iterations are recorded separately: [Travel/Combat controls](flight-modes.md) and
+[hyperspace safety, pacing and guidance](hyperspace.md). The acceptance figures below remain the
+historical Milestone 4 run.
+
 ## Audit and implementation outcome
 
 The repository already contained shared player/NPC flight, four weapons, relative sphere sweeps,

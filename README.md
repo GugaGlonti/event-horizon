@@ -335,65 +335,56 @@ or external service is needed. Source credits and offline preview commands are i
 
 ## Hyperspace
 
-The galaxy map highlights your current system, shows destination details and its arrival anchor, and
-requires another system to be selected. Jumping to the current system, uncharted destinations,
-overlapping jumps, and jumping during cooldown are unavailable.
+Select another system in the galaxy map. The chart shows route distance in light years and estimated
+jump time. Current-system, overlapping and cooldown requests remain unavailable.
 
-| State        | Default duration | Behavior                                                                  |
-| ------------ | ---------------- | ------------------------------------------------------------------------- |
-| CHARGING     | 3.2 s            | Bank, align to the destination, level out and charge; compact HUD readout |
-| ACCELERATING | 1.3 s            | Long star trails keep moving through buildup, followed by a sharp surge   |
-| HYPERSPACE   | At least 3.4 s   | Flowing blue corridor masks preparation; ship/cockpit remain visible      |
-| EXITING      | 1.15 s           | Await the destination's first frame, collapse trails, coast and settle    |
-| COOLDOWN     | 4 s              | Keyboard flight resumes at 100 m/s; another jump remains unavailable      |
-| IDLE         | —                | Hyperdrive ready                                                          |
+| State        | Duration                  | Behavior                                                         |
+| ------------ | ------------------------- | ---------------------------------------------------------------- |
+| CHARGING     | 3.2 s                     | Align, bank, level out and charge                                |
+| ACCELERATING | 3.4 s                     | Build and hold bright star stretches, then surge into the tunnel |
+| HYPERSPACE   | 3.4 s + 0.12 s/light year | Distance-scaled transit under the opaque blue corridor           |
+| EXITING      | 2.1 s                     | Await destination readiness, reveal gradually and coast out      |
+| COOLDOWN     | 4 s                       | Keyboard flight resumes at 100 m/s; hyperdrive recharges         |
+| IDLE         | —                         | Ready for another course                                         |
 
-Shared galactic coordinates determine departure and arrival headings. The ship approaches from the
-source-facing side of the destination's primary target, facing onward along the route. Swept clearance
-checks include body surfaces, atmospheres, rings and near-term moon movement. A blocked departure
-shows a reason in the galaxy chart; move clear before trying again. Arrival lanes leave room for the
-exit coast and frame the primary world at a readable distance.
+Galactic coordinates supply both headings and light-year distances. Longer routes take longer; ETA
+includes charge, entry, transit and exit, excluding cooldown. Destination preparation or readiness
+can extend it. The hyperspace HUD stays visible throughout the journey with source/destination,
+distance traveled, estimated time remaining, active flight time and phase progress. Arrival waits
+show **HOLD**; focus/visibility suspension freezes the clocks until **Resume journey**.
 
-Timing lives in `engine/navigation/HyperspaceController.ts`. `HyperspaceFlight` samples bounded local
-trajectories outside normal physics; no enormous velocities or galactic coordinates reach the GPU.
-A persistent 12,000-star sky supplies every entry streak. Stars have varied virtual depths: projecting
-a forward exposure gives nearby stars broader, faster trails and distant stars shorter streaks. White
-cores have soft cyan shoulders and blue halos. Long trails remain readable for about 0.3 seconds before
-the tunnel reveal while continuing to move outward; most travel stays concentrated at ignition.
-There is no replacement particle field or recycled stream of new streaks. A brief exposure crest
-merges the stars into three layers of irregular blue clouds, bright wisps and dark channels flowing
-past the craft. Passing blue light catches the Kestrel's canopy, instruments and subtle glass glints.
+A blocked departure returns to keyboard flight with an amber escape waypoint and distance instead
+of stopping at an error. Follow the shortest tested safe local route; guidance never steers the ship.
+Once the current lane clears, press **Tab** or **Engage** to confirm. There is no expiring quick-time
+window. The course remains selected and launch clearance is checked again before charging and network
+authorization. Narrow screens use a compact bearing banner above the hull and altitude instruments.
 
-The bounded 5.2 km departure moves nearby worlds decisively at ignition, after checking the entire
-corridor for clearance. Arrival waits for the matching destination's first frame, holds the first 14%
-of exit opaque, then reveals the scene over about 0.1 seconds as the stars contract. Most deceleration
-happens under cover; the remaining coast settles into 100 m/s flight. The camera preserves its relative
-pose across the system switch. Short damped recoil and chassis rattle give ignition/exit weight, with
-restrained FOV changes and a quiet cruise; the cockpit stays attached to the craft during the impulse.
+Clearance covers the entire bounded departure and arrival coast, including the lead-in behind the
+multiplayer holding point and occupied-spawn offsets. Terrain, engineered foundations, physical
+atmospheres, rings, ancestor orbital motion and moving/rotating facilities contribute conservative
+bounds. Source checks cover transit/preparation waits; receiver checks also cover the remaining
+transit before the destination scene becomes visible. No hyperspeed enters normal flight physics.
 
-The charging readout disappears during transit. Escape/abort remains in the HUD footer, with a brief
-arrival notice after exit. Normal flight instruments return with control. A central prompt appears
-only when a journey is held after losing focus. Optional audio layers edited CC0 machinery and motor
-recordings: a rising spool, a phased stereo transit bed, and distinct entry/exit relay and pressure
-impacts. Quiet synthesized bass reinforces the recordings; synthesis also provides a fallback if
-loading/decoding fails. The exit cue follows the visual reveal, and a compressor controls peaks.
-Disable audio in the galaxy map. Bundled sound sources, licences and the offline processing recipe
-are documented in [CREDITS.md](CREDITS.md).
+The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
+visible for about 1.5 seconds before tunnel coverage begins. One exposure crest merges the trails
+into layered blue clouds, while a roughly 0.84-second arrival reveal replaces the old abrupt cut.
+Seeded smooth camera/tunnel turbulence and reflected light vary each journey without changing the
+ship's physical trajectory. Nearby hull/cockpit/exhaust remain visible. Reduced-motion preferences
+suppress trails, turbulence, recoil, animated clouds/light, exposure and dynamic FOV.
 
-Arrival preserves engine reserve, trip distance, assistance and camera choice, handing back a
-controlled 100 m/s forward motion with matching throttle. Hold W to accelerate after arrival;
-otherwise the ship gradually slows. Keyboard control returns without another click. Mouse users can
-pause and select **Resume with mouse** to recapture through a user gesture.
+Arrival preserves damage, energy, trip distance, flight mode and camera preference, then restores
+keyboard flight at a controlled 100 m/s. Hold W to accelerate; otherwise the ship gradually slows.
+Mouse capture still requires a user gesture. Escape or the HUD's **Abort / Esc** button cancels safely:
+before destination admission/activation the source remains active; after multiplayer admission or
+offline commit the destination remains active. Reset/unmount invalidate asynchronous work; late
+results cannot resurrect cancelled journeys. The matching
+arrival scene must report its first frame before the tunnel can reveal it.
 
-Escape or **Abort jump** cancels safely. Before arrival commit, you remain in the source system. After
-commit, you remain at the destination's safe arrival. Reset/unmount invalidate pending preparation,
-so late results cannot activate a system. A rejected/invalid destination or preparation timeout keeps
-the original system and offers normal flight again. Blur/hidden tabs hold an active journey until
-**Resume journey** is clicked; a bounded delta prevents suspension from skipping the sequence.
+Optional CC0 machinery recordings and synthesized fallback audio remain independent of gameplay
+clocks. The exit cue follows the visual reveal. Sound controls and source credits remain in the
+galaxy map and [CREDITS.md](CREDITS.md).
 
-Reduced-motion preferences disable recoil/rattle, speed/jump FOV changes, tunnel animation, exposure
-flashes, moving light/glass highlights, visual axial spin, alignment banking and animated star trails.
-Essential alignment, orbital positions, charge feedback, and travel remain available.
+See [hyperspace controls, safety details and verification](docs/hyperspace.md).
 
 ## Stack and commands
 
@@ -476,6 +467,9 @@ use quaternion interpolation and bounded extrapolation. Flight/combat HUD teleme
 See [architecture and extension guide](docs/architecture.md), including how to add a system or moon.
 
 ## Verification and limitations
+
+The [hyperspace iteration](docs/hyperspace.md) records the current 556-test run, browser journey and
+launch-guidance checks, and short 2/8/16-client measurements with explicit verification limits.
 
 The [2 November expansion record](docs/galaxy-expansion.md#verification-and-measurements) documents
 499 tests, two-browser capital services/occupancy, expanded real-socket transfers, load measurements
