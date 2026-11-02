@@ -1,5 +1,6 @@
 import { settlementSuitability } from '@/engine/planetary/cities';
 import { surfaceDirection } from '@/engine/planetary/coordinates';
+import { terrainHeight, terrainNormal } from '@/engine/planetary/terrain';
 import type { CelestialDefinition } from './worldTypes';
 
 const archetypes = ['temperate', 'desert', 'oceanic', 'frozen', 'volcanic', 'barren', 'gas-giant'];
@@ -63,8 +64,13 @@ export function validatePlanet(body: CelestialDefinition, fail: (message: string
   if (developed && (regions < 3 || regions > 6))
     fail('Developed worlds require three to six regional cities.');
   for (const city of cities) {
-    if (!settlementSuitability(body, city.latitude, city.longitude).suitable)
-      fail('Unsuitable settlement terrain.');
+    const up = surfaceDirection(city.latitude, city.longitude);
+    const suitable = city.authored
+      ? body.landable &&
+        terrainHeight(body, up) > (body.ocean?.level ?? -Infinity) + 60 &&
+        terrainNormal(body, up).dot(up) > 0.98
+      : settlementSuitability(body, city.latitude, city.longitude).suitable;
+    if (!suitable) fail('Unsuitable settlement terrain.');
     if (
       !city.id ||
       !city.name.trim() ||
@@ -74,6 +80,7 @@ export function validatePlanet(body: CelestialDefinition, fail: (message: string
       city.radius > body.radius * 0.05 ||
       !finite(city.elevation) ||
       city.elevation <= (body.ocean?.level ?? -Infinity) ||
+      (city.authored !== undefined && typeof city.authored !== 'boolean') ||
       !Number.isInteger(city.seed) ||
       !Number.isInteger(city.population) ||
       city.population < 0 ||

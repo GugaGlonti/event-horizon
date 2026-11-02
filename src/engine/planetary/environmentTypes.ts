@@ -48,6 +48,8 @@ export interface SettlementDefinition {
   readonly radius: number;
   readonly seed: number;
   readonly population: number;
+  /** Explicit catalogue anchor; natural terrain may evolve around its engineered foundation. */
+  readonly authored?: boolean;
   readonly style: 'towers' | 'domes' | 'habitats' | 'industrial' | 'modules';
 }
 export interface RestrictedZoneDefinition {

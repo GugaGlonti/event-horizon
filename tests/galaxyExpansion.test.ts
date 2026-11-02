@@ -28,6 +28,7 @@ import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { portPose, stationPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
+import { SETTLEMENT_ANCHORS } from '@/engine/world/settlementAnchors';
 import { SYSTEMS } from '@/engine/world/systems';
 import { validateSystem } from '@/engine/world/validateSystem';
 
@@ -73,15 +74,12 @@ describe('expanded galaxy and shared cities', () => {
     for (const system of SYSTEMS)
       for (const body of system.bodies.filter((b) => b.landable)) {
         const cities = body.settlements ?? [];
-        expect(
-          generateSettlements(
-            body,
-            body.civilization ?? 'UNINHABITED',
-            cities.find((c) => c.kind === 'capital')?.name,
-          ),
-        ).toEqual(cities);
+        if (cities.some((city) => city.authored))
+          expect(cities).toEqual(SETTLEMENT_ANCHORS[body.id]);
+        else expect(generateSettlements(body, body.civilization ?? 'UNINHABITED')).toEqual(cities);
         for (const city of cities) {
-          expect(settlementSuitability(body, city.latitude, city.longitude).suitable).toBe(true);
+          if (!city.authored)
+            expect(settlementSuitability(body, city.latitude, city.longitude).suitable).toBe(true);
           const up = surfaceDirection(city.latitude, city.longitude);
           expect(terrainHeight(body, up)).toBeCloseTo(city.elevation, 6);
           const a = generateCityLayout(city),

@@ -4,6 +4,7 @@ import type {
   ClimateDefinition,
   PlanetArchetype,
 } from '@/engine/planetary/environmentTypes';
+import { SETTLEMENT_ANCHORS } from './settlementAnchors';
 import type { CelestialDefinition, StarSystemDefinition, SurfacePattern } from './worldTypes';
 
 export const ARCHETYPES: Readonly<
@@ -220,6 +221,7 @@ export function configurePlanet(body: CelestialDefinition): CelestialDefinition 
   };
   const settlements =
     body.settlements ??
+    SETTLEMENT_ANCHORS[body.id] ??
     generateSettlements(
       configured,
       configured.civilization ?? 'UNINHABITED',
