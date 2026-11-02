@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
+import {
+  type BuildingInstance,
+  buildingCollisionBoxes,
+} from '@/engine/planetary/buildingTemplates';
 import { generateSettlements } from '@/engine/planetary/cities';
 import { generateCityLayout, selectCityBlocks } from '@/engine/planetary/cityLayout';
 import { surfaceDirection } from '@/engine/planetary/coordinates';
@@ -22,6 +26,10 @@ import { buildTerrainPatch, cubeDirection } from '@/engine/planetary/terrainLod'
 import { portPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
+import {
+  BUILDING_TEMPLATES,
+  createBuildingGeometry,
+} from '@/features/planets/rendering/buildingGeometry';
 import { PlanetGeneration, type PlanetWorker } from '@/features/planets/rendering/PlanetGeneration';
 import type {
   PlanetJob,
@@ -230,6 +238,49 @@ describe('districts and shared building recipes', () => {
       5,
     );
     expect(fast?.fraction).toBeCloseTo(0.4475, 6);
+  });
+  it('contains actual renderer vertices in the same rotated collision boxes for every kit/style', () => {
+    for (const style of ['towers', 'domes', 'habitats', 'industrial', 'modules'] as const)
+      for (const template of BUILDING_TEMPLATES) {
+        const geometry = createBuildingGeometry(template, style),
+          positions = geometry.getAttribute('position');
+        const building: BuildingInstance = {
+          id: 'test',
+          blockId: 'block',
+          districtId: 'civic',
+          template,
+          center: [30, 25, 10],
+          size: [10, 40, 15],
+          orientation: [0, Math.sin(0.2), 0, Math.cos(0.2)],
+          role: 'hull',
+          variant: 0,
+        };
+        const boxes = buildingCollisionBoxes(building),
+          rotation = new Quaternion().fromArray(required(building.orientation));
+        for (let i = 0; i < positions.count; i++) {
+          const vertex = new Vector3(
+            positions.getX(i) * 10,
+            positions.getY(i) * 40,
+            positions.getZ(i) * 15,
+          )
+            .applyQuaternion(rotation)
+            .add(new Vector3().fromArray(building.center));
+          expect(
+            boxes.some((box) => {
+              const p = vertex
+                .clone()
+                .sub(new Vector3().fromArray(box.center))
+                .applyQuaternion(rotation.clone().invert());
+              return (
+                Math.abs(p.x) <= box.size[0] / 2 + 1e-4 &&
+                Math.abs(p.y) <= box.size[1] / 2 + 1e-4 &&
+                Math.abs(p.z) <= box.size[2] / 2 + 1e-4
+              );
+            }),
+          ).toBe(true);
+        }
+        geometry.dispose();
+      }
   });
 });
 
