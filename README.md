@@ -374,12 +374,15 @@ after the world mask clears while the optical fade continues, handing control ba
 The roughly 792 km incoming path ends
 near the destination planet, so bodies grow and sweep past as the ship slows.
 
-The persistent 12,000-star field produces white/cyan optical trails. Entry length, thickness,
-glow and whitening grow together on one three-second curve, reaching full extension and white at
-the same instant. The brightest beams widen in viewport proportion, taper toward the vanishing
-point and overlap across almost the whole view. There is no separate brightening stage or white
-hold. The physical surge starts at 1.26 seconds, its crossing impulse at 2.7 seconds, and the cloud
-mask closes over 2.82–3 seconds. Over 60% of departure translation precedes half cloud coverage.
+The persistent 12,000-star field produces soft white beams with pale cyan edges. Each beam starts
+at its original star and extends only toward the viewer, outward from the vanishing point. The
+source never slides along the ray, and no beam extends backward toward the center. Length and
+thickness grow together on one three-second curve; their increasing width and overlap create the
+brightening while the white/blue color profile stays fixed. Full-screen scatter only seals the
+remaining gaps near the crossing peak. There is no early white screen wash, separate brightening
+stage or white hold. The physical surge starts at 1.26 seconds, its crossing impulse at 2.7 seconds,
+and the cloud mask closes over 2.82–3 seconds. Over 60% of departure translation precedes half
+cloud coverage.
 
 White immediately recovers into layered blue clouds over the first 0.42 seconds of transit. No
 star beams remain in the tunnel. Clouds rush toward the ship around an 11-degree-per-second

@@ -79,26 +79,28 @@ view from actual ship translation. The physics integrator never receives cinemat
 requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
 browser; film footage is not bundled.
 
-The persistent 12,000-star field supplies every streak. White cores, cyan shoulders and blue halos
-share one continuous three-second curve for length, width, glow, tapered inward scatter and
-whitening. Growth and brightening start together and reach full extension and white together at
-three seconds. The brightest rays merge across almost the whole view; there is no separate late
-screen-fill or brightening stage. The physical surge starts at 42% (1.26 seconds), its crossing
-impulse at 90% (2.7 seconds), and tunnel coverage at 94% (2.82 seconds). Over 60% of departure
-translation precedes half cloud coverage. Stretched exposures share the tunnel's logarithmic 80 m
-optical boundary; ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retain
-foreground depth.
+The persistent 12,000-star field supplies every beam. Its original projected star point stays
+anchored while only the forward endpoint approaches the viewer, extending outward from the
+vanishing point. Signed projection clamps away reverse extension; there is no virtual star-head
+translation or inward scatter. The ray keeps a soft white core, pale cyan edges and diffuse blue bloom.
+Length and width grow together for three seconds. Brightening comes from thicker cores and their
+overlap, with fixed ray color and radiance. Full-screen scatter is reserved for the top 10% of bloom
+near the crossing; the middle of the buildup remains clear of white screen wash. The physical surge
+starts at 42% (1.26 seconds), its crossing impulse at 90% (2.7 seconds), and tunnel coverage at 94%
+(2.82 seconds). Over 60% of departure translation precedes half cloud coverage. Stretched beams
+share the tunnel's logarithmic 80 m optical boundary; ordinary stars remain behind celestial
+geometry. Hull, cockpit and exhaust retain foreground depth.
 
 One canonical optical time advances through entry and its 0.42-second flash recovery, holds during
-cruise and runs backward on exit. Exposure samples the beam growth curve directly, so they cannot
-split into sequential stages. Entry reaches white at three seconds and immediately fades into the
-cloud-only tunnel. Exit brightens the tunnel to white over 0.42 seconds, then contracts the beams
+cruise and runs backward on exit. Beam width samples the growth curve directly, so they cannot
+split into sequential stages. The peak-only scatter derives from that same envelope without a new clock. Entry reaches white
+at three seconds and immediately fades into the cloud-only tunnel. Exit brightens the tunnel to white over 0.42 seconds, then contracts the beams
 and fades from white together over the following three seconds. There is no full-white plateau or
 fully extended beam hold. The small screen-space scatter quad overexposes the foreground at the
 peak; the independent depth-tested mask retains exact zero/full endpoints and destination readiness.
 Star beams vanish and return only under near-white exposure; transit stays beam-free.
-Star head positions reset invisibly under the opaque tunnel and remain anchored afterward; their
-departure sweep is not visibly reversed. Exit stays opaque through 0.42 seconds, then reverses the
+Star sources stay anchored to their catalogue coordinates throughout both crossings; exit contracts
+the forward endpoints back to those stars. Exit stays opaque through 0.42 seconds, then reverses the
 entry wipe over 0.42–0.6 seconds. Beam visibility recovers at 0.42–0.48 seconds as contraction and
 the white fade start together. Heavy braking, engine release and the camera/audio impulse begin at
 0.72 seconds, after the world mask clears. Lens widening holds through the reveal before settling;
@@ -167,6 +169,17 @@ blue cloud depth and illuminated foreground surfaces. Inspected primary referenc
 The effect is an original procedural interpretation; film images/footage are not bundled.
 The [requested Andor clip at 0:07](https://www.youtube.com/watch?v=_y92SdOjJ2M&t=7s) was also inspected
 in the browser for cloud detail, blue pulses and directional hull illumination.
+
+## Forward-only beam verification — 3 November 2026
+
+`npm run check` passed lint, all 606 tests, strict typecheck and the production build. Temporal
+regressions verify that screen scatter stays zero at half growth, covers the beam/cloud exchange,
+and mirrors on exit; reduced motion suppresses the flash. Chrome exercised Solara → Vesper →
+Aether → Solara through the normal UI in chase and cockpit views, including a 390×844 return,
+map focus containment, alignment abort and reset. Captures show anchored white streaks widening
+into overlapping soft cyan bloom, a near-white crossing and cloud-only transit. The warning/error
+console was empty. Screenshot capture is visual evidence, not a performance benchmark; OS
+reduced motion and audible playback were not manually verified.
 
 ## Merged three-second beam verification — 3 November 2026
 

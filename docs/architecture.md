@@ -315,8 +315,10 @@ integrates hyperspeed. Offline abort adopts the currently displayed safe pose wi
 cancellation follows the authoritative admission/recovery path.
 
 The three-second entry grows beam length, width, glow and whitening together from its first frame
-through the white peak. `jumpExposure` samples the same growth as `jumpStretch`; there is no
-separate brightening stage or full-length hold. Physical surge starts at 42%, the crossing impulse
+through the white peak. `jumpExposure` samples the same growth as `jumpStretch` for beam thickness
+and hull lighting. `jumpFlash` derives a narrow near-peak scatter envelope; it stays zero during
+mid-growth, keeping brightness in the widening beams. There is no separate brightening stage or
+full-length hold. Physical surge starts at 42%, the crossing impulse
 at 90%, and tunnel coverage at 94%. Over 60% of departure translation precedes half cloud coverage.
 The persistent star field supplies every trail; star beams exchange with cloud-only transit under
 near-white exposure. Star heads reset invisibly under the opaque tunnel. A small full-screen quad
@@ -327,7 +329,7 @@ transit. `HyperspaceController.crossingTime` advances through it, holds its opaq
 cruise and runs backward over the 3.42-second exit. Length and whitening share the same rise and
 reverse together for exactly three seconds. Exposure peaks once at entry 3 seconds / exit 0.42
 seconds and immediately fades, without a plateau. Both shader phases use the same width/glow
-profile and spatial mask. Star-head travel remains forward and resets under the tunnel. Reduced
+profile and spatial mask. Star sources remain on their original sky coordinates throughout the jump. Reduced
 motion suppresses trails and flashes and uses a uniform opacity blend.
 `hyperspaceVisuals` owns
 continuous envelopes, recoil, rattle and smooth seeded noise. Per-journey variation affects only
@@ -480,17 +482,20 @@ uniform references between frames. One persistent 12,000-star galactic catalogue
 trail billboards across all systems. Its 48,000 vertices fit 16-bit indices. The normal sky already
 contains every star used by the jump, and the same angular pattern survives the world handoff. Buffers
 depend only on sky radius, never system seed or frame time. Stars occupy 35–100% of that virtual radius.
-Projecting each star's finite forward exposure produces depth-dependent length and outward speed;
-bounded proximity controls width. Virtual depths affect motion only: normal stars render behind the
-celestial bodies. Trail widths use CSS viewport pixels. One shared envelope drives exposure length,
-viewport-proportional width, glow, tapered inward scatter and whitening around the fixed star heads.
-It spans the full three-second acceleration and reverses over three seconds on exit. Rays merge
-across most of the view while white scatter grows with them, without a separate brightening stage.
-Readiness/coverage gates retain their independent safety role.
-Reduced motion zeros stretch and exposure, and the tunnel
-still has no star beams. The same buffers, draw call and foreground depth boundary are retained.
-There is no separate corridor particle layout,
-time loop or accumulating star simulation.
+Projecting a finite forward endpoint produces depth-dependent ray length. Each billboard keeps
+its source at the unmodified star position; the signed outward projection is clamped nonnegative,
+so its ray extends only toward the viewer. The former virtual head translation and inward scatter
+are removed. Normal stars render behind celestial bodies; rays share the 80 m optical boundary.
+Width grows in CSS viewport pixels, with a perspective flare toward the viewer. Fixed white cores,
+soft cyan edges and diffuse blue halos brighten through increasing width and overlap rather
+than changing color or scaling up ray radiance. A round source glow blooms around the fixed star;
+only the ray extends outward. At zero growth the circular star point remains.
+`jumpFlash` maps only the top 10% of beam bloom to full-screen scatter, preserving the white-covered
+beam/cloud exchange without washing out the main buildup. Foreground lighting still follows the
+full beam envelope. Three-second entry/reversed exit and readiness gates remain unchanged.
+Reduced motion zeros stretch and exposure, and the tunnel stays beam-free. Geometry, buffers,
+draw count and the foreground boundary are retained; there is no new particle stream, texture,
+render target or accumulating star simulation.
 
 Continuous-growth verification (2026-11-02): `npm run check` passed lint, 596 tests, strict typecheck and
 production build. Chrome captures confirm dense rays before the flash in chase and cockpit views,
