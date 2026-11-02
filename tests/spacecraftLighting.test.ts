@@ -86,7 +86,13 @@ describe('spacecraft visibility effects', () => {
       for (let index = 0; index < attributes.count; index++) {
         point.fromArray(attributes.origins, index * 3);
         const kind = attributes.parameters[index * 4 + 1];
-        if (kind === 1) continue;
+        const color = attributes.colors.slice(index * 3, index * 3 + 3);
+        if (kind === 1) {
+          expect([...color]).toEqual(lighting.color.toArray().map(Math.fround));
+          continue;
+        }
+        expect(color[2]).toBeGreaterThan((color[1] ?? 0) * 3);
+        expect(color[1]).toBeGreaterThan(color[0] ?? 0);
         expect(
           metadata.engines.some(
             (mount) =>
