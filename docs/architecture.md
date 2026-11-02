@@ -1,5 +1,8 @@
 # Architecture and extension guide
 
+See [galaxy expansion, environments, cities and traffic](galaxy-expansion.md) for the current catalogue,
+authority boundaries, streaming budgets, configuration recipes and verification limits.
+
 Milestones 6–7 retain the shared simulation and Node/Colyseus authority and add planetary fields,
 terrain LOD, landing and station operations. See [planetary architecture and configuration](planetary-exploration.md)
 for scale, deterministic terrain, coordinates, docking, ownership and extension recipes, and
@@ -19,8 +22,9 @@ App → FlightSession → FlightInputManager + FixedStepLoop + FlightController 
                    → ExplorationSession → SystemRuntime + NavigationComputer + HyperspaceController
 App → FlightHud + ExplorationOverlay → detached store read models / session actions
 SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + CombatScene + HyperspaceTunnel
-SystemScene → celestial geometry + CelestialBody + PlanetTerrain workers/cache + AtmosphericSky
-            → StationScene + surface facilities + local references
+SystemScene → celestial geometry + CelestialBody + nearest PlanetTerrain worker/cache + AtmosphericSky
+            → CityScene + infrastructure worker + weather effects + nearby StationScene
+CombatSession / MultiplayerWorld → AmbientTraffic → shared flight commands + CombatSimulation
 ```
 
 Authoritative engine modules import engine contracts and renderer-independent engine/math operations.
@@ -105,7 +109,7 @@ assistance settings do not change NPC assistance. Health/regeneration/cooldowns 
 lifetimes use fixed simulation time. Presentation interpolates ship and projectile endpoints.
 
 Ship and asteroid shapes are conservative spheres. Non-landable celestial bodies use surface radii;
-atmospheres, rings and beacons are non-solid. Pelagos uses independent deterministic height sweeps,
+atmospheres, rings and beacons are non-solid. Landable worlds use independent deterministic height sweeps,
 and stations use cached oriented boxes. These contacts retain their response velocity through the
 sphere solve. Grounded/docked ships have infinite collision mass. `sweepSphere` solves relative segment/sphere time of
 impact, including initial overlap, using a stable quadratic root. `SphereSolver` advances bodies

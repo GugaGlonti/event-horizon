@@ -2,15 +2,17 @@
 
 A browser-based space flight, exploration, and PvE combat game, built one system at a time.
 
-**Milestones 6 & 7 — Planetary Exploration, Space Stations & Docking.** Fly from space through
-Pelagos's 14 km atmosphere to deterministic terrain, land, take off, enter Solara Orbital's hangar,
-repair and undock. Vesper Outpost offers a second docking destination. Shared gravity, collisions,
-landing, services and port occupancy run on the existing multiplayer authority. Offline flight,
-PvP/PvE, both cameras, maps, floating origin and cinematic hyperspace remain integrated.
+**Milestones 6 & 7 — Galaxy Expansion, Planetary Exploration & Docking.** Explore ten distinct
+systems, 49 landable solid worlds/moons and 45 settlements. Descend through shared atmospheres,
+find capitals and regional cities, request an exclusive surface pad, repair, and return to orbit.
+Deterministic terrain, oceans, climates/weather, civilization metadata, city layouts, planetary maps
+and bounded ambient traffic extend the existing flight, combat, gravity and multiplayer authority.
+Solara Orbital's hangar, Vesper Outpost, both cameras and cinematic hyperspace remain supported.
 
-See [planetary scale, controls, architecture and extension instructions](docs/planetary-exploration.md)
-and the [Milestones 6–7 verification record](docs/milestones-6-7.md). No dependencies were added for
-these milestones. The next planned milestone is Missions, Contracts & Player Progression.
+See the [expanded galaxy, architecture, examples and verification record](docs/galaxy-expansion.md),
+[planetary flight and docking guide](docs/planetary-exploration.md) and
+[original Milestones 6–7 acceptance record](docs/milestones-6-7.md). No dependencies were added.
+The next planned milestone is Missions, Contracts & Player Progression.
 
 ## Start multiplayer
 
@@ -78,11 +80,18 @@ Share Tech Mono font is distributed under the SIL Open Font License; see
 
 ## The charted reaches
 
-| System     | Central star   | Worlds                                                          | Moons              | Arrival          |
-| ---------- | -------------- | --------------------------------------------------------------- | ------------------ | ---------------- |
-| **Solara** | Warm yellow    | Pelagos (blue terrestrial), Cairn (desert), Aureole (gas giant) | Lyra, Tala         | Pelagos approach |
-| **Vesper** | Dim red-orange | Umbra (dark rock), Rime (ice), Nacre (ringed gas giant)         | Mote, Sable, Veil  | Nacre approach   |
-| **Aether** | Blue-white     | Pyra (volcanic), Serein (ocean), Prism (unusual ringed giant)   | Cinder, Lilt, Opal | Serein approach  |
+| System       | Central star   | Worlds                                                          | Moons              | Arrival           |
+| ------------ | -------------- | --------------------------------------------------------------- | ------------------ | ----------------- |
+| **Solara**   | Warm yellow    | Pelagos (blue terrestrial), Cairn (desert), Aureole (gas giant) | Lyra, Tala         | Pelagos approach  |
+| **Vesper**   | Dim red-orange | Umbra (dark rock), Rime (ice), Nacre (ringed gas giant)         | Mote, Sable, Veil  | Nacre approach    |
+| **Aether**   | Blue-white     | Pyra (volcanic), Serein (ocean), Prism (unusual ringed giant)   | Cinder, Lilt, Opal | Serein approach   |
+| **Meridian** | Warm white     | Concord (urban temperate), Brass (desert), Regent (giant)       | Three survey moons | Concord approach  |
+| **Kharon**   | Orange         | Sirocco (desert colony), Slag (mining), Ochre (giant)           | Three survey moons | Sirocco approach  |
+| **Nivalis**  | White-blue     | Boreal, Hoarfrost (frozen), Pallor (giant)                      | Three survey moons | Boreal approach   |
+| **Pelagia**  | Warm yellow    | Thalassa (ocean), Verdant (agriculture), Gyre (giant)           | Three survey moons | Thalassa approach |
+| **Ignis**    | Orange-red     | Forge, Scoria (volcanic), Furnace (giant)                       | Three survey moons | Forge approach    |
+| **Elysion**  | Pale yellow    | Elysium (developed temperate), Haven (ocean), Pastel (giant)    | Three survey moons | Elysium approach  |
+| **Umbra**    | Violet-white   | Noctis (barren), Hush (frozen), Penumbra (giant)                | Three survey moons | Noctis approach   |
 
 Reusable shaders provide ocean/land/cloud patterns, desert strata, icy fractures, volcanic seams,
 crater-like variation, and gas bands. Planets have day/night lighting and axial rotation. Optional
@@ -184,9 +193,14 @@ and cool weapons for free; firing and flight input are locked. U undocks once th
 Landing/docking preserve damage; services update authoritative state. Other guests see shared port
 occupancy. Menus keep the server running. Planetary and docking instruments publish at 10 Hz.
 
-Pelagos is the only landable world. There is no vegetation, weather, walking, ground NPC population,
-economy or inventory. Multiplayer guests remain in memory. The terrain and station implementations
-reuse the existing flight controller and network architecture.
+All solid planets and moons are landable on suitable dry terrain. Gas giants, stars and liquid
+surfaces reject landing. **Y** opens the planetary survey with capitals, regional cities, outposts,
+spaceports, landmarks and restricted areas; use **Target spaceport** to request clearance nearby.
+City pads use the same capture envelope, exclusive leases and services as orbital docking.
+Weather/winds derive from shared seeds and simulation time; nearby non-firing courier traffic uses
+shared authority. There are no walking characters, ground population simulation, economy or inventory.
+City architecture is stylized, roads are selective, and weather/scattering are approximate. See the
+[expansion guide and explicit verification limits](docs/galaxy-expansion.md). Guests remain in memory.
 
 ## Combat sandbox
 
@@ -215,7 +229,7 @@ Patrol craft have 45 shield / 55 hull and slower, weaker guns. The default gun h
 two configured hardpoints alternate by default, with synchronized firing available in configuration.
 Each bolt adds 7.5% heat; cooling removes 14%/s. Reaching 100% locks the cannons until heat falls to
 30%. Heat persists across weapon changes and freezes with gameplay during pauses/jumps; reset and
-player respawn clear it. The HUD displays heat, overheat, and incoming damage. Friendly fire is disabled offline; multiplayer enables PvP. Ships, asteroids and non-landable celestial bodies use solid spheres; Pelagos uses terrain sweeps and stations use oriented box sweeps; lasers stop at the first solid
+player respawn clear it. The HUD displays heat, overheat, and incoming damage. Friendly fire is disabled offline; multiplayer enables PvP. Ships, asteroids and non-landable celestial bodies use solid spheres; landable worlds use terrain sweeps and stations use oriented box sweeps; lasers stop at the first solid
 contact. Impact damage scales with mass and closing speed; low-speed contacts are harmless. Rings,
 atmospheres and reference beacons remain visual effects.
 
@@ -431,6 +445,10 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
+The [2 November expansion record](docs/galaxy-expansion.md#verification-and-measurements) documents
+499 tests, two-browser capital services/occupancy, expanded real-socket transfers, load measurements
+and the limits of those checks. The earlier evidence below refers to its original build.
+
 The [planetary approach record](docs/planetary-approach.md) covers current pacing, controls and checks.
 [Milestones 6–7 acceptance](docs/milestones-6-7.md) retains the original implementation evidence.
 Historical evidence below remains dated to its run.
@@ -451,7 +469,7 @@ railgun charge/cancellation, central emission under rotation, nearest-hit/range 
 flak spread/inherited velocity, short-range damage, complete-salvo capacity and frame-rate replay.
 
 The historical Milestone 4 consolidation run passed **295 tests across 28 files**, TypeScript checking, Biome linting
-and the production build. Browser playtesting covered practice kills in all three systems, keyboard
+and the production build. Earlier browser playtesting covered practice kills in the original three systems, keyboard
 and left-mouse fire, overheat feedback, live patrol kills, incoming damage, player destruction/respawn,
 chase/cockpit cameras, maps, the complete Solara → Vesper → Aether → Solara journey and the opaque
 tunnel mask. Compact 390 × 844 and 390 × 600 layouts were inspected and instrument overlap corrected.
@@ -498,7 +516,9 @@ and exact regeneration timing are covered by headless tests. See the
 - [x] Milestone 5 — Multiplayer PvP & Cooperative PvE: authoritative rooms, prediction, interpolation,
   shared AI/combat, guest reconnection and cinematic cross-system transfers
 - [x] Milestone 6 — Planetary scale, atmospheric entry/flight, terrain LOD, gravity, landing/takeoff
-- [x] Milestone 7 — Solara Orbital, Vesper Outpost, hangar, authoritative docking and services
+- [x] Milestone 7 — Orbital hangar, authoritative docking/services, ten-system expansion,
+  deterministic archetypes, settlements/capitals, city LOD, surface spaceports, planetary maps and traffic
+  (full continuous manual acceptance and broader profiling remain outstanding)
 - [ ] Next — Missions, Contracts & Player Progression
 - [ ] Later — Larger battles, squadrons, persistent progression, wider hardware support
 

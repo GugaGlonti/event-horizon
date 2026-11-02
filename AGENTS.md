@@ -1,10 +1,11 @@
 # Event Horizon — agent instructions
 
 Event Horizon is a TypeScript/React browser space flight, exploration and multiplayer combat game.
-Milestones 6–7 add gameplay planetary scale, deterministic Pelagos terrain/atmosphere, shared gravity,
-landing/takeoff, Solara Orbital's hangar and Vesper Outpost docking/services. Offline and authoritative
-multiplayer combat/navigation/hyperspace remain supported. Missions, contracts and player progression
-are next. Do not add economy, inventory, characters or weather without a task requirement.
+Milestones 6–7 now include ten systems, shared archetype terrain/oceans/climates/weather, civilizations,
+deterministic cities, planetary charts, surface spaceports and bounded ambient traffic. Existing
+Pelagos landing, orbital hangars, offline flight and authoritative multiplayer remain supported.
+Missions, contracts and player progression are next. Do not add economy, inventory or characters
+without a task requirement. Current scope and verification limits live in docs/galaxy-expansion.md.
 
 ## Before changing code
 
@@ -31,7 +32,8 @@ are next. Do not add economy, inventory, characters or weather without a task re
 - `src/engine/planetary`: shared deterministic height/density/gravity queries, body/tangent frames,
   landing state/telemetry and configurable flight tuning. No render patches, browser or stores.
 - `src/engine/stations`: serializable facilities, oriented-box sweeps, docking leases and services.
-  Initial facilities are fixed; analytical orbital velocity is available for relative approach checks.
+  Surface facilities follow body rotation. AmbientTraffic owns up to three nearby friendly couriers;
+  use shared flight commands/collisions and yield the 42-ship wire budget to guests.
 - `src/features/stations`: modular meshes/signage/lights and docking presentation only.
 - `src/engine/physics`: pure continuous sphere sweeps and bounded mass-weighted collision response.
 - `src/engine/combat`: shared command-driven ships, damage, weapons/heat, targeting, AI, pure encounter
@@ -40,6 +42,7 @@ are next. Do not add economy, inventory, characters or weather without a task re
 - `src/features/combat`: encounter/world adaptation, HUD projections, effects and optional audio.
 - `src/engine/input`: keyboard and pointer-lock adapter, input snapshots, event lifecycle.
 - `src/engine/world`: serializable definitions, validation, analytical hierarchy/orbits, render origin.
+  systems.ts composes the original catalogue, expandedSystems.ts and planetProfiles.ts.
 - `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
 - `src/features/flight`: session orchestration, configuration, interpolated presentation, cameras, HUD.
   Player engine sound consumes reusable scalar snapshots; keep audio inertia separate from physics.
@@ -168,7 +171,16 @@ are next. Do not add economy, inventory, characters or weather without a task re
   ETA is a 10 Hz estimate of continuing the shared descent profile, not guaranteed arrival time.
 - Protocol v4 transports travel mode plus full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
   positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
-- Navigation IDs span bodies, stations, zones and landmarks. Keep chart/HUD ranges and safe hyperspace
+- Civilization/settlement generation and biome/weather queries remain pure engine/planetary code.
+  Validate developed capitals/regional counts, dry/sloped placement, spacing, surface anchors and budgets.
+  City collision boxes come from the same seeded layout as rendering. Terrain grading and ocean
+  boundaries remain shared; liquid contacts cannot ground a ship. Surface port velocity includes spin.
+  Weather uses body-local coordinates, seeds and explicit world time; never use Date.now/Math.random.
+- Ambient traffic is authoritative near cities (one/two/three per outpost/regional/capital, maximum
+  three overall), command-driven and non-firing. It uses the existing friendly hull archetype; the
+  network players count remains connected guests. Keep total ships <=42, clear traffic on departure,
+  bound destroyed-slot cooldowns, and keep distant decorative traffic outside the gameplay range.
+- Navigation IDs span bodies, stations, cities, zones and landmarks. Keep chart/HUD ranges and safe hyperspace
   corridors consistent with changed radii, physical atmospheres and station collision geometry.
 - Use logarithmic depth for the 20,000 km far plane. Custom world/foreground shaders must use matching
   vertex/fragment depth chunks and common helpers. The atmosphere sky must depth-test behind solid
@@ -199,7 +211,10 @@ are next. Do not add economy, inventory, characters or weather without a task re
   cues above the engine bed.
 - Avoid per-frame allocations, unnecessary rerenders, and expensive graphics features without profiling.
 - Keep device pixel ratio bounded. Terrain uses a 150-leaf quadtree, 256-patch retention target and hard 384-patch cache ceiling;
-  retain parent coverage, morph new detail and cover mixed LOD seams. Terminate workers and dispose
+  retain parent coverage, morph new detail and cover mixed LOD seams. Stream only the nearest solid
+  body within 2.5 radii, keep a globe until roots cover it, then hide the redundant globe. Cities retain
+  orbital footprints; fade skyline/full batches at 80/16 km and generate transport ribbons in a worker.
+  Facilities are capped at 16/system, 32 ports/system and 512 boxes/facility. DPR is capped at 1.5. Terminate workers and dispose
   cached resources on teardown. Add richer terrain/adaptive quality only with measured need.
 
 ## Tests and verification

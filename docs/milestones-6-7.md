@@ -1,5 +1,9 @@
 # Milestones 6–7 acceptance record
 
+This is the historical acceptance record for the initial implementation. The subsequent
+[galaxy expansion record](galaxy-expansion.md) supersedes its catalogue/scope descriptions and adds
+current tests, two-browser city checks, performance figures and explicit remaining limits.
+
 Implementation and local verification: 2026-11-01 UTC / 2026-11-02 Asia/Tbilisi. This record separates
 implemented behavior, automated coverage and manual observations. It does not claim a continuous
 two-player end-to-end flight without fixtures or resets.

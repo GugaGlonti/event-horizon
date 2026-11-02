@@ -3,7 +3,9 @@
 Milestones 6–7 extend the existing offline and authoritative multiplayer flight simulation. There is
 one coordinate convention, controller, damage model, navigation computer and hyperspace transaction.
 Pelagos is the reference landable rocky world. Solara Orbital has a flyable hangar and two external
-berths; Vesper Outpost has one industrial berth. Other planets/moons remain non-landable.
+berths; Vesper Outpost has one industrial berth. All solid worlds/moons now have terrain and landing
+capability; see the [galaxy expansion guide](galaxy-expansion.md) for climates, cities, surface ports,
+traffic, planetary maps and current verification.
 
 ## Scale and coordinates
 
@@ -36,7 +38,8 @@ boundary, preserving ship/cockpit/exhaust while covering distant worlds.
 Optional `CelestialDefinition` capabilities include gravity, physical atmosphere, terrain, landing
 eligibility, zones and points of interest. Gas giants and stars cannot be declared landable. Body,
 station, zone and landmark navigation IDs must be unique. Definitions stay JSON-serializable and are
-validated at preparation. Weather, vegetation and walking characters are outside this implementation.
+validated at preparation. Lightweight deterministic weather is now implemented; vegetation meshes and
+walking characters remain outside the current scope.
 
 `terrain.ts` evaluates a seeded, continuous 3D value-noise field on unit directions. Six weighted
 frequency bands create broad plains, valleys and ridges. Landing zones flatten a disc and smoothly
@@ -50,7 +53,7 @@ builds resolution-16 patches (configurable 8/16/32). Level 11 gives roughly 10 m
 Coarse parents remain until children are ready; finer geometry morphs from parent triangles, and
 radial skirts cover mixed-level edges. The cache retains 256 patches where possible, with a hard
 384-patch ceiling while drawn parents remain pinned. It evicts unused patches. Work is
-serial/bounded in one worker per terrain body; scene teardown terminates it and disposes cached GPU
+serial/bounded in one worker for the nearest active terrain body; scene teardown terminates it and disposes cached GPU
 geometries and the shared material. The whole planet is never generated at its finest resolution.
 
 Physical density fades smoothly at the atmosphere boundary and decreases exponentially with
