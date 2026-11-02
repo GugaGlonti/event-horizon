@@ -135,8 +135,9 @@ zones warn below their ceiling without adding factions, policing or reputation. 
 weather/visibility and restrictions at the existing telemetry cadence.
 
 Fly with the existing controls: W/S thrust/brake, arrows pitch/roll, Q/E yaw, A/D strafe, R/V surface
-lift/descent, F stabilization, O transit/approach, K gear, J selected-zone landing assist, P request or
-capture, I cancel, U takeoff/undock, C cameras, Escape pause. At a city, select its **Target spaceport**,
+lift/descent, F stabilized Travel/Combat, Tab contextual actions, K gear, J selected-zone landing assist,
+P request/capture, I cancel, U takeoff/undock, C cameras, Escape pause. Travel now handles
+transit/approach automatically; see [flight modes and shared energy](flight-modes.md). At a city, select its **Target spaceport**,
 request a pad within 2.5 km of the approach, and enter the final envelope below 45 m, 3 m/s and 7°.
 Use docked services, then U to depart through the clear corridor. Space/left mouse and weapons 1–4
 retain combat bindings. Selecting a city alone does not grant clearance or teleport the ship.

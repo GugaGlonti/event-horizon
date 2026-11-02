@@ -126,40 +126,40 @@ prioritize terrain over decorative generation; only the nearest city streams up 
 blocks. Scenery has a 4,096-instance ceiling (the current kit allocates 3,072 slots). DPR remains
 capped at 1.5. See [generation, budgets and verification](docs/planetary-visual-generation.md).
 
-**Multiplayer now uses protocol v5. Restart the authority and reload clients together.** Previous
+**Multiplayer now uses protocol v6. Restart the authority and reload clients together.** Previous
 clients are rejected because their generated terrain and building collision geometry differ.
 No terrain meshes or decorative scenery are sent over the network. Vegetation and small rocks are
 visual scenery; they do not add flight collisions. Buildings and terrain remain authoritative.
 
 ## Controls
 
-| Input              | Action                                                         |
-| ------------------ | -------------------------------------------------------------- |
-| Mouse movement     | Pitch/yaw; steering gently recenters when movement stops       |
-| ↑ / ↓              | Nose down/up (inverted pitch)                                  |
-| ← / →              | Roll left/right                                                |
-| Q / E              | Yaw left/right                                                 |
-| W                  | Gradually raise throttle to 100%; release to slow down         |
-| S                  | Brake; keep holding to reverse once throttle reaches zero      |
-| Shift              | Hold for engine boost                                          |
-| A / D              | Strafe left/right in the ship’s local frame                    |
-| R / V              | Translate up/down                                              |
-| Left mouse / Space | Hold to fire the selected weapon                               |
-| 1 / 2 / 3 / 4      | Select gun / homing missiles / railgun / flak scattergun       |
-| B                  | Start a five-ship patrol encounter when the sector is clear    |
-| N / Tab            | Cycle nearby hostile targets during flight                     |
-| G / H              | Select nearest hostile ahead / clear combat target             |
-| K                  | Deploy/retract landing gear; assisted horizon leveling         |
-| U                  | Take off when landed; undock when docked                       |
-| P / I              | Request/capture nearby docking; cancel clearance               |
-| O                  | Toggle bounded space transit drive                             |
-| J                  | Land assist at selected landing zone / cancel                  |
-| C                  | Switch chase/cockpit camera                                    |
-| F                  | Toggle stabilization; speed mode remains unchanged             |
-| M                  | Open/close galaxy map                                          |
-| L                  | Open/close local system map                                    |
-| T / X              | Cycle/clear local navigation target                            |
-| Esc                | Close map, pause flight/release mouse, or abort an active jump |
+| Input              | Action                                                           |
+| ------------------ | ---------------------------------------------------------------- |
+| Mouse movement     | Pitch/yaw; steering gently recenters when movement stops         |
+| ↑ / ↓              | Nose down/up (inverted pitch)                                    |
+| ← / →              | Roll left/right                                                  |
+| Q / E              | Yaw left/right                                                   |
+| W                  | Gradually raise throttle to 100%; release to slow down           |
+| S                  | Brake; keep holding to reverse once throttle reaches zero        |
+| Shift              | Hold for engine boost                                            |
+| A / D              | Strafe left/right in the ship’s local frame                      |
+| R / V              | Translate up/down                                                |
+| Left mouse / Space | Hold to fire the selected weapon                                 |
+| 1 / 2 / 3 / 4      | Select gun / homing missiles / railgun / flak scattergun         |
+| B                  | Start a five-ship patrol encounter when the sector is clear      |
+| N                  | Cycle nearby hostile targets in Combat                           |
+| Tab                | Confirm suggested target, docking, landing, takeoff or undocking |
+| G / H              | Select nearest hostile ahead / clear combat target               |
+| K                  | Deploy/retract landing gear; assisted horizon leveling           |
+| U                  | Take off when landed; undock when docked                         |
+| P / I              | Request/capture nearby docking; cancel clearance                 |
+| J                  | Land assist at selected landing zone / cancel                    |
+| C                  | Switch chase/cockpit camera                                      |
+| F                  | Switch stabilized Travel / Combat                                |
+| M                  | Open/close galaxy map                                            |
+| L                  | Open/close local system map                                      |
+| T / X              | Cycle/clear local navigation target                              |
+| Esc                | Close map, pause flight/release mouse, or abort an active jump   |
 
 Map shortcuts are configured in `features/flight/config.ts`. Maps release pointer lock, clear held
 input, and pause flight and celestial time. Closing a map returns to the flight briefing; **Resume
@@ -183,38 +183,39 @@ markers hide while paused, in maps, during hyperspace, or when the combat instru
 
 **Controls** opens the briefing. **Reset flight** cancels any pending jump and returns the craft to a
 safe arrival in its current system, restoring engine reserve and clearing momentum. Camera and
-stabilization preferences survive reset. F controls angular/drift damping, gravity compensation and
-gear leveling; throttle targets and travel-mode speed limits apply with F on or off. Boost lasts
-about four seconds, recharges after a delay, and
-requires releasing Shift after depletion to rearm at 18% reserve. Assistance damps drift and angular
-momentum; without it, use counter-steering to settle rotation. Releasing W gradually lowers throttle
-and slows the ship; S applies stronger braking, then engages reverse once throttle reaches zero.
-Both work with assistance on or off and override boost. Release S to slow reverse movement, or hold
-W to accelerate forward again. Hold W with Shift to boost.
+flight-mode preferences survive reset. F switches between stabilized **Travel** and **Combat**.
+Travel provides the fastest speed with weapons and shields offline and no energy consumption;
+the hull remains vulnerable. Combat enables weapons and shields at 180 m/s cruise / 360 m/s boost.
+Weapons, shields and boost use one rechargeable ENERGY reserve. Mode switches clear held fire and
+weapon charge, preserve shield charge and brake excess travel speed before weapons unlock.
+Both modes retain gravity compensation and drift/angular damping. Tab confirms the HUD's contextual
+suggestion: acquire/cycle a combat target, select a destination, request a free berth, capture it,
+start/cancel final landing assistance, take off or undock. Tab keeps normal focus navigation inside
+maps and from focused controls. See [flight modes, contextual actions and energy](docs/flight-modes.md).
+Releasing W gradually lowers throttle; S brakes, then reverses at zero throttle. Release S to slow
+reverse movement, or hold W to accelerate forward again. Shift with W boosts; only Combat drains
+energy, and depleted combat boost requires releasing Shift before rearming at 18% reserve.
 
 ## Planetary flight and docking
 
-Start in Solara, use L or T to select **Pelagos Survey Base** or **Solara Orbital**. Normal flight
-remains 180 m/s. O enables space transit and a terrain-aware planetary approach up to 1.4 km/s,
-braking toward ordinary speed near terrain and stations. Approach the survey zone, release W and
-brake drift with S. K deploys gear and enables assisted horizon leveling while pitch/roll are released.
-Near Pelagos, V/R command planet-relative descent/lift, up to 800 m/s at altitude. They progressively
-slow toward the surface; gear jets enter precision mode below 55 m and reach 2.2 m/s below 13 m
-(heights measured at the ship center). The shared 22 km descent test lands in **45.3 seconds**, with
-about 11 seconds over the final 200 m with V held. V/R select **SURFACE COAST**: releasing them
-retains planet-relative motion, with atmospheric drag, gravity and terrain/gear braking still active.
-F can stay on at these speeds. S brakes and leaves coasting; W returns to normal forward flight.
-O selects approach/transit when gear is retracted. The HUD shows the active speed mode, approximate
-descent ETA, descent speed limit, stopping distance and a brake warning. Airflow sound and thin cloud
-haze communicate atmospheric motion. Landing still requires vertical speed ≤3 m/s, ground speed
-≤5 m/s, an upright ship and gentle terrain. U starts powered takeoff.
+Start in Solara, use L, T or Tab to select **Pelagos Survey Base** or **Solara Orbital**.
+Travel automatically engages clear-space speed and terrain-aware planetary approach up to 1.4 km/s,
+braking near terrain, stations and traffic. The separate O approach/transit toggle is removed.
+K deploys gear and enables horizon leveling while pitch/roll are released. Near Pelagos, V/R command
+planet-relative descent/lift, up to 800 m/s in Travel and 360 m/s in Combat. Both progressively slow
+near the surface; gear jets reach precision speeds below 55 m and 2.2 m/s below 13 m center altitude.
+V/R automatically select surface coasting: release retains radial momentum while terrain/gear
+braking stays active. S brakes and leaves coasting; W returns to forward flight. The HUD shows
+handling, approximate descent ETA, descent limit, stopping distance and brake warnings.
+Landing still requires vertical speed ≤3 m/s, ground speed ≤5 m/s, an upright ship and gentle terrain.
+U or the contextual Tab action starts powered takeoff.
 
 For optional final assistance, select **Pelagos Survey Base**, slow below 150 m/s, get below 2.5 km
-altitude and within 1 km horizontally, then release movement controls and press J. It deploys gear,
+altitude and within 1 km horizontally, then release movement controls and press J or confirm the Travel Tab landing suggestion. It deploys gear,
 levels, settles drift above the zone and descends continuously. J, manual movement, F, Escape,
 blur/visibility loss or maps cancel assistance; resume explicitly. The server validates the zone,
-range, speed and clearance in multiplayer. F disables gravity compensation/leveling. Gear disables
-O, while V/R retain altitude-aware speeds. The ETA assumes continued descent and can change when
+range, speed and clearance in multiplayer. Both flight modes retain gravity compensation and leveling.
+Gear limits forward speed, while V/R retain altitude-aware speeds. The ETA assumes continued descent and can change when
 steering, braking or hovering. See [approach tuning and verification](docs/planetary-approach.md).
 
 At a station, request a free berth within 2.5 km using its HUD button or P. Follow the amber guide,

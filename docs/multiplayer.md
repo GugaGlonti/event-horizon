@@ -105,7 +105,7 @@ to five steps; packet arrival never advances simulation.
 
 The join payload declares protocol version 5, callsign, system/instance and an optional single-use
 travel ticket. Client messages are `input` or `action`; actions include travel, cancel-travel, ready,
-respawn, encounter, gear, transit, landing-assist zone/cancel, takeoff, docking request/capture/cancel,
+respawn, encounter, gear, landing-assist zone/cancel, takeoff, docking request/capture/cancel,
 undock, services and ping.
 Server messages are welcome, snapshot (including confirmed combat
 events and input acknowledgement), travel permit, error and pong. Unknown versions, extra input
@@ -198,21 +198,24 @@ Next: Missions, Contracts & Player Progression.
 Later: larger battles, squadrons, missions and persistent progression, backed by longer load tests
 and smaller/delta snapshots rather than speculative distributed infrastructure.
 
-Protocol v5 retains the planetary fields introduced in v4 and replicates body-local surface attachments, gear/travel-mode/flight-lock state,
+Protocol v6 retains the planetary fields introduced in v4 and replicates body-local surface attachments, gear/travel-mode/flight-lock state,
 per-ship docking phase and the shared bounded port roster. Landing, takeoff, docking, undocking and
 free services are strict intentions validated by the same authority as combat. No client may send
 poses, terrain outcomes, repair amounts or occupancy mutations.
 Landing assist replicates a selected zone ID; shared physics computes the entire trajectory.
-Manual input, pause/timeouts, disconnect and invalid capture conditions cancel it. v3 clients and
+Manual input, pause/timeouts, disconnect and invalid capture conditions cancel it. Older clients and
 servers must update together. The full snapshot owns `travelMode` (`normal`, `transit`, `surface`)
 instead of the previous transit boolean. Only shared input/action processing selects it; clients
-cannot send mode or pose mutations. F changes stabilization independently. Released V/R retain
+cannot assign that automatic handling or send pose mutations. The input carries only a validated
+`flightMode` intention (`travel` or `combat`), which always enables stabilization. F selects that intention.
+The old assistance boolean and transit action are rejected. Shared energy uses complete authoritative
+reserve snapshots; prediction never replays weapons or shield spending. Released V/R retain
 surface coasting; neutral/menu input does not erase inertia while the server advances.
 See [approach verification](planetary-approach.md).
 
 
 Surface generation revision 2 changes shared terrain and modular building collision geometry.
-Protocol v5 rejects older clients; restart server/client builds together. The catalogue retains
+Protocol v6 rejects older clients; restart server/client builds together. The catalogue retains
 existing settlement and spaceport anchors. Surface descriptions, maps, vegetation and render meshes
 are regenerated locally, never added to ordinary snapshots. Facility sweeps cache conservative
 rotated bounds before testing oriented boxes, including radius padding at rotated corners.

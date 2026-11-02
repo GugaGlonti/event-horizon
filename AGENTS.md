@@ -143,7 +143,7 @@ without a task requirement. Current scope and verification limits live in docs/g
   galactic coordinates; check swept departure/arrival corridors including rings and moon motion. Match
   exit velocity and throttle at the physics handoff. Keep foreground ship/cockpit/exhaust visible;
   order the tunnel mask after celestial transparency and before star trails and exhaust.
-- Preserve T/X navigation and R/V lift. G/H acquire/clear combat targets; N/Tab cycle during flight.
+- Preserve T/X navigation and R/V lift. G/H acquire/clear combat targets; N cycles during Combat. Tab confirms contextual actions during flight.
   Left mouse and Space fire only while active; HUD clicks must not fire. Escape works even with a
   button focused, and Tab retains normal focus navigation inside maps and from focused controls.
 - Navigation shortcuts are separate discrete listeners owned by FlightSession, including while maps
@@ -164,13 +164,15 @@ without a task requirement. Current scope and verification limits live in docs/g
   Flight-locked ships cannot fire or steer. Repair only live docked ships through validated intentions.
 - Planetary approach uses stopping-distance terrain/station lookahead. V/R are planet-relative near
   landable worlds and select persistent surface coasting, with a shared altitude/gear speed envelope.
-  F owns stabilization/compensation, not speed targets. Release retains radial momentum; damp tangent
+  F selects Travel/Combat; both retain stabilization/compensation. Travel automatically selects transit/approach.
+  Weapons and shields are offline in Travel; Combat shares energy with boost. Tab suggests validated operations. Release retains radial momentum; damp tangent
   drift without erasing coasting. W/S leave surface mode; reset, relocation, docking and grounding
   clear it. Keep terrain/station lookahead active while coasting. Preserve ordinary space controls.
   Landing assist is a validated selected-zone intention, not client-authored motion; keep it in full
   snapshots/replay. Cancel on manual movement, every input-mode pause callback, maps and disconnect.
   ETA is a 10 Hz estimate of continuing the shared descent profile, not guaranteed arrival time.
-- Protocol v5 transports travel mode plus full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
+- Protocol v6 transports validated flight-mode intentions, shared energy, automatic handling/traffic clearance,
+  full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
   positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
 - Civilization/settlement generation and biome/weather queries remain pure engine/planetary code.
   Validate developed capitals/regional counts, dry/sloped placement, spacing, surface anchors and budgets.

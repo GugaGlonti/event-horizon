@@ -71,25 +71,25 @@ Station geometry and terrain also obstruct weapon traces.
 
 Tuning is in `engine/planetary/config.ts`, passed optionally into `FlightController`:
 
-- Stabilization compensates 90% of gravity; F exposes full gravity and disables gear leveling/damping.
-  Speed targets and envelopes belong to the selected travel mode and apply with F on or off.
+- Both Travel and Combat compensate 90% of gravity and retain stabilization and gear leveling.
+  F selects the flight mode; it no longer disables assistance.
 - Atmospheric drag is density-dependent; dense air lowers nominal main-engine speed by 22% and
   reduces high-speed turning authority. This is arcade handling, not an aerodynamic simulator.
-- O enables transit: up to 33× the ordinary space-speed cap (5.94 km/s cruise, 11.88 km/s boost).
+- Travel automatically enables clear-space transit: up to 33× the ordinary space-speed cap (5.94 km/s cruise, 11.88 km/s boost).
   Acceleration remains bounded. Near landable planets it becomes approach, capped at 1.4 km/s with
   continuous stopping-distance braking. Forward terrain/station sweeps see ridges and structures;
   close clearance restores ordinary speed. Transit fades near other atmospheres and stations,
-  is unavailable with gear/docking clearance, and requires clearing nearby ships before activation.
+  and fades automatically near nearby ships. Gear limits forward speed; O is removed.
 - K deploys gear. With assistance enabled and pitch/roll released, the craft gradually levels to the
   local horizon. Translation jets slow below 55 m and reach 2.2 m/s below 13 m center altitude.
   Release main throttle, use S to settle drift, then V to descend. Near landable planets,
   V/R select persistent surface coasting using planet-relative down/up and the shared altitude-aware
   speed profile. Release retains radial momentum; stabilization damps tangent drift rather than
   treating descent as sideways motion. Atmospheric drag, gravity and terrain/gear braking remain.
-  W/S leave coasting; O selects approach/transit with gear retracted. Elsewhere V/R retain
-  local translation. Descent reaches 800 m/s aloft, then slows against terrain clearance.
+  W/S leave coasting. Elsewhere V/R retain local translation. Descent reaches 800 m/s in Travel
+  or 360 m/s in Combat aloft, then slows against terrain clearance.
 - J starts optional final landing assistance at the selected zone, below 2.5 km altitude, within 1 km
-  horizontally and below 150 m/s, with F assistance enabled. It deploys gear, levels while preserving
+  horizontally and below 150 m/s. The Travel Tab suggestion can select a nearby validated zone. It deploys gear, levels while preserving
   heading, cancels drift over the zone and descends using the same gear/altitude envelope. Manual
   movement, J, F, maps and all input pause paths cancel it. Traffic or invalid frames cancel it too.
 - The HUD publishes profile-based ETA, descent limit and stopping distance at 10 Hz. ETA assumes
@@ -135,14 +135,15 @@ pilot retains its berth through reconnection grace. Permanent disconnect removes
 
 ## Multiplayer and travel
 
-Protocol version **4** retains strict ship intentions, grounded flight state, docking state and shared
+Protocol version **6** retains strict ship intentions, grounded flight state, docking state and shared
 port occupancy. Clients cannot send positions, landing outcomes, damage, repair values or port
 assignments. The server validates actions and owns gravity, collisions, capture, services and exits.
 Flight prediction restores the full authoritative surface/lock/selected assist state and replays
 movement only. Landing-assist actions contain a zone ID or cancellation, never motion or landing
-outcomes. `travelMode` replaces the transit-only snapshot boolean and is restored before replay.
+outcomes. Snapshots restore `flightMode`, shared energy and automatic `travelMode` handling before replay.
+See [Travel/Combat and contextual controls](flight-modes.md).
 Paused/timed-out input cancels landing assistance; radial coasting remains physical motion while the
-server runs, including in menus. Offline pause freezes it. v3 peers must update.
+server runs, including in menus. Offline pause freezes it. Older peers must update.
 Other pilots interpolate the existing double-precision poses and replicated gear state. The server
 never simulates render patches. Client/server builds must share the same catalogue and terrain seed.
 
@@ -193,5 +194,5 @@ matching seeded materials/landforms; water remains non-landable.
 
 Cities use modular district layouts with shared authoritative building bounds. Tree/shrub/rock
 scatter is decorative and streams close to the ship; it has no additional collision gameplay.
-Protocol v5 requires a matching authority/client build. Detailed budgets and measured acceptance
+Protocol v6 requires a matching authority/client build. Detailed budgets and measured acceptance
 are recorded in [planetary visual generation](planetary-visual-generation.md).

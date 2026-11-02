@@ -9,10 +9,13 @@ for scale, deterministic terrain, coordinates, docking, ownership and extension 
 [multiplayer architecture](multiplayer.md) for transport lifecycle and authority boundaries.
 The [approach tuning record](planetary-approach.md) describes faster descent, shared landing assistance
 and the later pacing/verification changes.
-Travel mode owns speed regulation independently of F stabilization. Surface coasting persists after
-V/R release, damping only tangent drift while preserving radial momentum and terrain/gear braking.
-W/S select normal flight; O selects transit. The full mode is serialized for prediction/replay and
-cleared at reset, arrival, grounding and docking boundaries.
+F selects stabilized Travel or Combat. Travel automatically combines clear-space transit and
+terrain/station/traffic approach braking; Combat enables shields and weapons at lower speeds.
+The existing flight reserve supplies combat weapons, shield upkeep/regeneration and boost; Travel
+consumes no energy. Complete mode/reserve snapshots precede flight-only reconciliation. Internal
+`travelMode` tracks automatic forward/transit/surface handling, including coasting after V/R release.
+W/S leave coasting; reset, arrival, grounding and docking clear surface handling. Tab confirms a
+pure contextual suggestion, published with existing HUD telemetry. See [flight modes](flight-modes.md).
 
 ## Dependencies and ownership
 
@@ -105,7 +108,7 @@ The fixed tick advances analytical celestial positions, prepares environment vel
 ship orientation/velocity with the shared controller, resolves swept movement, sweeps existing shots,
 and emits new shots at end-of-tick muzzles. Collision-adjusted position/velocity return through
 `FlightController.resolveMotion`, preserving orientation, throttle, boost and trip state. Live player
-assistance settings do not change NPC assistance. Health/regeneration/cooldowns and all entity
+flight-mode intentions do not change NPC controllers; NPCs use stabilized Combat. Health/regeneration/cooldowns and all entity
 lifetimes use fixed simulation time. Presentation interpolates ship and projectile endpoints.
 
 Ship and asteroid shapes are conservative spheres. Non-landable celestial bodies use surface radii;
@@ -232,7 +235,7 @@ world time continues. Combat rewind remains future work. See [the complete netwo
 ## Logical coordinates and render origin
 
 Each system has its own logical coordinate frame. Positions and radii are gameplay metres with 138–405 km planets
-and 25.5–54 km moons. Normal cruise/boost remains 180/360 m/s; bounded transit covers longer distances. Definitions use parent-relative tuples or circular
+and 25.5–54 km moons. Combat cruise/boost remains 180/360 m/s; Travel covers longer distances. Definitions use parent-relative tuples or circular
 orbital parameters. `SystemRuntime` validates/sorts parents once and reuses CPU `Vector3` positions.
 A moon inherits its parent's translated position, without inheriting the parent's axial spin.
 
@@ -308,7 +311,7 @@ procedural geometry/shaders. The shared spacecraft GLB library stays mounted
 across handoffs. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
-Camera mode, assistance and engine reserve survive. The arrival notice lasts three seconds. Charge is
+Camera mode, flight mode and shared energy reserve survive. The arrival notice lasts three seconds. Charge is
 a small HUD readout; transit has no central overlay or phase percentages. A held journey shows explicit
 resume/abort controls. `HyperdriveAudio` owns the gesture-resumed context and master compressor.
 `audio/HyperdriveRecordings` fetches four bundled CC0 WAV stems on mount without opening a context,
