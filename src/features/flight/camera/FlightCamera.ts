@@ -60,7 +60,8 @@ export class FlightCamera {
     this.lastImpulse.set(0, 0, 0);
     camera.position.add(this.previousOrigin).sub(session.origin.position);
     this.previousOrigin.copy(session.origin.position);
-    if (jump.busy && this.jumping) {
+    // Follow translation exactly at any speed; damping applies only to the framing offset.
+    if (this.mode !== null && session.resetVersion === this.resetVersion) {
       this.movement.copy(session.position).sub(this.previousShip);
       camera.position.add(this.movement);
     }
@@ -69,10 +70,6 @@ export class FlightCamera {
     if (mode === 'chase') {
       // Back away without lowering the hull behind the taller portrait instrument bank.
       this.targetPosition.z *= Math.max(1, config.narrowScreenAspect / camera.aspect);
-      if (jump.phase === 'EXITING')
-        this.targetPosition.z +=
-          (JUMP_MOTION.exitSpeed / config.positionDamping) *
-          smoothRamp(HYPERSPACE_EXIT.revealEnd, 1, jump.progress);
     }
     this.targetPosition.applyQuaternion(session.orientation).add(session.renderPosition);
     if (

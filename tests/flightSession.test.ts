@@ -96,6 +96,25 @@ describe('flight presentation boundaries', () => {
     ).toBeLessThan(1e-8);
   });
 
+  it.each([30, 60, 120])('holds chase framing at high speed across origin cells at %s Hz', (hz) => {
+    const session = new FlightSession();
+    const camera = new PerspectiveCamera();
+    const rig = new FlightCamera();
+    rig.update(camera, session, 'chase', 1 / hz, true);
+    const offset = camera.position.clone().sub(session.renderPosition);
+    for (let frame = 0; frame < hz * 3; frame++) {
+      session.position.add(new Vector3(18000 / hz, 12000 / hz, -24000 / hz));
+      session.origin.update(session.position);
+      session.origin.toRender(session.position, session.renderPosition);
+      const position = session.position.clone();
+      rig.update(camera, session, 'chase', 1 / hz, true);
+      expect(camera.position.clone().sub(session.renderPosition).distanceTo(offset)).toBeLessThan(
+        1e-7,
+      );
+      expect(session.position.equals(position)).toBe(true);
+    }
+  });
+
   it('uses a stable field of view for reduced motion', () => {
     const session = new FlightSession();
     const camera = new PerspectiveCamera();
