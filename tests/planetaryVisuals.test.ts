@@ -5,6 +5,12 @@ import { generateSettlements } from '@/engine/planetary/cities';
 import { generateCityLayout, selectCityBlocks } from '@/engine/planetary/cityLayout';
 import { surfaceDirection } from '@/engine/planetary/coordinates';
 import { foundationRadius } from '@/engine/planetary/foundations';
+import {
+  buildSceneryCell,
+  sceneryCellKey,
+  sceneryExcluded,
+  selectSceneryCells,
+} from '@/engine/planetary/scenery';
 import { describeSurface, surfaceColor } from '@/engine/planetary/surfaceDescription';
 import {
   maximumTerrainHeight,
@@ -212,5 +218,50 @@ describe('districts and shared building recipes', () => {
       5,
     );
     expect(fast?.fraction).toBeCloseTo(0.4475, 6);
+  });
+});
+
+describe('bounded geography-aware scenery', () => {
+  it('selects unique stable cells at seams/poles and bounds deterministic instances', () => {
+    for (const direction of [
+      surfaceDirection(0.015, 2.26),
+      new Vector3(0, 1, 0),
+      new Vector3(1, 0, 1).normalize(),
+    ]) {
+      const cells = selectSceneryCells(pelagos, direction);
+      expect(cells.length).toBeLessThanOrEqual(32);
+      expect(new Set(cells.map(sceneryCellKey)).size).toBe(cells.length);
+      expect(cells).toEqual(selectSceneryCells(structuredClone(pelagos), direction));
+    }
+    const cells = selectSceneryCells(pelagos, surfaceDirection(0.015, 2.26));
+    const a = cells.flatMap((cell) => buildSceneryCell(pelagos, cell));
+    expect(a.length).toBeGreaterThan(50);
+    expect(a.length).toBeLessThanOrEqual(4096);
+    expect(a).toEqual(cells.flatMap((cell) => buildSceneryCell(structuredClone(pelagos), cell)));
+    for (const instance of a) {
+      const up = new Vector3().fromArray(instance.position).normalize();
+      expect(sceneryExcluded(pelagos, up, [])).toBe(false);
+      expect(terrainHeight(pelagos, up)).toBeGreaterThan(required(pelagos.ocean).level + 4);
+    }
+  });
+  it('excludes survey foundations, cities, approach corridors, roads and water', () => {
+    const city = required(pelagos.settlements?.[0]);
+    expect(sceneryExcluded(pelagos, surfaceDirection(city.latitude, city.longitude), [])).toBe(
+      true,
+    );
+    const zone = required(pelagos.landingZones?.[0]);
+    expect(sceneryExcluded(pelagos, surfaceDirection(zone.latitude, zone.longitude), [])).toBe(
+      true,
+    );
+    const direction = surfaceDirection(0.015, 2.26),
+      a = direction.clone().multiplyScalar(pelagos.radius),
+      b = a.clone().add(new Vector3(30, 0, 0));
+    expect(
+      sceneryExcluded(pelagos, direction, [
+        { id: 'road', points: [a.toArray(), b.toArray()], bridges: 0 },
+      ]),
+    ).toBe(true);
+    const sea = selectSceneryCells(pelagos, surfaceDirection(-0.035, 2.27));
+    expect(sea.flatMap((cell) => buildSceneryCell(pelagos, cell))).toHaveLength(0);
   });
 });
