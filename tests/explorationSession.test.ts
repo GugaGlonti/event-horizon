@@ -44,6 +44,31 @@ afterEach(() => {
 });
 
 describe('exploration transactions', () => {
+  it('publishes route distance, remaining time and source identity, and freezes the HUD on hold', async () => {
+    const { session } = create();
+    session.selectDestination('vesper');
+    session.beginJump();
+    await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
+    const initial = useExplorationStore.getState().jump;
+    expect(initial.distance).toBeGreaterThan(0);
+    expect(initial.distanceTraveled).toBe(0);
+    expect(initial.remainingSeconds).toBe(initial.totalSeconds);
+    tick(session, 1);
+    expect(useExplorationStore.getState().jump.remainingSeconds).toBeLessThan(
+      initial.remainingSeconds,
+    );
+    session.suspend();
+    const held = useExplorationStore.getState().jump;
+    tick(session, 30);
+    expect(useExplorationStore.getState().jump).toEqual(held);
+    session.resumeJourney();
+    tick(session, session.jump.journeyDuration + 1);
+    const arrived = useExplorationStore.getState().jump;
+    expect(arrived.sourceId).toBe('solara');
+    expect(arrived.distanceTraveled).toBeCloseTo(initial.distance);
+    expect(arrived.remainingSeconds).toBe(0);
+  });
+
   it('returns a blocked plan to flight with a launch waypoint and waits for explicit engagement', () => {
     const { session, events } = create();
     session.openMap('galaxy');

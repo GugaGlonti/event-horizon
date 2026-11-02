@@ -9,6 +9,11 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
   const jump = useExplorationStore((state) => state.jump);
   const arrival = useExplorationStore((state) => state.arrival);
   const destination = SYSTEMS.find((system) => system.id === jump.destinationId);
+  const source = SYSTEMS.find((system) => system.id === jump.sourceId);
+  const remaining = Math.max(0, Math.ceil(jump.remainingSeconds));
+  const eta = `${Math.floor(remaining / 60)
+    .toString()
+    .padStart(2, '0')}:${(remaining % 60).toString().padStart(2, '0')}`;
   const busy = jump.phase !== 'IDLE' && jump.phase !== 'COOLDOWN';
   if (busy && jump.suspended)
     return (
@@ -54,32 +59,80 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
                 : `Travelling to ${destination?.name} through hyperspace.`}
         </p>
       )}
-      {jump.phase === 'CHARGING' && (
+      {busy && (
         <section
-          aria-label="Hyperdrive status"
-          className="absolute top-40 left-3 w-64 border border-instrument/60 bg-console/95 p-4 tablet:top-28 tablet:left-6"
+          aria-label="Hyperspace telemetry"
+          className="pointer-events-auto absolute bottom-8 left-1/2 w-[calc(100%-24px)] max-w-2xl -translate-x-1/2 border-t border-instrument/70 bg-console/85 p-3 text-[11px] tablet:bottom-10 tablet:p-5"
         >
-          <p className="font-mono text-[11px] tracking-[0.2em] text-phosphor-dim">
-            COURSE / {destination?.name.toUpperCase()}
-          </p>
-          <p className="mt-2 text-xs font-bold text-instrument">
-            {jump.progress < 0.88 ? 'Aligning · hyperdrive charging' : 'Course locked · stand by'}
-          </p>
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="tracking-[0.2em] text-instrument">
+                {jump.waiting
+                  ? 'AWAITING ARRIVAL CLEARANCE'
+                  : jump.phase === 'CHARGING'
+                    ? 'HYPERDRIVE / ALIGNING'
+                    : jump.phase === 'ACCELERATING'
+                      ? 'HYPERDRIVE / STAR STRETCH'
+                      : jump.phase === 'EXITING'
+                        ? 'HYPERDRIVE / ARRIVAL'
+                        : 'HYPERSPACE / IN TRANSIT'}
+              </p>
+              <p className="mt-1 truncate text-[10px] text-phosphor-dim">
+                {source?.name.toUpperCase()} → {destination?.name.toUpperCase()}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => session.exploration.cancelJump()}
+              className={instrumentButtonClassName}
+            >
+              Abort / Esc
+            </button>
+          </div>
+          <dl className="mt-4 grid grid-cols-3 gap-3 tabular-nums">
+            <div>
+              <dt className="text-[9px] tracking-wider text-phosphor-dim">DISTANCE / LY</dt>
+              <dd className="mt-1 text-sm text-phosphor tablet:text-xl">
+                {jump.distanceTraveled.toFixed(1)}{' '}
+                <span className="text-[10px] text-phosphor-dim">/ {jump.distance.toFixed(1)}</span>
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[9px] tracking-wider text-phosphor-dim">EST. REMAINING</dt>
+              <dd className="mt-1 text-sm text-phosphor tablet:text-xl">
+                {jump.waiting ? 'HOLD' : eta}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-[9px] tracking-wider text-phosphor-dim">FLIGHT TIME / S</dt>
+              <dd className="mt-1 text-sm text-phosphor tablet:text-xl">
+                {jump.elapsedSeconds.toFixed(1)}
+              </dd>
+            </div>
+          </dl>
           <progress
-            aria-label="Hyperdrive charge"
-            value={jump.progress}
-            max={1}
+            aria-label="Jump progress"
+            value={jump.elapsedSeconds}
+            max={jump.totalSeconds || 1}
             className="sr-only"
           />
-          <div
-            aria-hidden="true"
-            className="mt-3 h-3 border border-instrument/50 p-0.5 text-instrument"
-          >
+          <div aria-hidden="true" className="mt-3 h-1 overflow-hidden bg-phosphor/15">
             <div
-              className="instrument-hatch h-full origin-left"
-              style={{ transform: `scaleX(${jump.progress})` }}
+              className="h-full origin-left bg-instrument"
+              style={{
+                transform: `scaleX(${jump.totalSeconds ? jump.elapsedSeconds / jump.totalSeconds : 0})`,
+              }}
             />
           </div>
+          <p className="mt-2 text-[9px] tracking-wider text-phosphor-dim">
+            {jump.waiting
+              ? 'HOLDING POSITION · ETA RESUMES WITH CLEARANCE'
+              : jump.phase === 'CHARGING'
+                ? `COURSE ALIGNMENT ${Math.round(jump.progress * 100)}% · STABILIZERS ENGAGED`
+                : jump.phase === 'EXITING'
+                  ? 'DECELERATING · LOCAL FLIGHT RESTORES ON ARRIVAL'
+                  : 'COURSE LOCKED · STABILIZERS ENGAGED'}
+          </p>
         </section>
       )}
       {arrival && (

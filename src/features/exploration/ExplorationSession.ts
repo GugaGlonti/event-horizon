@@ -49,6 +49,7 @@ export class ExplorationSession {
   private arrivalElapsed = 0;
   private suspended = false;
   private disposed = false;
+  private sourceId: string | null = null;
   private departureDestination: string | null = null;
   private departureWaypoint: Vector3 | null = null;
   private departurePlanTime = -Infinity;
@@ -254,6 +255,7 @@ export class ExplorationSession {
     if (!target) return false;
     travelDirection(this.world.definition, target, this.direction);
     this.cancelDeparture();
+    this.sourceId = this.world.definition.id;
     this.callbacks.onDepart(this.direction);
     this.closeMap();
     this.suspended = false;
@@ -427,6 +429,16 @@ export class ExplorationSession {
         progress: this.jump.progress,
         suspended: this.suspended,
         destinationId: this.jump.destinationId,
+        sourceId: this.jump.phase === 'IDLE' ? null : this.sourceId,
+        distance: this.jump.distance,
+        distanceTraveled: this.jump.distanceTraveled,
+        elapsedSeconds: this.jump.journeyElapsed,
+        remainingSeconds:
+          this.jump.phase === 'IDLE'
+            ? 0
+            : Math.max(0, this.jump.journeyDuration - this.jump.journeyElapsed),
+        totalSeconds: this.jump.phase === 'IDLE' ? 0 : this.jump.journeyDuration,
+        waiting: this.jump.waiting,
       },
       navigation: this.navigation.sample(this.world, position, this.lastOrientation),
       chart: {

@@ -22,7 +22,19 @@ interface ExplorationState {
   overlay: MapView | null;
   destinationId: string | null;
   departure: DepartureGuidance | null;
-  jump: { phase: JumpPhase; progress: number; suspended: boolean; destinationId: string | null };
+  jump: {
+    phase: JumpPhase;
+    progress: number;
+    suspended: boolean;
+    destinationId: string | null;
+    sourceId: string | null;
+    distance: number;
+    distanceTraveled: number;
+    elapsedSeconds: number;
+    remainingSeconds: number;
+    totalSeconds: number;
+    waiting: boolean;
+  };
   navigation: NavigationSnapshot;
   planetMarkers: PlanetMarkerSnapshot | null;
   chart: {
@@ -40,7 +52,19 @@ export const useExplorationStore = create<ExplorationState>()(() => ({
   overlay: null,
   destinationId: null,
   departure: null,
-  jump: { phase: 'IDLE', progress: 0, suspended: false, destinationId: null },
+  jump: {
+    phase: 'IDLE',
+    progress: 0,
+    suspended: false,
+    destinationId: null,
+    sourceId: null,
+    distance: 0,
+    distanceTraveled: 0,
+    elapsedSeconds: 0,
+    remainingSeconds: 0,
+    totalSeconds: 0,
+    waiting: false,
+  },
   navigation: {
     targetId: 'pelagos',
     distance: 0,

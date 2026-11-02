@@ -1,4 +1,6 @@
 import { InstrumentButton, instrumentButtonClassName } from '@/components/ui/InstrumentButton';
+import { HYPERSPACE_TIMING, hyperspaceDuration } from '@/engine/navigation/HyperspaceController';
+import { travelDistance } from '@/engine/navigation/hyperspaceRoute';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -19,6 +21,12 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
   const ready = useFlightStore((state) => state.rendererReady);
   const selected = SYSTEMS.find((system) => system.id === selectedId);
   const currentSystem = SYSTEMS.find((system) => system.id === current);
+  const distance = selected && currentSystem ? travelDistance(currentSystem, selected) : 0;
+  const seconds =
+    HYPERSPACE_TIMING.CHARGING +
+    HYPERSPACE_TIMING.ACCELERATING +
+    hyperspaceDuration(distance) +
+    HYPERSPACE_TIMING.EXITING;
   const unavailable = !selected
     ? 'Select a star system to plot your jump.'
     : selected.id === current
@@ -163,6 +171,14 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
         </p>
         {selected && (
           <dl className="mt-6 grid grid-cols-2 gap-5 border-y border-line py-5 text-xs">
+            <div>
+              <dt className="text-[10px] text-phosphor-dim">ROUTE DISTANCE</dt>
+              <dd className="mt-2 text-instrument">{distance.toFixed(1)} LY</dd>
+            </div>
+            <div>
+              <dt className="text-[10px] text-phosphor-dim">ESTIMATED JUMP</dt>
+              <dd className="mt-2 text-instrument">{Math.ceil(seconds)} SEC</dd>
+            </div>
             <div>
               <dt className="text-[10px] text-phosphor-dim">WORLDS</dt>
               <dd className="mt-2 text-3xl text-instrument">
