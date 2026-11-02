@@ -5,7 +5,7 @@ import {
   HYPERSPACE_TIMING,
   HyperspaceController,
 } from '@/engine/navigation/HyperspaceController';
-import { travelDirection } from '@/engine/navigation/hyperspaceRoute';
+import { routeArrival, travelDirection } from '@/engine/navigation/hyperspaceRoute';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
@@ -77,6 +77,20 @@ describe('continuous jump motion', () => {
     motion.finish(position, orientation);
     expect(position.distanceTo(lastFrame)).toBeLessThan(1e-9);
     expect(motion.active).toBe(false);
+  });
+
+  it('uses the same final route pose for offline and authoritative arrivals', () => {
+    const { motion, jump, position, orientation, destination } = setup();
+    const world = new SystemRuntime(destination);
+    const arrival = routeArrival(world, motion.direction, 1000);
+    motion.arrive(world);
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING;
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(arrival.position)).toBeLessThan(1e-8);
+    motion.setArrival(arrival.position.toArray(), arrival.orientation.toArray());
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(arrival.position)).toBeLessThan(1e-8);
   });
 
   it('moves foreground bodies decisively at ignition and settles before revealing the arrival', () => {

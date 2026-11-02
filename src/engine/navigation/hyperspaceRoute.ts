@@ -139,7 +139,7 @@ export function departureObstruction(
   return null;
 }
 
-/** Approach from the source-facing side. A lateral offset keeps the destination off the reticle. */
+/** Final pose near the anchor; the entire incoming coast is checked behind this endpoint. */
 export function routeArrival(
   world: SystemRuntime,
   direction: { readonly x: number; readonly y: number; readonly z: number },
@@ -156,14 +156,14 @@ export function routeArrival(
   const up = new Vector3(0, 1, 0).applyQuaternion(orientation);
   const position = new Vector3();
   for (let attempt = 0; attempt < 24; attempt += 1) {
-    const distance = Math.max(4800, coastDistance + 3000) + attempt * 2200;
+    const distance = Math.max(4800, anchor.radius * 0.55) + attempt * 2200;
     position.copy(center).addScaledVector(direction, -distance);
     const lateralClearance = jumpBodyRadius(world, anchor, horizon) + 22000;
     position.addScaledVector(right, lateralClearance);
     position.addScaledVector(up, 2500 + attempt * 500);
-    // Multiplayer presents the lead-in *behind* its authoritative holding point.
+    // Both offline and multiplayer present the lead-in behind this final holding point.
     const start = position.clone().addScaledVector(direction, -coastDistance);
-    if (!departureObstruction(world, start, direction, coastDistance * 2 + 1000, horizon))
+    if (!departureObstruction(world, start, direction, coastDistance + 1000, horizon))
       return { position, orientation };
   }
   throw new Error('No clear arrival corridor was found.');

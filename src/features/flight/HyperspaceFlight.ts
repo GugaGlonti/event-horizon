@@ -43,7 +43,7 @@ export class HyperspaceFlight {
 
   arrive(world: SystemRuntime) {
     const pose = routeArrival(world, this.direction, EXIT_COAST_DISTANCE);
-    this.arrival.copy(pose.position);
+    this.arrival.copy(pose.position).addScaledVector(this.direction, -EXIT_COAST_DISTANCE);
   }
 
   setArrival(position: readonly number[], orientation: readonly number[]) {

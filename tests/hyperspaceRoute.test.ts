@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
+import { EXIT_COAST_DISTANCE } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
   departureWindow,
@@ -20,7 +21,7 @@ describe('galactic jump routes', () => {
       it(`${source.name} → ${destination.name} faces along the route and arrives from the source`, () => {
         const direction = travelDirection(source, destination);
         const world = new SystemRuntime(destination, 130);
-        const arrival = routeArrival(world, direction, 800);
+        const arrival = routeArrival(world, direction, EXIT_COAST_DISTANCE);
         const anchor = world.positions.get(destination.defaultTargetId);
         expect(anchor).toBeDefined();
         const forward = new Vector3(0, 0, -1).applyQuaternion(arrival.orientation);
@@ -35,9 +36,9 @@ describe('galactic jump routes', () => {
         expect(
           departureObstruction(
             world,
-            arrival.position.clone().addScaledVector(direction, -800),
+            arrival.position.clone().addScaledVector(direction, -EXIT_COAST_DISTANCE),
             direction,
-            2600,
+            EXIT_COAST_DISTANCE + 1000,
           ),
         ).toBeNull();
         expect(travelDistance(source, destination)).toBeCloseTo(
@@ -57,6 +58,25 @@ describe('galactic jump routes', () => {
       });
     }
   }
+
+  it('keeps the near-planet endpoint independent of the incoming coast length', () => {
+    const source = SYSTEMS[0],
+      destination = SYSTEMS[1];
+    if (!source || !destination) throw new Error('Missing fixtures.');
+    const world = new SystemRuntime(destination);
+    const direction = travelDirection(source, destination);
+    const short = routeArrival(world, direction, 1000);
+    const long = routeArrival(world, direction, 900000);
+    expect(long.position.distanceTo(short.position)).toBeLessThan(1e-9);
+    expect(
+      departureObstruction(
+        world,
+        long.position.clone().addScaledVector(direction, -900000),
+        direction,
+        901000,
+      ),
+    ).toBeNull();
+  });
 
   it('blocks a swept departure through a body even when both endpoints are outside it', () => {
     const system = SYSTEMS[0];

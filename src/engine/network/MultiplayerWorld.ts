@@ -102,7 +102,12 @@ export class MultiplayerWorld {
       (source ? hyperspaceDuration(travelDistance(source, this.system.definition)) : 0);
     const route =
       source &&
-      routeArrival(this.system, travelDirection(source, this.system.definition), 4200, horizon);
+      routeArrival(
+        this.system,
+        travelDirection(source, this.system.definition),
+        EXIT_COAST_DISTANCE,
+        horizon,
+      );
     const arrival = this.system.arrival();
     const position = route?.position ?? new Vector3().fromArray(arrival.position);
     const orientation = route?.orientation ?? new Quaternion().fromArray(arrival.orientation);
