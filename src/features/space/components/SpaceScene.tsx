@@ -8,6 +8,7 @@ import { RemotePilotProjection } from '@/features/multiplayer/RemotePilotProject
 export default function SpaceScene({ session }: { session: FlightSession }) {
   return (
     <SceneCanvas
+      shadows="soft"
       onReady={session.markReady}
       label="Interactive galaxy exploration environment"
       cameraSettings={{

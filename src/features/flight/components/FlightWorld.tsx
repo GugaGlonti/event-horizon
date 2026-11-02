@@ -1,7 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type Group, PerspectiveCamera } from 'three';
 import { FrameCapture } from '@/engine/rendering/FrameCapture';
+import { createShadowDepthMaterial } from '@/engine/rendering/shadowDepth';
 import { CombatScene } from '@/features/combat/components/CombatScene';
 import { HyperspaceTunnel } from '@/features/exploration/rendering/HyperspaceTunnel';
 import { SystemScene } from '@/features/exploration/rendering/SystemScene';
@@ -40,6 +41,8 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   const sky = useRef<Group>(null);
   const camera = useThree((state) => state.camera);
   const [cameraController] = useState(() => new FlightCamera());
+  const [shadowDepth] = useState(createShadowDepthMaterial);
+  useEffect(() => () => shadowDepth.dispose(), [shadowDepth]);
   const cameraMode = useFlightStore((state) => state.cameraMode);
   const reducedMotion = useReducedMotion();
   const systemId = useExplorationStore((state) => state.systemId);
@@ -140,6 +143,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
         <Starfield session={session} radius={GAME_CONFIG.environment.starRadius} />
       </group>
       <Starfighter
+        shadowDepth={shadowDepth}
         modelRef={ship}
         gearRef={gear}
         enginePowerRef={enginePower}
@@ -148,7 +152,12 @@ export function FlightWorld({ session }: { session: FlightSession }) {
         visible={cameraMode === 'chase'}
         reducedMotion={reducedMotion}
       />
-      <CockpitFrame frameRef={cockpit} visible={cameraMode === 'cockpit'} session={session} />
+      <CockpitFrame
+        frameRef={cockpit}
+        visible={cameraMode === 'cockpit'}
+        session={session}
+        shadowDepth={shadowDepth}
+      />
       <CombatScene
         session={session}
         spacecraft={spacecraft}

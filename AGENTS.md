@@ -199,6 +199,9 @@ without a task requirement. Current scope and verification limits live in docs/g
 - Use logarithmic depth for the 20,000 km far plane. Custom world/foreground shaders must use matching
   vertex/fragment depth chunks and common helpers. The atmosphere sky must depth-test behind solid
   geometry; the hyperspace mask uses an 80 m logarithmic foreground boundary.
+- Shadow casters use the shared projected-depth material from `engine/rendering/shadowDepth.ts`;
+  logarithmic camera depth must not enter shadow comparisons. FlightWorld owns that material.
+  Keep tunnel shadows to one 512px map and the visible player hull/cockpit; no per-NPC shadows.
 - Copy scalar quaternion components across engine/Three boundaries. Three.multiply reads private
   fields; do not pass an engine quaternion into it. Test actual renderer-math boundary conversions.
 - QA fixtures live only in scripts/planetaryVerification.ts / planetaryFixtures.ts, never game protocol

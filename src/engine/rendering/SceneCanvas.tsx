@@ -7,13 +7,21 @@ interface SceneCanvasProps {
   onReady?: () => void;
   cameraSettings?: CanvasProps['camera'];
   label?: string;
+  shadows?: CanvasProps['shadows'];
 }
 
 export const INITIAL_CAMERA_POSITION: [number, number, number] = [6, 3.2, 10];
 
-export function SceneCanvas({ children, onReady, cameraSettings, label }: SceneCanvasProps) {
+export function SceneCanvas({
+  children,
+  onReady,
+  cameraSettings,
+  label,
+  shadows = false,
+}: SceneCanvasProps) {
   return (
     <Canvas
+      shadows={shadows}
       camera={cameraSettings ?? { position: INITIAL_CAMERA_POSITION, fov: 52, near: 0.1, far: 200 }}
       onCreated={() => onReady?.()}
       dpr={
