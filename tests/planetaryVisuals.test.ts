@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
 import { generateSettlements } from '@/engine/planetary/cities';
@@ -12,6 +12,7 @@ import {
   selectSceneryCells,
 } from '@/engine/planetary/scenery';
 import { describeSurface, surfaceColor } from '@/engine/planetary/surfaceDescription';
+import { SURFACE_GENERATION_REVISION } from '@/engine/planetary/surfaceNoise';
 import {
   maximumTerrainHeight,
   naturalTerrainHeight,
@@ -21,7 +22,18 @@ import { buildTerrainPatch, cubeDirection } from '@/engine/planetary/terrainLod'
 import { portPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
+import { PlanetGeneration, type PlanetWorker } from '@/features/planets/rendering/PlanetGeneration';
+import type {
+  PlanetJob,
+  PlanetWorkerRequest,
+  PlanetWorkerResponse,
+} from '@/features/planets/rendering/planetGenerationJobs';
 import { bakeSurfaceFace } from '@/features/planets/rendering/surfaceBake';
+import {
+  PLANET_VISUAL_BYTES,
+  reserveVisualBytes,
+  visualMetrics,
+} from '@/features/planets/rendering/visualBudget';
 import anchors from './fixtures/planetaryAnchors.json';
 
 function required<T>(value: T | undefined | null): T {
@@ -265,3 +277,108 @@ describe('bounded geography-aware scenery', () => {
     expect(sea.flatMap((cell) => buildSceneryCell(pelagos, cell))).toHaveLength(0);
   });
 });
+
+describe('generation lifetime and performance accounting', () => {
+  const job: PlanetJob = {
+    kind: 'surface',
+    body: pelagos,
+    face: 0,
+    resolution: 64,
+    row: 0,
+    rows: 16,
+  };
+  it('uses two workers, prioritizes roots and suppresses cancelled/stale generation', () => {
+    const workers: FakeWorker[] = [],
+      pool = new PlanetGeneration(() => {
+        const worker = new FakeWorker();
+        workers.push(worker);
+        return worker;
+      });
+    const low = vi.fn(),
+      root = vi.fn(),
+      stale = vi.fn();
+    pool.request('far', 5, job, low);
+    pool.request('root', 0, job, root);
+    const cancel = pool.request('cancelled', 1, job, stale);
+    cancel();
+    pool.start();
+    expect(workers).toHaveLength(2);
+    expect(required(workers[0]).sent[0]?.id).toBe(2);
+    required(workers[0]).finish();
+    required(workers[1]).finish();
+    expect(root).toHaveBeenCalledOnce();
+    expect(low).toHaveBeenCalledOnce();
+    expect(stale).not.toHaveBeenCalled();
+    const ignored = vi.fn(),
+      oldWorker = required(workers[0]);
+    pool.request('active', 0, job, ignored);
+    const active = required(oldWorker.sent.at(-1));
+    pool.dispose();
+    oldWorker.finish(active);
+    expect(ignored).not.toHaveBeenCalled();
+    expect(workers.every((worker) => worker.terminated)).toBe(true);
+    // Child effects can enqueue before the scene effect restarts during Strict Mode.
+    pool.request('remount', 0, job, root);
+    pool.start();
+    expect(workers).toHaveLength(4);
+    required(workers[2]).finish();
+    expect(root).toHaveBeenCalledTimes(2);
+    pool.dispose();
+  });
+  it('rejects stale revisions, replaces a failed worker and retries only once', () => {
+    const workers: FakeWorker[] = [],
+      pool = new PlanetGeneration(() => {
+        const worker = new FakeWorker();
+        workers.push(worker);
+        return worker;
+      });
+    pool.start();
+    const done = vi.fn(),
+      failed = vi.fn();
+    pool.request('bad-revision', 0, job, done, failed);
+    required(workers[0]).finish(undefined, -1);
+    expect(done).not.toHaveBeenCalled();
+    expect(failed).toHaveBeenCalledOnce();
+    pool.request('retry', 0, job, done, failed);
+    const worker = required(workers[0]);
+    worker.onerror?.(new Event('error') as ErrorEvent);
+    expect(worker.terminated).toBe(true);
+    expect(workers).toHaveLength(3);
+    required(workers[2]).finish();
+    expect(done).toHaveBeenCalledOnce();
+    pool.dispose();
+  });
+  it('bounds allocation accounting and releases once', () => {
+    const before = visualMetrics.bytes,
+      release = required(reserveVisualBytes(1024));
+    expect(visualMetrics.bytes).toBe(before + 1024);
+    expect(reserveVisualBytes(PLANET_VISUAL_BYTES)).toBeNull();
+    release();
+    release();
+    expect(visualMetrics.bytes).toBe(before);
+  });
+});
+class FakeWorker implements PlanetWorker {
+  onmessage: PlanetWorker['onmessage'] = null;
+  onerror: PlanetWorker['onerror'] = null;
+  sent: PlanetWorkerRequest[] = [];
+  terminated = false;
+  postMessage(request: PlanetWorkerRequest) {
+    this.sent.push(request);
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  finish(request = required(this.sent.at(-1)), revision = SURFACE_GENERATION_REVISION) {
+    this.onmessage?.(
+      new MessageEvent<PlanetWorkerResponse>('message', {
+        data: {
+          id: request.id,
+          revision,
+          ms: 1,
+          result: { kind: 'surface', pixels: new Uint8Array(4) },
+        },
+      }),
+    );
+  }
+}
