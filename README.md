@@ -349,9 +349,12 @@ jump time. Current-system, overlapping and cooldown requests remain unavailable.
 
 Galactic coordinates supply both headings and light-year distances. Longer routes take longer; ETA
 includes charge, entry, transit and exit, excluding cooldown. Destination preparation or readiness
-can extend it. The hyperspace HUD stays visible throughout the journey with source/destination,
-distance traveled, estimated time remaining, active flight time and phase progress. Arrival waits
-show **HOLD**; focus/visibility suspension freezes the clocks until **Resume journey**.
+can extend it. A live hyperspace-lane map replaces the telemetry panel, showing departure and
+destination, nearby systems, range rings and the Kestrel's position along the active lane. The marker
+advances with actual light-year distance at the existing 10 Hz telemetry cadence; charging stays at
+departure. Distance and arrival ETA remain below the map, with **Abort / Esc** alongside it. The map
+sits at the lower right on wide screens and becomes compact on narrow screens. Arrival waits show
+**HOLD**; focus/visibility suspension freezes the map and clocks until **Resume journey**.
 
 A blocked departure returns to keyboard flight with an amber escape waypoint and distance instead
 of stopping at an error. Follow the shortest tested safe local route; guidance never steers the ship.
@@ -479,7 +482,7 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The [hyperspace iteration](docs/hyperspace.md) records the current 568-test run, browser journey,
+The [hyperspace iteration](docs/hyperspace.md) records the current 571-test run, browser journey,
 launch-guidance and tunnel-lighting checks, a 60-second renderer sample, and earlier short
 2/8/16-client measurements with explicit verification limits.
 

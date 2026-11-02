@@ -7,10 +7,21 @@ seconds after keyboard flight returns. For example, Solara → Vesper is 48.5 LY
 before control returns; Solara → Aether is 63.0 LY and about 19.7 seconds. Preparation/readiness holds
 can extend those estimates.
 
-The HUD stays visible through charge, stretch, transit and exit. It shows the route, traveled/total
-distance, estimated remaining time, active flight time, phase and progress. Arrival waits display
-HOLD. Active flight time continues during readiness holds; explicit focus/visibility suspension
-freezes it. The existing bounded-delta clock prevents a suspended tab from skipping the journey.
+The live lane map stays visible through charge, stretch, transit and exit. It replaces the telemetry
+panel with a route-relative galactic chart: departure/destination beacons, nearby systems, a traveled
+trail, distance ticks, range rings and a moving Kestrel marker. Galactic coordinates supply the
+projection; lateral context is foreshortened for an oblique schematic. Neighboring dots are catalogue
+systems, not intermediate stops or newly invented connections. Range rings mark quarter/half of
+the route distance around the current position.
+
+The marker uses traveled light years rather than elapsed cinematic time: it stays at departure during
+charge/stretch, crosses the lane during transit and remains at destination during arrival. Distance,
+ETA, phase and Abort / Esc remain legible beside the map. Wide layouts place it at the lower right;
+narrow layouts use a compact bottom chart. The existing 10 Hz snapshot drives it, with a short marker
+interpolation suppressed for reduced motion and holds. No animation timer, network field or flight
+state was added. Arrival waits display HOLD. Explicit focus/visibility suspension freezes the map
+behind the existing resume/abort prompt. The bounded-delta clock prevents a suspended tab from
+skipping the journey.
 
 ## Departing near a planet or facility
 
@@ -135,6 +146,20 @@ or game-state injection. The two real-space screenshots show the final sharper c
 
 ## Automated and load verification
 
+The live lane-map follow-up at `4586e8f` passed `npm run check`: lint, **571 tests across 42 files**, TypeScript
+checking and production build, including the nine real-socket integrations. New pure tests cover
+all ninety directed route frames, reversed and vertical projections, galactic altitude, safe
+degenerate input and bounded distance progress. Existing transaction tests cover frozen read models
+on hold and retained source identity through arrival.
+
+Chrome completed Solara → Vesper → Aether → Solara through the ordinary UI in chase/cockpit views.
+The DOM progress stayed at zero while charging and advanced from 30.5% to 55.4% during transit.
+Both 1920×1080 and 390×600 layouts rendered; the compact view had no horizontal overflow. Map Tab
+focus, abort/removal, reset and the warning/error console were checked. Browser suspension/resume
+was not successfully revalidated by this automation; hold behavior is covered at the read-model
+boundary. No new performance or multiplayer browser measurement was made; the earlier records below
+retain their stated revisions and limits.
+
 The occasional-hiccup follow-up passed `npm run check`: lint, **568 tests across 41 files**,
 TypeScript checking and production build. Regression checks cover brief events, multi-second gaps,
 over 80% calm cruise, smooth boundaries, per-journey variation and an exactly steady cockpit between
@@ -196,6 +221,10 @@ sample recorded none. Both runs are retained. These short samples do not establi
 Internet latency, renderer performance or simultaneous-transfer capacity, and do not profile the
 departure-heading search under transfer saturation. Transfer behavior is covered by
 real-socket integration tests; moving-boundary and extended receiver-window regressions are headless.
+
+![Live hyperspace lane map in cockpit view](verification/hyperspace-lane-map.jpg)
+
+![Compact live lane map](verification/hyperspace-lane-map-compact.jpg)
 
 ![Detailed blue tunnel and moving hull light](verification/hyperspace-tunnel-detail.jpg)
 

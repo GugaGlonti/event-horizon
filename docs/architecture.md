@@ -283,6 +283,15 @@ active elapsed time, so readiness holds can show HOLD without falsifying the fli
 HUD snapshots publish at 10 Hz. Shared motion constants and the exit integral live in
 `engine/navigation/HyperspaceController.ts`; feature configuration reuses them.
 
+`HyperspaceLaneMap` consumes those snapshots without a separate animation clock or new store state.
+The pure feature-owned `hyperspaceLane` helper projects catalogue galactic positions into a
+route-relative frame, with departure at zero and destination at one. The SVG foreshortens lateral
+context, clips range rings and filters off-chart/crowded system labels. The ship marker uses traveled
+distance rather than total cinematic progress, so charging cannot advance it down the lane. Its
+small 100 ms transform interpolation stops on holds and for reduced motion. The map remains visible
+behind the existing resume/abort prompt; `HyperspaceStatus` still owns journey notifications and
+departure guidance. The SVG adds no Three.js resources, physics changes or network fields.
+
 The shared departure planner first checks the galactic bearing, then at most forty cone headings
 and the reverse bearing for a clear 1,800 km sweep. Charge aligns the selected local bearing; no
 client-authored direction enters authority. Inside an atmosphere/facility, blocked plans remain
