@@ -14,6 +14,7 @@ interface FlightState {
   engineSound: boolean;
   rendererReady: boolean;
   notice: string | null;
+  contextAction: string;
   telemetry: FlightTelemetry;
   speedTrend: SpeedTrend;
   setInputMode: (mode: InputMode | null) => void;
@@ -32,6 +33,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
   engineSound: true,
   rendererReady: false,
   notice: null,
+  contextAction: 'Acquire combat target',
   speedTrend: 'steady',
   telemetry: {
     speed: 0,

@@ -68,6 +68,24 @@ describe('exploration input integration', () => {
     expect(session.combat.simulation.events.some((event) => event.kind === 'fired')).toBe(true);
   });
 
+  it('uses Tab for contextual docking while leaving focused-control and map focus alone', () => {
+    key('KeyF');
+    const before = session.exploration.navigation.targetId;
+    key('Tab');
+    const selected = session.exploration.navigation.targetId;
+    expect(selected).not.toBe(before);
+    expect(selected).toBe(session.stationReadout.stationId);
+    expect(session.stationReadout.phase).toBe('requested');
+    const focused = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Tab' });
+    Object.defineProperty(focused, 'target', { value: { tagName: 'BUTTON' } });
+    windowTarget.dispatchEvent(focused);
+    expect(focused.defaultPrevented).toBe(false);
+    expect(session.exploration.navigation.targetId).toBe(selected);
+    key('KeyL');
+    key('Tab');
+    expect(session.exploration.navigation.targetId).toBe(selected);
+  });
+
   it.each([
     ['KeyM', 'galaxy'],
     ['KeyL', 'local'],

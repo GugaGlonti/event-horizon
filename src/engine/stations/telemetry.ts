@@ -49,6 +49,10 @@ export function stationTelemetry(
         name: p.name,
         kind: p.kind,
         occupant: operations?.occupancy.get(`${station.id}/${p.id}`) ?? null,
+        approachDistance:
+          ship && operations
+            ? ship.position.distanceTo(portPose(operations.world, station, p).approach)
+            : Infinity,
       })) ?? [],
     services: station?.services ?? [],
     waypoint: pose

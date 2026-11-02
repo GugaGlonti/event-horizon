@@ -20,6 +20,7 @@ import {
 } from '@/features/flight/audio/EngineSoundModel';
 import { loadEngineAssets } from '@/features/flight/audio/engineAssets';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
+import { suggestContextAction } from '@/features/flight/contextAction';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { MultiplayerSession } from '@/features/multiplayer/MultiplayerSession';
 import { useCombatStore } from '@/stores/combatStore';
@@ -51,6 +52,7 @@ export class FlightSession {
     usePlanetaryStore.setState({
       readout: planetaryTelemetry(this.controller, this.exploration.navigation.targetId),
     });
+    useFlightStore.setState({ contextAction: this.contextSuggestion().label });
   }
   readonly controller = new FlightController(FLIGHT_CONFIG);
   readonly position = new Vector3();
@@ -305,7 +307,11 @@ export class FlightSession {
       return;
     }
     if (['KeyB', 'KeyN', 'KeyG', 'KeyH', 'Tab'].includes(event.code)) {
-      if (event.code === 'Tab' && tag === 'BUTTON') return;
+      if (
+        event.code === 'Tab' &&
+        (event.shiftKey || ['BUTTON', 'A', 'SUMMARY'].includes(tag ?? ''))
+      )
+        return;
       if (
         useFlightStore.getState().phase !== 'flying' ||
         this.exploration.jump.busy ||
@@ -314,6 +320,10 @@ export class FlightSession {
       )
         return;
       event.preventDefault();
+      if (event.code === 'Tab') {
+        this.contextAction();
+        return;
+      }
       if (event.code === 'KeyB') this.startEncounter();
       else {
         if (this.controller.flightMode !== 'combat') return;
@@ -489,6 +499,60 @@ export class FlightSession {
     const docking = this.stationReadout;
     if (['approaching', 'aligning'].includes(docking.phase)) this.shipAction({ kind: 'capture' });
     else if (docking.stationId) this.shipAction({ kind: 'dock', stationId: docking.stationId });
+  };
+  private contextSuggestion() {
+    const selected = this.exploration.navigation.targetId;
+    const zones = this.exploration.world.definition.bodies.flatMap(
+      (body) => body.landingZones ?? [],
+    );
+    const zone =
+      zones.find((candidate) => candidate.id === selected) ??
+      zones.find((candidate) => candidate.id === this.planetaryReadout.zoneId);
+    const landingZone =
+      zone &&
+      !this.controller.landingAssist &&
+      this.controller.landingAssistReason(zone.id) === null
+        ? zone
+        : null;
+    return suggestContextAction({
+      mode: this.controller.flightMode,
+      landed: this.controller.surface.phase === 'landed',
+      landingAssist: this.controller.landingAssist,
+      docking: this.stationReadout,
+      landingZone,
+      contact: this.exploration.navigation.suggest(
+        this.exploration.world,
+        this.position,
+        this.orientation,
+      ),
+      hasCombatTarget: this.combat.simulation.targetId !== null,
+    });
+  }
+  contextAction = () => {
+    if (
+      useFlightStore.getState().phase !== 'flying' ||
+      this.exploration.jump.busy ||
+      useExplorationStore.getState().overlay ||
+      this.combat.simulation.player.health.destroyed
+    )
+      return;
+    const suggestion = this.contextSuggestion();
+    if (suggestion.kind === 'ship') {
+      if (suggestion.action.kind === 'dock')
+        this.exploration.selectTarget(suggestion.action.stationId);
+      if (suggestion.action.kind === 'landing-assist' && suggestion.action.zoneId)
+        this.exploration.selectTarget(suggestion.action.zoneId);
+      this.shipAction(suggestion.action);
+    } else if (suggestion.kind === 'target') this.exploration.selectTarget(suggestion.targetId);
+    else if (suggestion.kind === 'combat-target') {
+      if (this.combat.simulation.targetId) this.combat.simulation.cycleTarget();
+      else {
+        this.combat.simulation.targetAhead();
+        if (!this.combat.simulation.targetId) this.combat.simulation.cycleTarget();
+      }
+      this.combat.publish();
+    } else useFlightStore.getState().setNotice(suggestion.notice);
+    this.publishPlanetary();
   };
   toggleFlightMode = () => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;

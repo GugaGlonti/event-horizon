@@ -31,6 +31,27 @@ export class NavigationComputer {
     this.targetId = bodies[(index + 1) % bodies.length]?.id ?? null;
   }
 
+  /** Tab prefers visible contacts; a nearest-contact fallback also works when looking into space. */
+  suggest(system: SystemRuntime, position: Readonly<Vector3>, orientation: Readonly<Quaternion>) {
+    const forward = new Vector3(0, 0, -1).applyQuaternion(orientation);
+    let best: ReturnType<typeof navigationContacts>[number] | null = null;
+    let bestScore = -Infinity;
+    for (const contact of navigationContacts(system.definition)) {
+      if (contact.kind === 'star' || contact.id === this.targetId) continue;
+      const target = system.positions.get(contact.id);
+      if (!target) continue;
+      this.direction.subVectors(target, position);
+      const distance = Math.max(1, this.direction.length() - contact.radius);
+      const alignment = this.direction.normalize().dot(forward);
+      const score = (alignment > 0.7 ? 10 + alignment : 0) - Math.log10(distance);
+      if (score > bestScore) {
+        bestScore = score;
+        best = contact;
+      }
+    }
+    return best;
+  }
+
   sample(
     system: SystemRuntime,
     position: Readonly<Vector3>,
