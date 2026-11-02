@@ -76,8 +76,10 @@ The interface is a 1980s flight terminal: green phosphor displays, amber seven-s
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.
 Flight instruments float over the scene with short reference rules, slim gauges, and a quiet header;
 the briefing, survey charts, and warnings retain framed terminal panels. Controls share visible
-keyboard focus. Green ACCEL and amber DECEL lamps blink with actual speed changes, including in
-reverse; directional chevrons, a speed tape, engine gauge cursors and a flight-status pulse animate
+keyboard focus. The header FPS counter shows rendered frames per second, averaged and refreshed
+every half second, in both offline and multiplayer flight. Green ACCEL and amber DECEL lamps blink
+with actual speed changes, including in reverse; directional chevrons, a speed tape, engine gauge
+cursors and a flight-status pulse animate
 the live instruments. Speed trends use the existing 10 Hz telemetry cadence, settle at steady speed,
 and clear on pause. Reduced motion keeps lamps steady and removes animation/transitions. A static
 CRT texture adds scanlines without flicker or animation. The bundled

@@ -7,6 +7,7 @@ import { NavigationHud, NavigationMarker } from '@/features/exploration/componen
 import { NearbyPlanetMarkers } from '@/features/exploration/components/NearbyPlanetMarkers';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import { FlightMenu } from '@/features/flight/components/FlightMenu';
+import { FpsCounter } from '@/features/flight/components/FpsCounter';
 import { ShipSchematic } from '@/features/flight/components/ShipSchematic';
 import { SpeedTrendIndicator } from '@/features/flight/components/SpeedTrendIndicator';
 import { FLIGHT_CONFIG } from '@/features/flight/config';
@@ -100,7 +101,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
         className="absolute inset-x-0 bottom-0 h-80 bg-linear-to-t from-space/95 via-space/65 to-transparent tablet:h-64"
       />
       <header className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 tablet:inset-x-8 tablet:top-6 tablet:flex-nowrap">
-        <div className="flex items-center gap-3">
+        <div className="flex w-full items-center gap-3 tablet:w-auto">
           <div
             aria-hidden="true"
             className="border-r border-line pr-3 text-base tracking-tighter text-phosphor/60"
@@ -113,6 +114,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
               Kestrel flight systems / MK.VII
             </p>
           </div>
+          <FpsCounter />
         </div>
         <div className="hidden text-right text-[11px] tracking-wider min-[1100px]:block">
           <p className="text-[10px] text-phosphor-dim">Sector 07 / charted reaches</p>
