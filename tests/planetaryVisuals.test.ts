@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
 import { generateSettlements } from '@/engine/planetary/cities';
+import { generateCityLayout, selectCityBlocks } from '@/engine/planetary/cityLayout';
 import { surfaceDirection } from '@/engine/planetary/coordinates';
+import { foundationRadius } from '@/engine/planetary/foundations';
 import { describeSurface, surfaceColor } from '@/engine/planetary/surfaceDescription';
 import {
   maximumTerrainHeight,
   naturalTerrainHeight,
   terrainHeight,
 } from '@/engine/planetary/terrain';
+import { portPose, traceStation } from '@/engine/stations/stationGeometry';
+import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 import anchors from './fixtures/planetaryAnchors.json';
 
@@ -100,5 +104,38 @@ describe('coherent physical surfaces', () => {
     }
     for (const biome of ['ocean', 'forest', 'dunes', 'ice', 'rock', 'basalt'])
       expect(seen.has(biome)).toBe(true);
+  });
+});
+
+describe('districts and shared building recipes', () => {
+  it('keeps city blocks bounded, reproduces districts and leaves every port capture path clear', () => {
+    for (const system of SYSTEMS) {
+      const world = new SystemRuntime(system, 137);
+      for (const body of system.bodies)
+        for (const city of body.settlements ?? []) {
+          const layout = generateCityLayout(city);
+          expect(layout).toEqual(generateCityLayout(structuredClone(city)));
+          expect(layout.collisionBoxes.length + 1).toBeLessThanOrEqual(512);
+          if (city.kind === 'capital')
+            for (const district of layout.districts)
+              expect(layout.buildings.some((building) => building.districtId === district.id)).toBe(
+                true,
+              );
+          expect(layout.districts.map((d) => d.id)).toEqual([
+            'civic',
+            'habitat',
+            'industry',
+            'research',
+            'spaceport',
+          ]);
+          expect(selectCityBlocks(layout, 0, 0).length).toBeLessThanOrEqual(16);
+          const station = required(system.stations?.find((s) => s.id === `${city.id}-spaceport`));
+          for (const port of station.ports) {
+            const pose = portPose(world, station, port);
+            expect(traceStation(world, pose.approach, pose.position, 5)).toBeNull();
+          }
+          expect(foundationRadius(city, 0)).not.toBe(foundationRadius(city, 1));
+        }
+    }
   });
 });

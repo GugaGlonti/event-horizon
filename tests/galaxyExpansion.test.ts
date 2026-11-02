@@ -88,7 +88,7 @@ describe('expanded galaxy and shared cities', () => {
           expect(a.buildings.length).toBeLessThanOrEqual(512);
           expect(a.buildings.length).toBeGreaterThan(5);
           const station = required(system.stations?.find((s) => s.id === `${city.id}-spaceport`));
-          expect(station.boxes.slice(0, -1)).toEqual(a.buildings);
+          expect(station.boxes.slice(0, -1)).toEqual(a.collisionBoxes);
           expect(station.ports.length).toBeGreaterThan(0);
         }
         if (body.civilization === 'DEVELOPED' || body.civilization === 'HIGHLY_URBANIZED') {

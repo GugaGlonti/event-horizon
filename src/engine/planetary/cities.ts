@@ -1,18 +1,14 @@
-import type { StationBox, StationDefinition } from '@/engine/stations/stationTypes';
+import type { StationDefinition } from '@/engine/stations/stationTypes';
 import type { CelestialDefinition, Position3 } from '@/engine/world/worldTypes';
+import { generateCityLayout } from './cityLayout';
 import { surfaceDirection } from './coordinates';
 import type { Civilization, SettlementDefinition } from './environmentTypes';
+
+import { seededRandom } from './seededRandom';
 import { naturalTerrainHeight, terrainHeight, terrainNormal } from './terrain';
 
-export function seededRandom(seed: number) {
-  let state = seed | 0;
-  return () => {
-    state = Math.imul(state ^ (state >>> 15), 1 | state);
-    state ^= state + Math.imul(state ^ (state >>> 7), 61 | state);
-    state = (state ^ (state >>> 14)) | 0;
-    return (state >>> 0) / 4294967296;
-  };
-}
+export { type CityLayout, generateCityLayout } from './cityLayout';
+export { seededRandom } from './seededRandom';
 export function settlementSuitability(
   body: CelestialDefinition,
   latitude: number,
@@ -129,92 +125,6 @@ export function generateSettlements(
   return settlements;
 }
 
-export interface CityLayout {
-  buildings: StationBox[];
-  roads: {
-    center: Position3;
-    size: Position3;
-    orientation: readonly [number, number, number, number];
-  }[];
-  districts: { name: string; center: Position3 }[];
-  landmark: Position3;
-}
-/** Small bounded static layout. All buildings are also authoritative station collision boxes. */
-export function generateCityLayout(city: SettlementDefinition): CityLayout {
-  const random = seededRandom(city.seed),
-    buildings: StationBox[] = [],
-    roads: CityLayout['roads'] = [];
-  const half = city.kind === 'capital' ? 9 : city.kind === 'regional' ? 5 : 3;
-  const spacing = city.radius / (half + 1),
-    angle = random() * 0.6 - 0.3;
-  const rotation = [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)] as const;
-  for (let x = -half; x <= half; x++)
-    for (let z = -half; z <= half; z++) {
-      if (
-        Math.hypot(x, z) > half ||
-        x === 0 ||
-        z === 0 ||
-        (city.kind === 'capital' && Math.abs(x) === 1 && Math.abs(z) === 1)
-      )
-        continue;
-      const px = (x * Math.cos(angle) + z * Math.sin(angle)) * spacing;
-      const pz = (z * Math.cos(angle) - x * Math.sin(angle)) * spacing;
-      // Reserved, unobstructed spaceport and final approach corridor.
-      if (Math.abs(px) < 340 && pz > city.radius * 0.32) continue;
-      const central = 1 - Math.hypot(x, z) / (half + 1);
-      const height =
-        city.style === 'towers'
-          ? 25 + central ** 2 * (city.kind === 'capital' ? 460 : 190) * (0.4 + random())
-          : city.style === 'industrial'
-            ? 35 + random() * 100
-            : 16 + random() * 35;
-      const width = spacing * (city.style === 'towers' ? 0.38 : 0.62) * (0.7 + random() * 0.3);
-      buildings.push({
-        center: [px, height / 2, pz],
-        size: [width, height, width * (0.7 + random() * 0.4)],
-        role: 'hull',
-        orientation: rotation,
-      });
-    }
-  buildings.push({
-    center: [city.radius * 0.4, 18, -city.radius * 0.3],
-    size: [56, 36, 56],
-    role: 'arm',
-  });
-  buildings.push({
-    center: [-city.radius * 0.5, 15, city.radius * 0.5],
-    size: [70, 30, 100],
-    role: 'hangar',
-  });
-  const landmarkHeight = city.kind === 'capital' ? 560 : city.kind === 'regional' ? 140 : 42;
-  buildings.push({
-    center: [0, landmarkHeight / 2, 0],
-    size: [city.radius * 0.05, landmarkHeight, city.radius * 0.05],
-    role: 'hull',
-  });
-  for (const offset of [-3, 0, 3].filter((n) => Math.abs(n) < half)) {
-    const d = offset * spacing;
-    roads.push({
-      center: [d * Math.cos(angle), 0.3, -d * Math.sin(angle)],
-      size: [10, 0.5, city.radius * 1.8],
-      orientation: rotation,
-    });
-    roads.push({
-      center: [d * Math.sin(angle), 0.3, d * Math.cos(angle)],
-      size: [city.radius * 1.8, 0.5, 10],
-      orientation: rotation,
-    });
-  }
-  return {
-    buildings,
-    roads,
-    landmark: [0, landmarkHeight, 0],
-    districts: ['Civic', 'Habitat', 'Industry', 'Research', 'Spaceport'].map((name, i) => ({
-      name,
-      center: [Math.sin(i * 1.4) * city.radius * 0.5, 0, Math.cos(i * 1.4) * city.radius * 0.5],
-    })),
-  };
-}
 export function settlementSpaceport(
   body: CelestialDefinition,
   city: SettlementDefinition,
@@ -242,7 +152,7 @@ export function settlementSpaceport(
       orientation: [0, 0, 0, 1],
     })),
     boxes: [
-      ...layout.buildings,
+      ...layout.collisionBoxes,
       { center: [0, 0, city.radius * 0.64], size: [pads * 110, 4, 100], role: 'hangar' },
     ],
     services: ['repair', 'shields', 'weapons'],
