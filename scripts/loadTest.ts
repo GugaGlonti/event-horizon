@@ -95,7 +95,13 @@ try {
             flight: {
               ...neutralInput().flight,
               throttle:
-                scenario === 'low' || scenario === 'land' || scenario === 'descent' ? 0 : 0.5,
+                scenario === 'low' ||
+                scenario === 'land' ||
+                scenario === 'descent' ||
+                scenario === 'city' ||
+                scenario === 'city-pad'
+                  ? 0
+                  : 0.5,
               lift: scenario === 'descent' ? -1 : 0,
               strafe: scenario === 'low' ? 0.08 : 0,
               yaw: scenario === 'descent' ? 0 : Math.sin(seq / 80 + i) * 0.25,

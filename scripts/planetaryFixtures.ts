@@ -12,6 +12,8 @@ export const verificationScenarios = [
   'land',
   'station',
   'hangar',
+  'city',
+  'city-pad',
 ] as const;
 export type VerificationScenario = (typeof verificationScenarios)[number];
 /** Server-side test fixtures only. No client action can call this function. */
@@ -21,7 +23,12 @@ export function placeVerificationPilots(world: MultiplayerWorld, scenario: Verif
     world.system.definition.bodies.find((p) => p.id === world.system.definition.defaultTargetId);
   const zone = body?.landingZones?.[0],
     center = body && world.system.positions.get(body.id),
-    station = world.system.definition.stations?.[0],
+    station =
+      scenario === 'city' || scenario === 'city-pad'
+        ? world.system.definition.stations?.find(
+            (s) => s.type === 'surface' && s.parentId === body?.id,
+          )
+        : world.system.definition.stations?.[0],
     port = station?.ports[0];
   if (!body || !center) return false;
   world.encounter.clear();
@@ -57,13 +64,22 @@ export function placeVerificationPilots(world: MultiplayerWorld, scenario: Verif
     const point = center
       .clone()
       .addScaledVector(direction, body.radius + terrainHeight(body, direction) + altitude);
-    if ((scenario === 'station' || scenario === 'hangar') && station && port) {
+    if (
+      (scenario === 'station' ||
+        scenario === 'hangar' ||
+        scenario === 'city' ||
+        scenario === 'city-pad') &&
+      station &&
+      port
+    ) {
       const pose = portPose(world.system, station, port);
       point
         .copy(
-          scenario === 'station' ? pose.approach : pose.position.clone().add(new Vector3(0, 0, 20)),
+          scenario === 'station' || scenario === 'city'
+            ? pose.approach
+            : pose.position.clone().add(new Vector3(0, 0, 20).applyQuaternion(pose.orientation)),
         )
-        .add(new Vector3(i * 60, 0, 0));
+        .add(new Vector3(i * 70, 0, 0).applyQuaternion(pose.orientation));
       orientation.copy(pose.orientation);
     }
     ship.controller.relocate(point, orientation);
@@ -76,7 +92,7 @@ export function placeVerificationPilots(world: MultiplayerWorld, scenario: Verif
     ship.sync();
     ship.previous.copy(point);
     ship.previousOrientation.copy(orientation);
-    if (scenario === 'hangar' && station && port) {
+    if ((scenario === 'hangar' || scenario === 'city-pad') && station && port) {
       world.simulation.stations?.request(pilot.id, station.id, port.id);
       world.simulation.stations?.step(1 / 120);
     }

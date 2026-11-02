@@ -6,7 +6,7 @@ import { placeVerificationPilots, verificationScenarios } from './planetaryFixtu
 
 const game = await createGameServer({ ...serverConfig({}), host: '127.0.0.1' });
 console.info(
-  `QA authority: ws://127.0.0.1:${game.port}. Commands: status, deep, orbit, entry, descent, low, land, station, hangar, damage, exit.`,
+  `QA authority: ws://127.0.0.1:${game.port}. Commands: status, deep, orbit, entry, descent, low, land, station, hangar, city, city-pad, damage, exit.`,
 );
 const input = createInterface({ input: process.stdin, output: process.stdout });
 input.on('line', (line) => {
