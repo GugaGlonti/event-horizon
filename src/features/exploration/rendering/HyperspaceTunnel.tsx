@@ -15,6 +15,10 @@ import {
   type TunnelLightSample,
 } from '@/features/exploration/hyperspaceLighting';
 import {
+  sampleTunnelMotion,
+  type TunnelMotionSample,
+} from '@/features/exploration/hyperspaceTunnelMotion';
+import {
   jumpExposure,
   jumpStretch,
   jumpTurbulence,
@@ -28,8 +32,8 @@ const vertex = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, uMaskDepth, 1.0); }
 `;
 const fragment = /* glsl */ `
-  uniform float uTime, uOpacity, uExposure;
-  uniform vec2 uLens, uDrift, uLightDirection, uPulse;
+  uniform float uFlowTime, uOpacity, uExposure;
+  uniform vec2 uLens, uDrift, uLightDirection, uPulse, uSpin;
   varying vec2 vUv;
   float hash(vec3 p) {
     p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
@@ -47,6 +51,7 @@ const fragment = /* glsl */ `
     vec2 ray = (vUv * 2.0 - 1.0 + uDrift) * uLens;
     float radius = max(length(ray), 0.025);
     vec2 radial = ray / radius;
+    vec2 turning = mat2(uSpin.x, uSpin.y, -uSpin.y, uSpin.x) * radial;
     vec3 color = vec3(0.002, 0.006, 0.025);
     float keyPool = pow(max(0.0, dot(radial, normalize(uLightDirection))), 3.0);
     float fillPool = pow(max(0.0, dot(radial, -normalize(uLightDirection))), 2.0);
@@ -54,9 +59,10 @@ const fragment = /* glsl */ `
     for (int layer = 0; layer < 3; layer++) {
       float shell = 10.0 - float(layer) * 3.5;
       float depth = min(240.0, shell / radius);
-      float z = depth - uTime * (22.0 + float(layer) * 9.0);
-      vec2 bend = vec2(sin(depth * 0.09 + 0.6), cos(depth * 0.06)) * vec2(0.5, 0.35);
-      vec3 p = vec3(radial * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
+      // Negative flowTime brings fixed cloud features to smaller depth and larger screen radius.
+      float z = depth - uFlowTime * (22.0 + float(layer) * 9.0);
+      vec2 bend = vec2(sin(z * 0.09 + 0.6), cos(z * 0.06)) * vec2(0.5, 0.35);
+      vec3 p = vec3(turning * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
       float broad = noise(p * 0.65);
       float detail = noise(p * 2.3 + broad * 0.8);
       float fine = noise(p * 7.0 + vec3(detail, broad, detail) * 1.5);
@@ -70,7 +76,7 @@ const fragment = /* glsl */ `
       wall += vec3(0.3, 0.82, 1.0) * filaments * light * 1.6;
       color = mix(color, wall * depthFade, 0.55 + cloud * 0.3);
     }
-    float mist = noise(vec3(ray * 8.0, uTime * 0.45));
+    float mist = noise(vec3(ray * 8.0, uFlowTime * 0.45));
     color += mix(vec3(0.015, 0.05, 0.12), vec3(0.09, 0.28, 0.42), mist) * exp(-radius * 5.0) * 0.65;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
     // The actual clouds crossfade directly with the trails. No intermediate blue/white plate.
@@ -93,10 +99,12 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const back = useMemo(() => new Vector3(), []);
   const aim = useMemo(() => new Object3D(), []);
   const lamps = useMemo<TunnelLightSample>(() => ({ x: 8, y: 2.4, z: 5, pulse: 0, fill: 0 }), []);
+  const motion = useMemo<TunnelMotionSample>(() => ({ flowTime: 0, spinCos: 1, spinSin: 0 }), []);
   const reduced = useReducedMotion();
   const uniforms = useMemo(
     () => ({
-      uTime: { value: 0 },
+      uFlowTime: { value: 0 },
+      uSpin: { value: new Vector2(1, 0) },
       uMaskDepth: { value: -0.477 },
       uOpacity: { value: 0 },
       uExposure: { value: 0 },
@@ -114,11 +122,13 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (!jump.busy) return;
     const time = reduced ? 0 : jump.flightElapsed + (jump.variation % 1000) * 0.1;
     sampleTunnelLights(time, reduced, lamps);
+    sampleTunnelMotion(time, reduced, motion);
     const target = material.current?.uniforms;
     // Match the logarithmic depth of an 80 m foreground boundary.
     if (target?.uMaskDepth)
       target.uMaskDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
-    if (target?.uTime) target.uTime.value = time;
+    if (target?.uFlowTime) target.uFlowTime.value = motion.flowTime;
+    if (target?.uSpin) target.uSpin.value.set(motion.spinCos, motion.spinSin);
     if (target?.uLightDirection) target.uLightDirection.value.set(lamps.x, lamps.y);
     if (target?.uPulse) target.uPulse.value.set(lamps.pulse, lamps.fill);
     if (target?.uDrift)
