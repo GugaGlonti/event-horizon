@@ -15,7 +15,7 @@ export function travelDistance(source: StarSystemDefinition, destination: StarSy
 /** The source remains rendered until commit, including a delayed destination preparation. */
 export function departureWindow(source: StarSystemDefinition, destination: StarSystemDefinition) {
   return (
-    HYPERSPACE_TIMING.CHARGING +
+    HYPERSPACE_TIMING.ALIGNMENT +
     HYPERSPACE_TIMING.ACCELERATING +
     Math.max(
       HYPERSPACE_TIMING.preparationTimeout,
@@ -98,7 +98,7 @@ export function departureObstruction(
   start: Readonly<Vector3>,
   direction: { readonly x: number; readonly y: number; readonly z: number },
   distance: number,
-  seconds = HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING,
+  seconds = HYPERSPACE_TIMING.ALIGNMENT + HYPERSPACE_TIMING.ACCELERATING,
 ) {
   const offset = new Vector3();
   const closest = new Vector3();

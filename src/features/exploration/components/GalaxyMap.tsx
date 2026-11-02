@@ -23,7 +23,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
   const currentSystem = SYSTEMS.find((system) => system.id === current);
   const distance = selected && currentSystem ? travelDistance(currentSystem, selected) : 0;
   const seconds =
-    HYPERSPACE_TIMING.CHARGING +
+    HYPERSPACE_TIMING.ALIGNMENT +
     HYPERSPACE_TIMING.ACCELERATING +
     hyperspaceDuration(distance) +
     HYPERSPACE_TIMING.EXITING;
@@ -244,7 +244,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
           </InstrumentButton>
           <p className="mt-3 min-h-8 text-[11px] leading-relaxed normal-case text-phosphor-dim">
             {unavailable ??
-              'Course available. Engage to align, charge, and jump. Keyboard flight returns on arrival.'}
+              'Course available. Engage to align, accelerate, and jump. Keyboard flight returns on arrival.'}
           </p>
           {error && (
             <p role="alert" className="mt-3 text-xs text-instrument">

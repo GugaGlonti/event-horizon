@@ -1,6 +1,6 @@
 export type JumpPhase =
   | 'IDLE'
-  | 'CHARGING'
+  | 'ALIGNMENT'
   | 'ACCELERATING'
   | 'HYPERSPACE'
   | 'EXITING'
@@ -10,7 +10,7 @@ const BEAM_ANIMATION_SECONDS = 3.4;
 const ENTRY_FLASH_RECOVERY_SECONDS = 0.42;
 
 export const HYPERSPACE_TIMING = Object.freeze({
-  CHARGING: 3.2,
+  ALIGNMENT: 3.2,
   ACCELERATING: BEAM_ANIMATION_SECONDS,
   HYPERSPACE: 3.4,
   EXITING: BEAM_ANIMATION_SECONDS + ENTRY_FLASH_RECOVERY_SECONDS,
@@ -68,7 +68,7 @@ export const EXIT_COAST_DISTANCE =
     ((HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) *
       (1 - HYPERSPACE_EXIT.brakingStart)) /
       HYPERSPACE_MOTION.arrivalExponent);
-const JOURNEY_PHASES = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
+const JOURNEY_PHASES = ['ALIGNMENT', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
 
 /** Keep the physical surge short while stars have time to stretch before ignition. */
 export function entrySurge(progress: number) {
@@ -144,7 +144,7 @@ export class HyperspaceController {
   }
   get journeyDuration() {
     return (
-      HYPERSPACE_TIMING.CHARGING +
+      HYPERSPACE_TIMING.ALIGNMENT +
       HYPERSPACE_TIMING.ACCELERATING +
       this.duration('HYPERSPACE') +
       HYPERSPACE_TIMING.EXITING
@@ -176,7 +176,7 @@ export class HyperspaceController {
     );
   }
   get intensity() {
-    if (this.phase === 'CHARGING') return this.progress * 0.08;
+    if (this.phase === 'ALIGNMENT') return this.progress * 0.08;
     if (this.phase === 'ACCELERATING')
       return 0.08 + smoothRamp(0, 0.85, entrySurge(this.progress)) * 0.92;
     if (this.phase === 'HYPERSPACE') return 1;
@@ -203,7 +203,7 @@ export class HyperspaceController {
           : 'Unknown destination.';
       return false;
     }
-    this.phase = 'CHARGING';
+    this.phase = 'ALIGNMENT';
     this.destinationId = destination;
     this.elapsed = 0;
     this.flightElapsed = 0;
@@ -262,7 +262,7 @@ export class HyperspaceController {
     )
       return;
     const next: Record<Exclude<JumpPhase, 'IDLE'>, JumpPhase> = {
-      CHARGING: 'ACCELERATING',
+      ALIGNMENT: 'ACCELERATING',
       ACCELERATING: 'HYPERSPACE',
       HYPERSPACE: 'EXITING',
       EXITING: 'COOLDOWN',

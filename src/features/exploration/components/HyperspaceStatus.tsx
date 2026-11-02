@@ -45,8 +45,8 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
       <DepartureGuidance session={session} />
       {busy && !jump.suspended && (
         <p role="status" className="sr-only">
-          {jump.phase === 'CHARGING'
-            ? `Aligning for ${destination?.name}. Hyperdrive charging.`
+          {jump.phase === 'ALIGNMENT'
+            ? `Aligning for ${destination?.name}.`
             : jump.phase === 'EXITING'
               ? `Arriving in ${destination?.name}.`
               : jump.phase === 'ACCELERATING'

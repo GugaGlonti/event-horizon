@@ -61,7 +61,7 @@ describe('continuous jump motion', () => {
   it('aligns before ignition, stays continuous at entry, and bounds departure distance', () => {
     const { motion, jump, position, orientation } = setup();
     const start = position.clone();
-    jump.elapsed = HYPERSPACE_TIMING.CHARGING;
+    jump.elapsed = HYPERSPACE_TIMING.ALIGNMENT;
     motion.sample(jump, position, orientation);
     expect(position.equals(start)).toBe(true);
     expect(new Vector3(0, 0, -1).applyQuaternion(orientation).dot(motion.direction)).toBeCloseTo(1);

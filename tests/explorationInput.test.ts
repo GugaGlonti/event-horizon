@@ -69,7 +69,7 @@ describe('exploration input integration', () => {
     session.exploration.syncPose(new Vector3().fromArray(waypoint), new Quaternion());
     expect(session.exploration.jump.phase).toBe('IDLE');
     key('Tab');
-    expect(session.exploration.jump.phase).toBe('CHARGING');
+    expect(session.exploration.jump.phase).toBe('ALIGNMENT');
     expect(useExplorationStore.getState().departure).toBeNull();
   });
 
@@ -202,7 +202,7 @@ describe('exploration input integration', () => {
     const launch = session.position.clone();
     const movingProgress =
       HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.6;
-    advance(HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING * movingProgress);
+    advance(HYPERSPACE_TIMING.ALIGNMENT + HYPERSPACE_TIMING.ACCELERATING * movingProgress);
     const abortPosition = session.position.clone();
     expect(abortPosition.distanceTo(launch)).toBeGreaterThan(100);
     key('Escape');

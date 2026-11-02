@@ -100,7 +100,7 @@ describe('hyperspace visual timing', () => {
   });
 
   it.each<[JumpPhase, JumpPhase]>([
-    ['CHARGING', 'ACCELERATING'],
+    ['ALIGNMENT', 'ACCELERATING'],
     ['ACCELERATING', 'HYPERSPACE'],
     ['HYPERSPACE', 'EXITING'],
     ['EXITING', 'COOLDOWN'],
@@ -214,7 +214,7 @@ describe('hyperspace visual timing', () => {
     let pulses = 0;
     let bright = false;
     for (const phase of [
-      'CHARGING',
+      'ALIGNMENT',
       'ACCELERATING',
       'HYPERSPACE',
       'EXITING',

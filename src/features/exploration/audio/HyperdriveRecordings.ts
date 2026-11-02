@@ -107,7 +107,7 @@ export class HyperdriveRecordings {
   update(jump: HyperspaceController) {
     if (!this.context || !this.spool || !this.transit) return;
     const time = this.context.currentTime;
-    const charging = jump.phase === 'CHARGING';
+    const charging = jump.phase === 'ALIGNMENT';
     const accelerating = jump.phase === 'ACCELERATING';
     const charge = charging ? jump.progress : 1;
     const ignition = accelerating

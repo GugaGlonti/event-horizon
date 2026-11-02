@@ -126,9 +126,9 @@ export class HyperdriveAudio {
     this.recordings.update(jump);
     const synthesized = this.recordings.ready ? 0.18 : 1;
     const charging =
-      jump.phase === 'CHARGING' ||
+      jump.phase === 'ALIGNMENT' ||
       (jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart);
-    const chargeProgress = jump.phase === 'CHARGING' ? jump.progress : 1;
+    const chargeProgress = jump.phase === 'ALIGNMENT' ? jump.progress : 1;
     const exiting = jump.phase === 'EXITING';
     const release = exiting
       ? 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, jump.progress)

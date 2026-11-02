@@ -252,7 +252,7 @@ describe('exploration transactions', () => {
     session.suspend();
     tick(session, 100);
     expect(session.jump.elapsed).toBe(elapsed);
-    expect(session.jump.phase).toBe('CHARGING');
+    expect(session.jump.phase).toBe('ALIGNMENT');
     session.resumeJourney();
     tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('vesper');
@@ -270,7 +270,7 @@ describe('exploration transactions', () => {
     await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
     tick(
       session,
-      HYPERSPACE_TIMING.CHARGING +
+      HYPERSPACE_TIMING.ALIGNMENT +
         HYPERSPACE_TIMING.ACCELERATING +
         session.jump.duration('HYPERSPACE') +
         0.1,
@@ -321,7 +321,7 @@ describe('network-approved journey preparation', () => {
     await Promise.resolve();
     expect(session.isSuspended).toBe(true);
     tick(session, 8);
-    expect(session.jump.phase).toBe('CHARGING');
+    expect(session.jump.phase).toBe('ALIGNMENT');
     expect(session.jump.elapsed).toBe(0);
     session.resumeJourney();
     await vi.waitFor(() => expect(session.jump.prepared).toBe(true));

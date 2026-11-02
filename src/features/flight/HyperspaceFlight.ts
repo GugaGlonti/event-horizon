@@ -60,7 +60,7 @@ export class HyperspaceFlight {
   sample(jump: HyperspaceController, position: Vector3, orientation: Quaternion, reduced = false) {
     const p = jump.progress;
     orientation.copy(this.alignedOrientation);
-    if (jump.phase === 'CHARGING') {
+    if (jump.phase === 'ALIGNMENT') {
       position.copy(this.departure);
       orientation.slerpQuaternions(
         this.initialOrientation,

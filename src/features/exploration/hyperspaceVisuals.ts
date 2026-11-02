@@ -116,14 +116,14 @@ function turbulencePulse(time: number, seed: number) {
 
 /** Bounded, occasional hiccups. Never feeds back into flight physics. */
 export function jumpTurbulence(jump: HyperspaceController, channel = 0) {
-  if (!jump.busy || jump.phase === 'CHARGING') return 0;
+  if (!jump.busy || jump.phase === 'ALIGNMENT') return 0;
   const envelope =
     jump.phase === 'ACCELERATING'
       ? smoothRamp(HYPERSPACE_ENTRY.ignitionStart, 1, jump.progress)
       : jump.phase === 'EXITING'
         ? 1 - smoothRamp(0, HYPERSPACE_EXIT.revealStart, jump.progress)
         : 1;
-  const time = Math.max(jump.flightElapsed, jump.journeyElapsed) - HYPERSPACE_TIMING.CHARGING;
+  const time = Math.max(jump.flightElapsed, jump.journeyElapsed) - HYPERSPACE_TIMING.ALIGNMENT;
   const pulse = turbulencePulse(time, jump.variation);
   const seed = jump.variation + channel * 104729;
   return (

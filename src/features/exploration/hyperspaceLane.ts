@@ -30,7 +30,7 @@ export function projectHyperspaceLane(
   });
 }
 
-/** Distance progress, independent of charge time, entry animation and arrival readiness waits. */
+/** Distance progress, independent of alignment time, entry animation and arrival readiness waits. */
 export function hyperspaceLaneProgress(traveled: number, distance: number) {
   if (!Number.isFinite(traveled) || !Number.isFinite(distance) || distance <= 0) return 0;
   return Math.max(0, Math.min(1, traveled / distance));

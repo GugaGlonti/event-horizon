@@ -193,8 +193,8 @@ describe('recorded hyperdrive layers', () => {
     recordings.start(context, context.destination);
     await vi.waitFor(() => expect(recordings.ready).toBe(true));
     const jump = new HyperspaceController();
-    jump.phase = 'CHARGING';
-    jump.elapsed = HYPERSPACE_TIMING.CHARGING;
+    jump.phase = 'ALIGNMENT';
+    jump.elapsed = HYPERSPACE_TIMING.ALIGNMENT;
     recordings.update(jump);
     const chargeRate = stub.sources[0]?.playbackRate.setTargetAtTime.mock.lastCall?.[0];
     jump.phase = 'ACCELERATING';

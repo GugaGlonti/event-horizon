@@ -37,7 +37,7 @@ describe('hyperspace state machine', () => {
     const jump = new HyperspaceController();
     jump.request('solara', 'vesper', ['solara', 'vesper'], 150);
     jump.prepared = true;
-    advance(jump, HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING + 13);
+    advance(jump, HYPERSPACE_TIMING.ALIGNMENT + HYPERSPACE_TIMING.ACCELERATING + 13);
     expect(jump.phase).toBe('HYPERSPACE');
     expect(jump.waiting).toBe(false);
     advance(jump, 10);
@@ -62,7 +62,7 @@ describe('hyperspace state machine', () => {
     const jump = new HyperspaceController();
     expect(jump.request('solara', 'vesper', ['solara', 'vesper'])).toBe(true);
     expect(jump.request('solara', 'vesper', ['solara', 'vesper'])).toBe(false);
-    advance(jump, HYPERSPACE_TIMING.CHARGING);
+    advance(jump, HYPERSPACE_TIMING.ALIGNMENT);
     expect(jump.phase).toBe('ACCELERATING');
     advance(jump, HYPERSPACE_TIMING.ACCELERATING);
     expect(jump.phase).toBe('HYPERSPACE');
@@ -93,7 +93,7 @@ describe('hyperspace state machine', () => {
     expect(jump.error).toBe('Unavailable destination.');
   });
 
-  it.each(['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING', 'COOLDOWN'] as JumpPhase[])(
+  it.each(['ALIGNMENT', 'ACCELERATING', 'HYPERSPACE', 'EXITING', 'COOLDOWN'] as JumpPhase[])(
     'cancels cleanly during %s',
     (phase) => {
       const jump = new HyperspaceController();
@@ -110,7 +110,7 @@ describe('hyperspace state machine', () => {
     const jump = new HyperspaceController();
     jump.request('solara', 'vesper', ['solara', 'vesper']);
     jump.advance(3600);
-    expect(jump.phase).toBe('CHARGING');
+    expect(jump.phase).toBe('ALIGNMENT');
     expect(jump.elapsed).toBe(0.1);
     expect(() => jump.advance(Number.NaN)).toThrow();
     expect(() => jump.advance(-1)).toThrow();
@@ -122,7 +122,7 @@ describe('hyperspace state machine', () => {
     jump.prepared = true;
     advance(
       jump,
-      HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING + HYPERSPACE_TIMING.HYPERSPACE,
+      HYPERSPACE_TIMING.ALIGNMENT + HYPERSPACE_TIMING.ACCELERATING + HYPERSPACE_TIMING.HYPERSPACE,
     );
     expect(jump.phase).toBe('EXITING');
     advance(jump, 2);

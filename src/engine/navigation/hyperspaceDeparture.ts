@@ -18,7 +18,7 @@ export function findDepartureWaypoint(
   start: Readonly<Vector3>,
   direction: Readonly<Vector3>,
   distance: number,
-  horizon = HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING,
+  horizon = HYPERSPACE_TIMING.ALIGNMENT + HYPERSPACE_TIMING.ACCELERATING,
 ) {
   const volumes = world.definition.bodies.flatMap((body) => {
     const center = world.positions.get(body.id);

@@ -32,8 +32,8 @@ export function HyperspaceLaneMap({ onAbort }: { onAbort: () => void }) {
     ? jump.suspended
       ? 'FLIGHT ON HOLD'
       : 'AWAITING CLEARANCE'
-    : jump.phase === 'CHARGING'
-      ? 'ALIGNING'
+    : jump.phase === 'ALIGNMENT'
+      ? 'ALIGNMENT'
       : jump.phase === 'ACCELERATING'
         ? 'ENTERING LANE'
         : jump.phase === 'EXITING'
