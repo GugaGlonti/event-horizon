@@ -10,6 +10,7 @@ import {
   jumpRattle,
   jumpRecoil,
   jumpStarTravel,
+  jumpStarVisibility,
   jumpStretch,
   jumpTurbulence,
 } from '@/features/exploration/hyperspaceVisuals';
@@ -46,6 +47,7 @@ describe('hyperspace visual timing', () => {
       jumpRecoil(jump),
       jumpRattle(jump),
       jumpStarTravel(jump),
+      jumpStarVisibility(jump),
       jumpExposure(jump),
       jump.coverage,
       jump.intensity,
@@ -59,6 +61,7 @@ describe('hyperspace visual timing', () => {
       jumpRecoil(jump),
       jumpRattle(jump),
       jumpStarTravel(jump),
+      jumpStarVisibility(jump),
       jumpExposure(jump),
       jump.coverage,
       jump.intensity,
@@ -90,19 +93,46 @@ describe('hyperspace visual timing', () => {
     expect(jumpStarTravel(jump)).toBeGreaterThan(earlier);
   });
 
-  it('dissolves the streaks in one bounded exposure crest and settles the exit sweep', () => {
+  it('crossfades directly into clouds without exposing a separate wash before the tunnel', () => {
     const jump = new HyperspaceController();
     jump.phase = 'ACCELERATING';
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.6;
-    expect(jumpExposure(jump)).toBe(0);
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.87;
-    expect(jumpExposure(jump)).toBeCloseTo(1);
-    jump.phase = 'HYPERSPACE';
-    expect(jumpExposure(jump)).toBe(0);
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
+      if (jump.coverage === 0) {
+        expect(jumpExposure(jump)).toBe(0);
+        expect(jumpStarVisibility(jump)).toBe(1);
+      }
+      expect(jumpExposure(jump)).toBeGreaterThanOrEqual(0);
+      expect(jumpExposure(jump)).toBeLessThanOrEqual(0.35);
+      // The cloud mask and optical trails never both disappear during their handoff.
+      expect(jump.coverage + jumpStarVisibility(jump)).toBeGreaterThanOrEqual(1);
+    }
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.9;
+    expect(jumpExposure(jump)).toBeCloseTo(0.35);
+  });
+
+  it('reveals fully glowing exit streaks over the mask before contracting them', () => {
+    const jump = new HyperspaceController();
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.75;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.2;
+    expect(jump.coverage).toBe(1);
+    expect(jumpStarVisibility(jump)).toBeGreaterThan(0.7);
+    expect(jumpStretch(jump)).toBe(1);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.3;
+    expect(jumpStarVisibility(jump)).toBe(1);
+    expect(jumpStarTravel(jump)).toBeLessThan(0.3);
+    let visibleHold = 0;
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.EXITING * frame) / 120;
+      if (jumpStretch(jump) === 1 && jumpStarVisibility(jump) >= 0.8)
+        visibleHold += HYPERSPACE_TIMING.EXITING / 120;
+      expect(jump.coverage + jumpStarVisibility(jump)).toBeGreaterThanOrEqual(1);
+    }
+    expect(visibleHold).toBeGreaterThan(0.55);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.95;
     expect(jumpStarTravel(jump)).toBe(0);
     expect(jumpStretch(jump)).toBe(0);
+    expect(jumpExposure(jump)).toBe(0);
   });
 
   it('varies bounded turbulence between journeys, stays smooth and settles before arrival', () => {

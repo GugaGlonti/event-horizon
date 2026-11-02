@@ -22,7 +22,7 @@ const vertex = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, uMaskDepth, 1.0); }
 `;
 const fragment = /* glsl */ `
-  uniform float uTime, uOpacity, uExposure, uStarlight;
+  uniform float uTime, uOpacity, uExposure;
   uniform vec2 uLens, uDrift;
   varying vec2 vUv;
   float hash(vec3 p) {
@@ -61,9 +61,9 @@ const fragment = /* glsl */ `
     float mist = noise(vec3(ray * 8.0, uTime * 0.45));
     color += mix(vec3(0.03, 0.08, 0.2), vec3(0.2, 0.32, 0.5), mist) * exp(-radius * 5.0) * 0.55;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
-    color = mix(vec3(0.025, 0.10, 0.24), color, smoothstep(0.0, 0.85, uOpacity));
-    color = mix(color, vec3(0.82, 0.93, 1.0), uExposure * 0.72);
-    gl_FragColor = vec4(color, max(max(uOpacity, uExposure * 0.8), uStarlight * 0.55));
+    // The actual clouds crossfade directly with the trails. No intermediate blue/white plate.
+    color *= 1.0 + uExposure * 0.65;
+    gl_FragColor = vec4(color, uOpacity);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -85,7 +85,6 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uMaskDepth: { value: -0.477 },
       uOpacity: { value: 0 },
       uExposure: { value: 0 },
-      uStarlight: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
       uDrift: { value: new Vector2() },
     }),
@@ -109,7 +108,6 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     const exposure = reduced ? 0 : jumpExposure(jump);
     if (target?.uExposure) target.uExposure.value = exposure;
-    if (target?.uStarlight) target.uStarlight.value = reduced ? 0 : jumpStretch(jump);
     uniforms.uLens.value.set(
       1 / camera.projectionMatrix.elements[0],
       1 / camera.projectionMatrix.elements[5],

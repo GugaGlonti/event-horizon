@@ -12,7 +12,8 @@ export function jumpStretch(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return smoothRamp(0.02, HYPERSPACE_ENTRY.stretchComplete, jump.progress);
   if (jump.phase === 'HYPERSPACE') return 1;
-  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.1, HYPERSPACE_EXIT.settle, jump.progress);
+  // Reveal the same fully lit exposures before contracting them back to ordinary stars.
+  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.5, 0.94, jump.progress);
   return 0;
 }
 
@@ -27,20 +28,20 @@ export function jumpStarTravel(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return smoothRamp(0.02, 0.85, jump.progress) * 0.065 + entrySurge(jump.progress) ** 3 * 0.935;
   if (jump.phase === 'HYPERSPACE') return 1;
-  if (jump.phase === 'EXITING') return 1 - smoothRamp(0.04, HYPERSPACE_EXIT.settle, jump.progress);
+  if (jump.phase === 'EXITING') return 1 - smoothRamp(0, 0.45, jump.progress);
   return 0;
 }
 
-/** One soft exposure crest as the streaks merge into the opaque cloud corridor. */
+/** Optical trails may appear over the opaque mask without exposing an unready destination. */
+export function jumpStarVisibility(jump: HyperspaceController) {
+  if (jump.phase === 'EXITING') return smoothRamp(0, HYPERSPACE_EXIT.revealStart, jump.progress);
+  return 1 - jump.coverage;
+}
+
+/** Light the handoff itself, without a separate white-out ahead of the cloud blend. */
 export function jumpExposure(jump: HyperspaceController) {
-  if (jump.phase === 'EXITING')
-    return (
-      smoothRamp(0.1, HYPERSPACE_EXIT.revealStart, jump.progress) *
-      (1 - smoothRamp(HYPERSPACE_EXIT.revealStart, HYPERSPACE_EXIT.settle, jump.progress)) *
-      0.3
-    );
-  if (jump.phase !== 'ACCELERATING') return 0;
-  return smoothRamp(0.7, 0.87, jump.progress) * (1 - smoothRamp(0.87, 1, jump.progress));
+  if (jump.phase !== 'ACCELERATING' && jump.phase !== 'EXITING') return 0;
+  return 4 * jump.coverage * (1 - jump.coverage) * 0.35;
 }
 
 function impactAge(jump: HyperspaceController) {
