@@ -358,13 +358,13 @@ export function FlightHud({ session }: { session: FlightSession }) {
         the railgun, and 4 the flak scattergun. Hold Space to charge the railgun. A/D strafe, R/V
         move up/down. G selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B
         starts a patrol encounter. Use Shift with W for boost, C for camera, F for assistance, and
-        Escape to pause. M opens the galaxy map; L opens the local system map. T cycles navigation
-        targets; X clears the target. K toggles landing gear. U takes off or undocks. P requests or
-        captures docking; I cancels clearance. O toggles space transit and planetary approach. J
-        assists landing at the selected zone; manual input cancels. V/R use planet-relative
-        descent/lift near landable worlds; release to coast, S to brake or W for normal flight. F
-        controls stabilization, independently of travel-mode speed limits. Maps pause offline
-        flight. Controls are available in the flight briefing.
+        Escape to pause. M opens the galaxy map; L opens the local system map; Y opens the planetary
+        map. T cycles navigation targets; X clears the target. K toggles landing gear. U takes off
+        or undocks. P requests or captures docking; I cancels clearance. O toggles space transit and
+        planetary approach. J assists landing at the selected zone; manual input cancels. V/R use
+        planet-relative descent/lift near landable worlds; release to coast, S to brake or W for
+        normal flight. F controls stabilization, independently of travel-mode speed limits. Maps
+        pause offline flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

@@ -23,7 +23,7 @@ const controls = [
   ['G / H', 'Nearest hostile ahead / clear'],
   ['TAB', 'Cycle hostile while flying'],
   ['C / F', 'Camera / stabilization (independent of speed mode)'],
-  ['M / L', 'Galaxy / local chart'],
+  ['M / L / Y', 'Galaxy / local / planetary chart'],
   ['T / X', 'Cycle / clear contact'],
   ['K / U', 'Landing gear / takeoff or undock'],
   ['P / I', 'Request or capture docking / cancel'],

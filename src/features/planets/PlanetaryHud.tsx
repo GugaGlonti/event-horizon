@@ -33,6 +33,24 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
           <p className="text-instrument">
             {planet.bodyName} / {planet.density > 0.001 ? 'ATMOSPHERE' : 'ORBIT'}
           </p>
+          <InstrumentButton
+            variant="hud"
+            className="mt-2"
+            onClick={() => session.exploration.openMap('planetary')}
+          >
+            Y / Planetary map
+          </InstrumentButton>
+          {planet.restricted && (
+            <p role="alert" className="mt-2 text-instrument">
+              RESTRICTED / {planet.restricted}
+            </p>
+          )}
+          {planet.weather && (
+            <p className="mt-2 text-phosphor-dim">
+              {planet.weather.intensity > 0.15 ? planet.weather.kind.toUpperCase() : 'CLEAR'} / VIS{' '}
+              {formatDistance(planet.weather.visibility)}
+            </p>
+          )}
           <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
             <dt className="text-phosphor-dim">SPEED MODE</dt>
             <dd>

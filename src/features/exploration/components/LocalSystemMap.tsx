@@ -9,6 +9,9 @@ export function formatDistance(metres: number) {
   return metres >= 1000 ? `${(metres / 1000).toFixed(1)} km` : `${Math.round(metres)} m`;
 }
 export function bodyLabel(body: Pick<NavigationContact, 'kind'>) {
+  if (body.kind === 'capital') return 'Capital';
+  if (body.kind === 'city') return 'Regional city';
+  if (body.kind === 'outpost') return 'Outpost';
   if (body.kind === 'station') return 'Station';
   if (body.kind === 'landing-zone') return 'Landing zone';
   if (body.kind === 'surface-poi') return 'Surface landmark';
@@ -27,7 +30,11 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
   const targetId = useExplorationStore((state) => state.navigation.targetId);
   const system = SYSTEMS.find((candidate) => candidate.id === systemId);
   if (!system) return null;
-  const contacts = navigationContacts(system);
+  const contacts = navigationContacts(system).filter(
+    (contact) =>
+      !['capital', 'city', 'outpost', 'surface-poi', 'landing-zone'].includes(contact.kind) &&
+      !system.stations?.some((s) => s.id === contact.id && s.type === 'surface'),
+  );
   const range =
     Math.max(1, ...chart.bodies.map((body) => Math.hypot(body.position[0], body.position[2]))) *
     1.2;
@@ -142,6 +149,13 @@ export function LocalSystemMap({ session }: { session: FlightSession }) {
             </span>
           </div>
         </div>
+        <button
+          type="button"
+          className={`${instrumentButtonClassName} mt-4`}
+          onClick={() => session.exploration.openMap('planetary')}
+        >
+          Y / Open planetary survey
+        </button>
         <p className="mt-4 text-[11px] leading-relaxed normal-case text-phosphor-dim">
           Top-down survey chart · Moon orbits enlarged for legibility. Distances are measured to the
           surface. Select a contact to track it.

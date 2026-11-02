@@ -338,7 +338,7 @@ export class FlightSession {
       return;
     }
     if (
-      ![keys.galaxy, keys.local, keys.nextTarget, keys.clearTarget].some(
+      ![keys.galaxy, keys.local, keys.planetary, keys.nextTarget, keys.clearTarget].some(
         (code) => code === event.code,
       )
     )
@@ -350,8 +350,13 @@ export class FlightSession {
       this.combat.simulation.player.health.destroyed
     )
       return;
-    if (event.code === keys.galaxy || event.code === keys.local) {
-      const view = event.code === keys.galaxy ? 'galaxy' : 'local';
+    if (event.code === keys.galaxy || event.code === keys.local || event.code === keys.planetary) {
+      const view =
+        event.code === keys.galaxy
+          ? 'galaxy'
+          : event.code === keys.planetary
+            ? 'planetary'
+            : 'local';
       if (overlay === view) this.exploration.closeMap();
       else this.exploration.openMap(view);
     } else if (!overlay) {

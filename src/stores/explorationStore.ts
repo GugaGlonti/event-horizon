@@ -4,7 +4,7 @@ import type { NavigationSnapshot } from '@/engine/navigation/NavigationComputer'
 import type { Position3 } from '@/engine/world/worldTypes';
 import type { PlanetMarkerSnapshot } from '@/features/exploration/planetMarkers';
 
-export type MapView = 'local' | 'galaxy';
+export type MapView = 'local' | 'galaxy' | 'planetary';
 
 interface ExplorationState {
   systemId: string;

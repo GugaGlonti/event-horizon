@@ -105,11 +105,11 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
                 left: `${system.chartPosition[0]}%`,
                 top: `${system.chartPosition[1]}%`,
               }}
-              className="absolute grid size-12 -translate-1/2 cursor-pointer place-items-center border border-phosphor/50 bg-console text-phosphor outline-none transition-colors hover:border-phosphor focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus motion-reduce:transition-none aria-pressed:border-instrument aria-pressed:text-instrument"
+              className="absolute grid size-8 tablet:size-10 -translate-1/2 cursor-pointer place-items-center border border-phosphor/50 bg-console text-phosphor outline-none transition-colors hover:border-phosphor focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-focus motion-reduce:transition-none aria-pressed:border-instrument aria-pressed:text-instrument"
             >
               <svg
                 viewBox="0 0 40 40"
-                className="size-9"
+                className="size-6 tablet:size-8"
                 fill="none"
                 stroke="currentColor"
                 aria-hidden="true"
@@ -118,7 +118,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
                 <ellipse cx="20" cy="20" rx="4" ry="10" />
                 <path d="M10 20h20M20 2v5m0 26v5M2 20h5m26 0h5" />
               </svg>
-              <span className="absolute top-full mt-2 whitespace-nowrap font-mono text-[11px] tracking-widest">
+              <span className="absolute top-full mt-1 whitespace-nowrap font-mono text-[9px] tablet:text-[11px] tracking-widest">
                 {system.name}
               </span>
               {current === system.id && (
@@ -144,7 +144,7 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
             >
               <span>{system.name}</span>
               <span className="font-mono text-[11px] tracking-widest text-phosphor-dim">
-                {current === system.id ? 'CURRENT SYSTEM' : 'JUMP AVAILABLE'}
+                {current === system.id ? 'CURRENT' : system.civilization?.replaceAll('_', ' ')}
               </span>
             </button>
           ))}
@@ -176,6 +176,25 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
               <dt className="text-[10px] text-phosphor-dim">MOONS</dt>
               <dd className="mt-2 text-3xl text-instrument">
                 {selected.bodies.filter((body) => body.kind === 'moon').length}
+              </dd>
+            </div>
+            <div className="col-span-2">
+              <dt className="text-[10px] text-phosphor-dim">CIVILIZATION / POINTS OF INTEREST</dt>
+              <dd className="mt-2 text-xs leading-6">
+                {selected.civilization?.replaceAll('_', ' ')} ·{' '}
+                {selected.bodies.flatMap((b) => b.settlements ?? []).length} settlements
+              </dd>
+              <dd className="mt-2 text-xs leading-6 normal-case text-phosphor-dim">
+                {selected.bodies
+                  .flatMap((b) =>
+                    (b.settlements ?? []).filter((c) => c.kind === 'capital').map((c) => c.name),
+                  )
+                  .concat(
+                    (selected.stations ?? [])
+                      .filter((s) => s.type !== 'surface')
+                      .map((s) => s.name),
+                  )
+                  .join(' / ') || 'Uninhabited survey worlds'}
               </dd>
             </div>
             <div className="col-span-2">

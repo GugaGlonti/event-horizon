@@ -53,7 +53,11 @@ export function MapDialog({
               id="map-title"
               className="mt-2 text-2xl font-bold tracking-[0.06em] tablet:text-3xl"
             >
-              {view === 'galaxy' ? 'Galactic survey' : 'System survey'}
+              {view === 'galaxy'
+                ? 'Galactic survey'
+                : view === 'planetary'
+                  ? 'Planetary survey'
+                  : 'System survey'}
             </h2>
           </div>
           <button
@@ -66,7 +70,7 @@ export function MapDialog({
           </button>
         </header>
         <fieldset
-          className="flex min-w-0 shrink-0 gap-2 border-b border-line px-5 py-3 tablet:px-8"
+          className="flex min-w-0 shrink-0 flex-wrap gap-2 border-b border-line px-5 py-3 tablet:px-8"
           aria-label="Map view"
         >
           <button
@@ -84,6 +88,14 @@ export function MapDialog({
             className={instrumentButtonClassName}
           >
             Local system <kbd className="ml-2 opacity-40">L</kbd>
+          </button>
+          <button
+            type="button"
+            aria-pressed={view === 'planetary'}
+            onClick={() => exploration.openMap('planetary')}
+            className={instrumentButtonClassName}
+          >
+            Planet <kbd className="ml-2 opacity-40">Y</kbd>
           </button>
           <p className="my-auto ml-auto hidden font-mono text-[10px] tracking-widest text-phosphor-dim tablet:block">
             FLIGHT ON HOLD / UPLINK ACTIVE
