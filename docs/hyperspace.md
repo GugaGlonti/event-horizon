@@ -78,15 +78,25 @@ about 0.84 seconds. Optical trails cannot release the world mask. The analytical
 exactly 100 m/s. Seeded smooth noise varies camera translation/rotation, cloud drift and reflected
 light between journeys. Impulses are removed before the next camera update and never feed physics.
 
+Three cloud scales now provide broad dark folds, creased wisps and fine luminous filaments on
+far-to-near shells. Blue light pools pulse and drift around the walls; the same explicit clock and
+sample drive a moving spotlight and dim opposite fill on the ship. System light fades with tunnel
+coverage, letting the hull, wings and canopy cast readable moving shadows. A single 512×512 soft
+shadow map covers only the visible player hull/cockpit, with a 32 m light frustum. Its depth material
+uses projected light depth to avoid logarithmic-depth shadow artifacts. The map is retained across
+jumps, freezes on journey holds and has no normal-flight shadow pass; Fiber disposes it on teardown.
+
 Reduced motion suppresses trails, turbulence, recoil, dynamic FOV, exposure, animated clouds and
-moving highlights. No new render targets, particle stream, textures, dependencies or audio assets
-were added. Normal-flight audio ownership and gesture requirements remain unchanged.
+moving highlights, retaining steady blue illumination. No particle stream, asset textures,
+dependencies or audio assets were added. Normal-flight audio ownership and gestures are unchanged.
 
 The visual direction follows the requested modern-film cues: screen-filling white/cyan streaks,
 blue cloud depth and illuminated foreground surfaces. Inspected primary references were the
 [official Solo gallery](https://www.starwars.com/films/solo-a-star-wars-story-gallery) and
 [Rob Bredow's production discussion](https://www.starwars.com/news/rob-bredow-making-solo-book-interview).
 The effect is an original procedural interpretation; film images/footage are not bundled.
+The [requested Andor clip at 0:07](https://www.youtube.com/watch?v=_y92SdOjJ2M&t=7s) was also inspected
+in the browser for cloud detail, blue pulses and directional hull illumination.
 
 ## Browser verification — 2 November 2026
 
@@ -122,8 +132,30 @@ or game-state injection. The two real-space screenshots show the final sharper c
 
 ## Automated and load verification
 
-Final `npm run check` passed lint, **564 tests across 40 files**, TypeScript checking and production
-build, including all nine real-socket integration tests. Coverage includes all ninety directed
+The tunnel-lighting follow-up at `607006a` passed `npm run check`: lint, **566 tests across 41 files**,
+TypeScript checking and production build, including the nine real-socket integration tests. New
+behavior tests cover bounded/smooth light pulses and steady reduced-motion/held-clock samples.
+Chrome completed Solara → Vesper → Aether → Solara in chase and Aether → Solara in cockpit after
+the shadow-depth correction. The 390×600 view retained its hull/HUD without horizontal overflow;
+abort and reset removed the tunnel and restored normal lighting. Console warnings/errors were empty.
+OS reduced-motion rendering and a multiplayer browser jump were not rechecked in this presentation
+iteration; deterministic reduced-motion samples are covered by tests.
+
+A 60-second foreground Chrome sample at 1920×1080 CSS / DPR 1.5 (2880×1620 canvas) on an Apple
+M2 Pro / 32 GiB recorded **10.5 / 17.2 / 21.9 ms p50 / p95 / p99**, 5,368 frames, valid/complete.
+It mixed Vesper → Aether → Solara journeys, normal flight and chart pauses with warm shader paths;
+this is not an isolated tunnel GPU benchmark. No tests/load harness ran during capture. Main-scene
+peaks were 55 draws / 325,114 triangles. Three resets those counters after the shadow pass; the
+bounded extra pass adds one hull draw / 3,512 triangles or fourteen cockpit draws / 240 triangles,
+still within the 180-draw / 350k reference budgets. Shadow color/depth storage adds roughly 2 MiB
+outside the planetary allocation counter. An earlier cold development entry showed roughly 1.7 s
+of visible clock lag during initialization; the cause was not isolated. That observation was not an
+instrumented cold benchmark and is excluded from the warm sample. Results do not guarantee other hardware,
+cold loading, high-detail cities or production builds. Raw capture data and conditions are in the
+[tunnel-lighting measurement record](benchmarks/hyperspace-lighting-2026-11-02.json).
+
+The preceding real-space iteration passed lint, **564 tests across 40 files**, TypeScript checking
+and production build, including all nine real-socket integration tests. Coverage includes all ninety directed
 catalogue routes, distance/progress clocks, receiver lead-ins and holds, future moon/facility
 incursions, camera continuity and nonaccumulation, seeded turbulence, input/focus and cancellation.
 The visual regression tests also check entry overlap, early exit glow, its visible full-stretch hold
@@ -133,7 +165,7 @@ the exact endpoint/velocity handoff, planet angular movement, clear launch beari
 escapes and camera following across 100 km render-origin steps.
 Vite retains its existing large-chunk advisory.
 
-The final code revision `b6ed3b9` was measured on an Apple M2 Pro with 32 GiB RAM and Node
+The preceding code revision `b6ed3b9` was measured on an Apple M2 Pro with 32 GiB RAM and Node
 22.20.0. These three-second Combat join/combat runs used real SDK clients and the server in one
 process on loopback, with no injected latency. QA Chrome tabs were closed; neither browser automation
 nor the test suite ran during measurement. Binary rates exclude WebSocket/TCP headers. Full data,
@@ -152,6 +184,12 @@ sample recorded none. Both runs are retained. These short samples do not establi
 Internet latency, renderer performance or simultaneous-transfer capacity, and do not profile the
 departure-heading search under transfer saturation. Transfer behavior is covered by
 real-socket integration tests; moving-boundary and extended receiver-window regressions are headless.
+
+![Detailed blue tunnel and moving hull light](verification/hyperspace-tunnel-detail.jpg)
+
+![Directional tunnel light and cockpit shadows](verification/hyperspace-tunnel-cockpit.jpg)
+
+![Compact tunnel and journey HUD](verification/hyperspace-tunnel-compact.jpg)
 
 ![Full star stretch before ignition](verification/hyperspace-stretch.jpg)
 

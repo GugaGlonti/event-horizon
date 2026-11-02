@@ -441,8 +441,9 @@ planet shadow. Per-system ambient light and seeded nebula backgrounds vary the m
 
 Each mounted SystemScene owns one shared SphereGeometry, attached to bodies/atmospheres as external
 primitives and explicitly disposed on scene teardown. Fiber owns declarative per-body materials,
-rings, sky, ship exhaust, cockpit, dust, beacons and tunnel buffers. There are no render targets or
-post-processing dependencies. Sky and hyperdrive components reuse geometry and
+rings, sky, ship exhaust, cockpit, dust, beacons and tunnel buffers. One 512×512 tunnel shadow map
+is the only offscreen render target; there are no post-processing dependencies.
+Sky and hyperdrive components reuse geometry and
 uniform references between frames. One persistent 12,000-star galactic catalogue supplies point and
 trail billboards across all systems. Its 48,000 vertices fit 16-bit indices. The normal sky already
 contains every star used by the jump, and the same angular pattern survives the world handoff. Buffers
@@ -491,10 +492,20 @@ the complete batch. Effects freeze with the paused celestial clock; reduced moti
 particles while retaining steady lamps, halos and static plumes. Fiber disposes batch geometry and
 materials; shared hull resources retain their existing library ownership.
 
-The tunnel samples two scales of 3D value noise on three bounded depth shells. A bent centerline,
-irregular wisps and dark cloud channels create forward flow without angular rotation or an atan seam.
-This is a layered analytic effect, with no volume raymarch or extra star streaks. Two camera-relative
-point lights move blue highlights across foreground surfaces; ambient light fills the shadows.
+The tunnel samples three scales of 3D value noise on three bounded, far-to-near depth shells.
+Broad folds, domain-warped wisps and fine luminous filaments create forward flow without an atan
+seam, volume raymarch or extra star streaks. `hyperspaceLighting` samples bounded smooth light pools
+from the journey clock; both the wall shader and foreground lamps consume that same sample.
+One camera-relative spotlight casts soft shadows, with a dim opposite fill and restrained ambient.
+System sun/ambient/sky fill fade with world coverage so the tunnel light retains contrast.
+Only the visible player hull or cockpit casts/receives shadows: one hull draw or fourteen small
+cockpit draws into a 512×512 map, with a 32 m light frustum. The light updates its map only during
+an active, unheld jump; normal flight has no shadow pass. Fiber owns the light and its map, retained
+across journeys and disposed on teardown (roughly 2 MiB color/depth storage).
+FlightWorld owns/disposes one shared custom depth material. `shadowDepth` removes logarithmic-depth
+chunks only from the shadow pass: comparisons require projected light depth even though the world
+camera uses logarithmic depth. Hulls retain their existing shared GLB resource ownership.
+Reduced motion freezes light directions/pulses and cloud motion while retaining steady illumination.
 The original Kestrel canopy has ribs, instrument housings and faint procedural glass highlights.
 It follows the craft's nominal cockpit pose while the camera impulse moves relative to it.
 
@@ -502,7 +513,8 @@ The transparent depth-tested tunnel mask draws after celestial transparency (ord
 nearby opaque ship/cockpit depth at a logarithmic 80 m boundary. Star trails draw next (20): normal
 stars stay celestial, while stretched optical exposures approach that same foreground boundary;
 glass highlights follow (25) and exhaust draws last (30). Fiber owns every declarative geometry,
-material and light. These are ordered scene draws, with no render targets or post-processing.
+material and light. These are ordered scene draws plus the single local shadow map, without
+post-processing.
 
 Fiber 9 copies shader uniform wrappers when applying props. Update per-frame scalar uniforms through
 the mounted ShaderMaterial ref; mutating the original props object's number does not update the GPU.
