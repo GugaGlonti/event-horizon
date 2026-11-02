@@ -112,7 +112,7 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
           </dl>
           <progress
             aria-label="Jump progress"
-            value={jump.elapsedSeconds}
+            value={jump.totalSeconds - jump.remainingSeconds}
             max={jump.totalSeconds || 1}
             className="sr-only"
           />
@@ -120,7 +120,7 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
             <div
               className="h-full origin-left bg-instrument"
               style={{
-                transform: `scaleX(${jump.totalSeconds ? jump.elapsedSeconds / jump.totalSeconds : 0})`,
+                transform: `scaleX(${jump.totalSeconds ? (jump.totalSeconds - jump.remainingSeconds) / jump.totalSeconds : 0})`,
               }}
             />
           </div>

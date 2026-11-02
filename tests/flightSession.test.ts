@@ -1,5 +1,6 @@
 import { PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { HYPERSPACE_ENTRY, HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { FlightCamera } from '@/features/flight/camera/FlightCamera';
 import { GAME_CONFIG } from '@/features/flight/config';
@@ -113,7 +114,7 @@ describe('flight presentation boundaries', () => {
     const rig = new FlightCamera();
     const jump = session.exploration.jump;
     jump.phase = 'ACCELERATING';
-    jump.elapsed = 0.8;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart + 0.06;
     const baseline = session.renderPosition
       .clone()
       .add(new Vector3(...GAME_CONFIG.camera.cockpitOffset));
@@ -128,6 +129,12 @@ describe('flight presentation boundaries', () => {
     jump.phase = 'HYPERSPACE';
     jump.elapsed = 1;
     rig.update(camera, session, 'cockpit', 1 / 120, false);
+    expect(camera.position.distanceTo(baseline)).toBeLessThan(0.05);
+    const drifted = camera.position.clone();
+    jump.elapsed = 1.2;
+    rig.update(camera, session, 'cockpit', 1 / 120, false);
+    expect(camera.position.distanceTo(drifted)).toBeGreaterThan(1e-6);
+    rig.update(camera, session, 'cockpit', 1 / 120, true);
     expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
   });
 

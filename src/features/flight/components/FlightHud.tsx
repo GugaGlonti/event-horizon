@@ -100,7 +100,9 @@ export function FlightHud({ session }: { session: FlightSession }) {
         aria-hidden="true"
         className="absolute inset-x-0 bottom-0 h-40 bg-linear-to-t from-space/15 via-space/5 to-transparent tablet:h-32"
       />
-      <header className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 tablet:inset-x-8 tablet:top-6 tablet:flex-nowrap">
+      <header
+        className={`absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 tablet:inset-x-8 tablet:top-6 tablet:flex-nowrap ${busy ? 'bg-console/85 px-3 py-2' : ''}`}
+      >
         <div className="flex w-full items-center gap-3 tablet:w-auto">
           <div
             aria-hidden="true"
@@ -319,22 +321,16 @@ export function FlightHud({ session }: { session: FlightSession }) {
           </span>
           <span className="hidden text-phosphor-dim min-[1100px]:inline">
             /{' '}
-            {inputMode === 'mouse'
-              ? 'MOUSE LINK'
-              : inputMode === 'keyboard'
-                ? 'KEYBOARD LINK'
-                : 'AWAITING INPUT'}
+            {busy
+              ? 'NAVIGATION LINK'
+              : inputMode === 'mouse'
+                ? 'MOUSE LINK'
+                : inputMode === 'keyboard'
+                  ? 'KEYBOARD LINK'
+                  : 'AWAITING INPUT'}
           </span>
         </p>
-        {busy ? (
-          <InstrumentButton
-            aria-label="Abort jump"
-            onClick={() => session.exploration.cancelJump()}
-            className="pointer-events-auto min-h-7 border-instrument/50 py-1 text-instrument"
-          >
-            ESC / Abort
-          </InstrumentButton>
-        ) : (
+        {!busy && (
           <div className="pointer-events-auto flex gap-2">
             <button
               type="button"

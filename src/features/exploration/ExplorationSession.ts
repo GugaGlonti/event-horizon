@@ -437,7 +437,7 @@ export class ExplorationSession {
         sourceId: this.jump.phase === 'IDLE' ? null : this.sourceId,
         distance: this.jump.distance,
         distanceTraveled: this.jump.distanceTraveled,
-        elapsedSeconds: this.jump.journeyElapsed,
+        elapsedSeconds: this.jump.flightElapsed,
         remainingSeconds:
           this.jump.phase === 'IDLE'
             ? 0

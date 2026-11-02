@@ -8,9 +8,9 @@ export type JumpPhase =
 
 export const HYPERSPACE_TIMING = Object.freeze({
   CHARGING: 3.2,
-  ACCELERATING: 1.3,
+  ACCELERATING: 3.4,
   HYPERSPACE: 3.4,
-  EXITING: 1.15,
+  EXITING: 2.1,
   COOLDOWN: 4,
   preparationTimeout: 12,
   maxFrameTime: 0.1,
@@ -34,12 +34,13 @@ export function hyperspaceDuration(distance: number) {
 }
 
 export const HYPERSPACE_ENTRY = Object.freeze({
-  stretchComplete: 0.48,
+  stretchComplete: 0.36,
   ignitionStart: 0.55,
-  tunnelStart: 0.72,
+  tunnelStart: 0.8,
 });
 
-export const HYPERSPACE_EXIT = Object.freeze({ revealStart: 0.14, revealEnd: 0.23, settle: 0.3 });
+export const HYPERSPACE_EXIT = Object.freeze({ revealStart: 0.3, revealEnd: 0.7, settle: 0.72 });
+const JOURNEY_PHASES = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
 
 /** Keep the physical surge short while stars have time to stretch before ignition. */
 export function entrySurge(progress: number) {
@@ -59,6 +60,7 @@ export class HyperspaceController {
   phase: JumpPhase = 'IDLE';
   destinationId: string | null = null;
   elapsed = 0;
+  flightElapsed = 0;
   prepared = false;
   arrivalReady = false;
   private arrivalWait = 0;
@@ -85,10 +87,9 @@ export class HyperspaceController {
     );
   }
   get journeyElapsed() {
-    const phases = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
     if (this.phase === 'IDLE') return 0;
     let elapsed = 0;
-    for (const phase of phases) {
+    for (const phase of JOURNEY_PHASES) {
       if (this.phase === phase) return elapsed + Math.min(this.elapsed, this.duration(phase));
       elapsed += this.duration(phase);
     }
@@ -141,6 +142,7 @@ export class HyperspaceController {
     this.phase = 'CHARGING';
     this.destinationId = destination;
     this.elapsed = 0;
+    this.flightElapsed = 0;
     this.prepared = false;
     this.arrivalReady = false;
     this.arrivalWait = 0;
@@ -160,6 +162,7 @@ export class HyperspaceController {
   cancel() {
     this.phase = 'IDLE';
     this.elapsed = 0;
+    this.flightElapsed = 0;
     this.destinationId = null;
     this.prepared = false;
     this.arrivalReady = false;
@@ -172,6 +175,7 @@ export class HyperspaceController {
     if (!Number.isFinite(delta) || delta < 0)
       throw new RangeError('Jump delta must be finite and nonnegative.');
     if (this.phase === 'IDLE') return;
+    if (this.busy) this.flightElapsed += Math.min(delta, HYPERSPACE_TIMING.maxFrameTime);
     if (this.phase === 'EXITING' && !this.arrivalReady) {
       this.arrivalWait += Math.min(delta, HYPERSPACE_TIMING.maxFrameTime);
       if (this.arrivalWait >= HYPERSPACE_TIMING.preparationTimeout)

@@ -8,7 +8,11 @@ import {
   Vector2,
   Vector3,
 } from 'three';
-import { jumpExposure, jumpStretch } from '@/features/exploration/hyperspaceVisuals';
+import {
+  jumpExposure,
+  jumpStretch,
+  jumpTurbulence,
+} from '@/features/exploration/hyperspaceVisuals';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -19,7 +23,7 @@ const vertex = /* glsl */ `
 `;
 const fragment = /* glsl */ `
   uniform float uTime, uOpacity, uExposure, uStarlight;
-  uniform vec2 uLens;
+  uniform vec2 uLens, uDrift;
   varying vec2 vUv;
   float hash(vec3 p) {
     p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
@@ -34,7 +38,7 @@ const fragment = /* glsl */ `
           mix(hash(i + vec3(0,1,1)), hash(i + vec3(1,1,1)), f.x), f.y), f.z);
   }
   void main() {
-    vec2 ray = (vUv * 2.0 - 1.0) * uLens;
+    vec2 ray = (vUv * 2.0 - 1.0 + uDrift) * uLens;
     float radius = max(length(ray), 0.025);
     vec2 radial = ray / radius;
     vec3 color = vec3(0.003, 0.009, 0.035);
@@ -50,15 +54,16 @@ const fragment = /* glsl */ `
       float cloud = smoothstep(0.25, 0.83, broad * 0.72 + detail * 0.28);
       float wisps = smoothstep(0.48, 0.82, detail) * (0.3 + cloud * 0.7);
       float depthFade = exp(-depth * 0.008);
-      color += mix(vec3(0.004, 0.012, 0.04), vec3(0.04, 0.14, 0.38), cloud * cloud) * depthFade * 0.55;
-      color += vec3(0.09, 0.28, 0.58) * wisps * wisps * depthFade * 0.3;
+      color += mix(vec3(0.008, 0.016, 0.07), vec3(0.09, 0.25, 0.62), cloud * cloud) * depthFade * 0.7;
+      color += vec3(0.12, 0.4, 0.85) * wisps * wisps * depthFade * 0.65;
+      color += vec3(0.3, 0.65, 1.0) * pow(wisps, 5.0) * depthFade * 0.5;
     }
     float mist = noise(vec3(ray * 8.0, uTime * 0.45));
     color += mix(vec3(0.03, 0.08, 0.2), vec3(0.2, 0.32, 0.5), mist) * exp(-radius * 5.0) * 0.55;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
     color = mix(vec3(0.025, 0.10, 0.24), color, smoothstep(0.0, 0.85, uOpacity));
-    color = mix(color, vec3(0.82, 0.93, 1.0), uExposure);
-    gl_FragColor = vec4(color, max(max(uOpacity, uExposure * 0.8), uStarlight * 0.22));
+    color = mix(color, vec3(0.82, 0.93, 1.0), uExposure * 0.72);
+    gl_FragColor = vec4(color, max(max(uOpacity, uExposure * 0.8), uStarlight * 0.55));
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -74,7 +79,6 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const right = useMemo(() => new Vector3(), []);
   const up = useMemo(() => new Vector3(), []);
   const reduced = useReducedMotion();
-  const clock = useRef(0);
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
@@ -83,20 +87,25 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uExposure: { value: 0 },
       uStarlight: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
+      uDrift: { value: new Vector2() },
     }),
     [],
   );
-  useFrame(({ camera }, delta) => {
+  useFrame(({ camera }) => {
     const jump = session.exploration.jump;
     if (!group.current) return;
     group.current.visible = jump.busy;
-    if (!session.exploration.isSuspended && !reduced)
-      clock.current += Math.min(delta, 0.1) * jump.intensity;
+    const time = reduced ? 0 : jump.flightElapsed + (jump.variation % 1000) * 0.1;
     const target = material.current?.uniforms;
     // Match the logarithmic depth of an 80 m foreground boundary.
     if (target?.uMaskDepth)
       target.uMaskDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
-    if (target?.uTime) target.uTime.value = clock.current;
+    if (target?.uTime) target.uTime.value = time;
+    if (target?.uDrift)
+      target.uDrift.value.set(
+        reduced ? 0 : jumpTurbulence(jump, 0) * 0.035,
+        reduced ? 0 : jumpTurbulence(jump, 1) * 0.035,
+      );
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     const exposure = reduced ? 0 : jumpExposure(jump);
     if (target?.uExposure) target.uExposure.value = exposure;
@@ -109,9 +118,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       light.current.intensity =
         jump.coverage * 1.8 + (reduced ? 0 : jumpStretch(jump) * 0.6) + exposure * 2;
     if (reflection.current) {
-      const wave = reduced
-        ? 0
-        : Math.sin(clock.current * 3.1) * 0.65 + Math.sin(clock.current * 5.7) * 0.35;
+      const wave = reduced ? 0 : jumpTurbulence(jump, 0) * 0.65 + Math.sin(time * 3.1) * 0.35;
       right.set(1, 0, 0).applyQuaternion(camera.quaternion);
       up.set(0, 1, 0).applyQuaternion(camera.quaternion);
       reflection.current.position

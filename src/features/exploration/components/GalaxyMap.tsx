@@ -177,7 +177,9 @@ export function GalaxyMap({ session }: { session: FlightSession }) {
             </div>
             <div>
               <dt className="text-[10px] text-phosphor-dim">ESTIMATED JUMP</dt>
-              <dd className="mt-2 text-instrument">{Math.ceil(seconds)} SEC</dd>
+              <dd className="mt-2 text-instrument">
+                {distance > 0 ? `${Math.ceil(seconds)} SEC` : '—'}
+              </dd>
             </div>
             <div>
               <dt className="text-[10px] text-phosphor-dim">WORLDS</dt>

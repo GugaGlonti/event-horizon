@@ -236,7 +236,7 @@ describe('exploration input integration', () => {
     expect(session.exploration.jump.coverage).toBe(1);
     expect(useFlightStore.getState().phase).toBe('paused');
     session.exploration.markArrivalReady('vesper');
-    for (let frame = 0; frame < 240 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
+    for (let frame = 0; frame < 400 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
       advance(1 / 120);
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(session.controller.speed).toBeCloseTo(100);

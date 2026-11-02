@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { HYPERSPACE_TIMING, HyperspaceController } from '@/engine/navigation/HyperspaceController';
+import {
+  HYPERSPACE_EXIT,
+  HYPERSPACE_TIMING,
+  HyperspaceController,
+} from '@/engine/navigation/HyperspaceController';
 import { HyperdriveRecordings } from '@/features/exploration/audio/HyperdriveRecordings';
 import type { EncodedHyperdrive } from '@/features/exploration/audio/hyperdriveAssets';
 import { HyperdriveAudio } from '@/features/exploration/HyperdriveAudio';
@@ -236,7 +240,7 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = 0;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(7);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.15;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealStart + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(7);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);
@@ -265,7 +269,7 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = 0;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(afterIgnition);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.15;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealStart + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(afterIgnition);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);

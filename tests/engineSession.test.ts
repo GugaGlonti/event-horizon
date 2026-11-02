@@ -137,7 +137,8 @@ describe('engine audio session boundaries', () => {
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
     session.advance(1 / 60);
     expect(update.mock.lastCall?.[2]).toBe(false);
-    for (let frame = 0; frame < 700; frame++) {
+    const frames = Math.ceil((session.exploration.jump.journeyDuration + 0.5) * 60);
+    for (let frame = 0; frame < frames; frame++) {
       session.exploration.markArrivalReady(session.exploration.world.definition.id);
       session.advance(1 / 60);
     }

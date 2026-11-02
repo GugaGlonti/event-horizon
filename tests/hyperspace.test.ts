@@ -43,8 +43,10 @@ describe('hyperspace state machine', () => {
     expect(jump.phase).toBe('EXITING');
     expect(jump.waiting).toBe(true);
     const elapsed = jump.journeyElapsed;
+    const flightElapsed = jump.flightElapsed;
     advance(jump, 1);
     expect(jump.journeyElapsed).toBe(elapsed);
+    expect(jump.flightElapsed).toBeGreaterThan(flightElapsed);
     jump.arrivalReady = true;
     expect(jump.waiting).toBe(false);
   });
@@ -130,13 +132,13 @@ describe('hyperspace state machine', () => {
     expect(jump.error).toMatch(/Arrival rendering timed out/);
   });
 
-  it('holds the first arrival beat opaque, then reveals the prepared scene within a tenth second', () => {
+  it('holds the arrival opaque until deceleration, then gradually reveals the prepared scene', () => {
     const jump = new HyperspaceController();
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.14;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.3;
     expect(jump.coverage).toBe(1);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.23;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.7;
     expect(jump.coverage).toBe(0);
-    expect(HYPERSPACE_TIMING.EXITING * (0.23 - 0.14)).toBeLessThan(0.11);
+    expect(HYPERSPACE_TIMING.EXITING * (0.7 - 0.3)).toBeGreaterThan(0.75);
   });
 });

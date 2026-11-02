@@ -54,6 +54,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
       uStretch: { value: 0 },
       uCoverage: { value: 0 },
       uTravel: { value: 0 },
+      uForegroundDepth: { value: 0 },
       uAtmosphere: { value: 0 },
       uRadius: { value: radius },
       uDirection: { value: new Vector3(0, 0, -1) },
@@ -73,6 +74,8 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
         ? 0
         : Math.min(1, session.planetaryReadout.density * 1.4);
     if (target.uTravel) target.uTravel.value = reduced ? 0 : jumpStarTravel(jump);
+    if (target.uForegroundDepth)
+      target.uForegroundDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
     uniforms.uViewport.value.set(size.width, size.height);
     if (jump.busy) {
       uniforms.uDirection.value.copy(session.journey.direction);
@@ -100,7 +103,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
         depthWrite={false}
         toneMapped={false}
         vertexShader={`
-          uniform float uStretch, uCoverage, uTravel, uRadius;
+          uniform float uStretch, uCoverage, uTravel, uRadius, uForegroundDepth;
           uniform vec3 uDirection;
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed, aSize;
@@ -123,14 +126,16 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
             // Keep the original point footprint fixed; extend only its outward endpoint.
             float outward = (aCorner.x + 1.0) * 0.5;
             float proximity = clamp(uRadius / max(-view.z, uRadius * 0.1), 1.0, 4.0);
-            float width = aSize * (1.0 + uStretch * proximity * 0.4);
+            float width = aSize * (1.0 + uStretch * (0.8 + proximity * 0.45));
             float along = aCorner.x * aSize * 2.0 + outward * trail;
             vec2 offset = (pixelDirection * along + normal * aCorner.y * width * 5.0) * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
-            // Virtual depth varies motion only; normal stars stay behind every celestial body.
-            clip.z = clip.w * mix(0.9999999, 0.998, uCoverage);
+            // Normal stars remain celestial. Stretched exposures become an optical foreground
+            // at the same logarithmic 80 m boundary as the tunnel, behind the hull/cockpit.
+            clip.z = clip.w * mix(0.9999999, uForegroundDepth, smoothstep(0.05, 0.85, uStretch));
             gl_Position = view.z < -1.0 ? clip : vec4(2.0, 2.0, 2.0, 1.0);
-            vCorner = aCorner; vBrightness = 0.3 + pow(aSeed, 2.0) * 0.7;
+            vCorner = aCorner;
+            vBrightness = (0.3 + pow(aSeed, 2.0) * 0.7) * mix(1.0, smoothstep(0.2, 0.7, aSeed), uStretch);
             vAlong = along; vTrailLength = trail; vSize = aSize;
           }
         `}
@@ -141,14 +146,14 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
             float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
             float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(1.0, vTrailLength), vAlong));
             float shape = max(head, tail * uStretch);
-            float core = exp(-vCorner.y * vCorner.y * 55.0);
-            float shoulder = exp(-vCorner.y * vCorner.y * 14.0) * uStretch;
-            float glow = exp(-vCorner.y * vCorner.y * 4.5) * uStretch;
-            vec3 color = vec3(0.9, 0.96, 1.0) * core
-              + vec3(0.12, 0.38, 0.7) * shoulder * 0.35
-              + vec3(0.025, 0.16, 0.45) * glow * 0.28;
-            float fade = (1.0 - smoothstep(0.25, 1.0, uCoverage))*(1.0-uAtmosphere);
-            gl_FragColor = vec4(color, shape * vBrightness * (1.0 + uStretch * 0.45) * fade);
+            float core = exp(-vCorner.y * vCorner.y * mix(55.0, 30.0, uStretch));
+            float shoulder = exp(-vCorner.y * vCorner.y * 10.0) * uStretch;
+            float glow = exp(-vCorner.y * vCorner.y * 3.0) * uStretch;
+            vec3 color = vec3(0.9, 0.96, 1.0) * core * (1.0 + uStretch * 0.2)
+              + vec3(0.26, 0.58, 1.0) * shoulder * 0.3
+              + vec3(0.08, 0.27, 0.7) * glow * 0.08;
+            float fade = (1.0 - smoothstep(0.2, 1.0, uCoverage))*(1.0-uAtmosphere);
+            gl_FragColor = vec4(color, min(1.0, shape * vBrightness * (1.0 + uStretch * 0.9)) * fade);
           }
         `}
       />

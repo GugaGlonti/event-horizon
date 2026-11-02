@@ -73,3 +73,31 @@ export function jumpRattle(jump: HyperspaceController) {
     (Math.sin(age * 71) + Math.sin(age * 137) * 0.45) * envelope * (1 - smoothRamp(0.3, 0.65, age))
   );
 }
+
+function noiseCell(cell: number, seed: number) {
+  let n = Math.imul(cell + seed, 0x45d9f3b);
+  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  return ((n ^ (n >>> 16)) >>> 0) / 2147483647.5 - 1;
+}
+
+function softNoise(time: number, seed: number) {
+  const cell = Math.floor(time);
+  const f = smoothRamp(0, 1, time - cell);
+  return noiseCell(cell, seed) * (1 - f) + noiseCell(cell + 1, seed) * f;
+}
+
+/** Bounded, repeatable per journey, nonperiodic turbulence. Never feeds back into flight physics. */
+export function jumpTurbulence(jump: HyperspaceController, channel = 0) {
+  if (!jump.busy || jump.phase === 'CHARGING') return 0;
+  const envelope =
+    jump.phase === 'ACCELERATING'
+      ? smoothRamp(0.55, 1, jump.progress)
+      : jump.phase === 'EXITING'
+        ? 1 - smoothRamp(0, 0.4, jump.progress)
+        : 1;
+  const time = Math.max(jump.flightElapsed, jump.journeyElapsed) - HYPERSPACE_TIMING.CHARGING;
+  const seed = jump.variation + channel * 104729;
+  return (
+    (softNoise(time * 1.15, seed) * 0.72 + softNoise(time * 3.7, seed + 997) * 0.28) * envelope
+  );
+}

@@ -1,7 +1,12 @@
-import { MathUtils, type PerspectiveCamera, Vector3 } from 'three';
+import { MathUtils, type PerspectiveCamera, Quaternion, Vector3 } from 'three';
 import { smoothRamp } from '@/engine/navigation/HyperspaceController';
 import { traceStation } from '@/engine/stations/stationGeometry';
-import { jumpKick, jumpRattle, jumpRecoil } from '@/features/exploration/hyperspaceVisuals';
+import {
+  jumpKick,
+  jumpRattle,
+  jumpRecoil,
+  jumpTurbulence,
+} from '@/features/exploration/hyperspaceVisuals';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
@@ -18,6 +23,7 @@ export class FlightCamera {
   private readonly up = new Vector3();
   private readonly back = new Vector3();
   private readonly lastImpulse = new Vector3();
+  private readonly lastRotation = new Quaternion();
   private jumping = false;
   private mode: CameraMode | null = null;
   private resetVersion = -1;
@@ -34,6 +40,8 @@ export class FlightCamera {
     if (jump.busy && session.exploration.isSuspended) dt = 0;
     const kick = reducedMotion ? 0 : jumpKick(jump);
     camera.position.sub(this.lastImpulse);
+    camera.quaternion.multiply(this.lastRotation.invert());
+    this.lastRotation.identity();
     this.lastImpulse.set(0, 0, 0);
     camera.position.add(this.previousOrigin).sub(session.origin.position);
     this.previousOrigin.copy(session.origin.position);
@@ -106,6 +114,14 @@ export class FlightCamera {
       this.lastImpulse
         .addScaledVector(this.right, strength)
         .addScaledVector(this.up, strength * 0.55);
+      const x = jumpTurbulence(jump, 0);
+      const y = jumpTurbulence(jump, 1);
+      const roll = jumpTurbulence(jump, 2);
+      const drift = mode === 'cockpit' ? 0.035 : 0.12;
+      this.lastImpulse.addScaledVector(this.right, x * drift).addScaledVector(this.up, y * drift);
+      const angle = mode === 'cockpit' ? 0.001 : 0.0015;
+      this.lastRotation.set(y * angle, x * angle, roll * angle * 0.7, 1).normalize();
+      camera.quaternion.multiply(this.lastRotation);
       camera.position.add(this.lastImpulse);
     }
     if (!reducedMotion && !jump.busy && session.combat.simulation.impact > 0.01) {
