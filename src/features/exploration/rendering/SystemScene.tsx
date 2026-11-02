@@ -9,6 +9,7 @@ import { PlanetGeneration } from '@/features/planets/rendering/PlanetGeneration'
 import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
 import { SurfaceFacilities } from '@/features/planets/rendering/SurfaceFacilities';
 import { SurfaceInfrastructure } from '@/features/planets/rendering/SurfaceInfrastructure';
+import { SurfaceScenery } from '@/features/planets/rendering/SurfaceScenery';
 import { WeatherEffects } from '@/features/planets/rendering/WeatherEffects';
 import { FlightEnvironment } from '@/features/space/components/FlightEnvironment';
 import { SpaceBackdrop } from '@/features/space/components/SpaceBackdrop';
@@ -130,6 +131,11 @@ export function SystemScene({ session }: { session: FlightSession }) {
             session={session}
             generation={generation}
           />
+        ))}
+      {world.definition.bodies
+        .filter((body) => body.id === detailedBodyId)
+        .map((body) => (
+          <SurfaceScenery key={body.id} body={body} session={session} generation={generation} />
         ))}
       <CityScene session={session} />
       <StationScene session={session} />
