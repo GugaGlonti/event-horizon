@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BufferAttribute,
   BufferGeometry,
+  Color,
   type Mesh,
   Quaternion,
   ShaderMaterial,
@@ -46,7 +47,8 @@ const vertexShader = /* glsl */ `
 const fragmentShader = /* glsl */ `
   #include <logdepthbuf_pars_fragment>
   uniform vec3 uLight, uUp;
-  uniform float uDensity;
+  uniform float uDensity, uType, uRelief;
+  uniform vec3 uA,uB,uC;
   varying vec3 vNormal,vPosition;
   varying float vElevation;
   void main(){
@@ -55,13 +57,17 @@ const fragmentShader = /* glsl */ `
     float slope=1.0-max(0.0,dot(normal,uUp));
     float distance=length(cameraPosition-vPosition);
     float grain=sin(vElevation*.31)*sin(dot(normal,vec3(1171.,2813.,1597.)))*.025*(1.-smoothstep(100.,1500.,distance));
-    vec3 plains=mix(vec3(.18,.25,.19),vec3(.34,.30,.23),smoothstep(300.0,850.0,vElevation));
+    vec3 plains=mix(uB,uC,smoothstep(uRelief*.45,uRelief*.85,vElevation));
+    if(uType<1.5 && uType>.5) plains=mix(uA,uB,.3+vElevation/uRelief*.7);
+    if(uType>1.5 && uType<2.5) plains=mix(uB,uC,.4);
+    if(uType>2.5 && uType<3.5) plains=mix(uA,uB,.25);
     vec3 color=mix(plains,vec3(.35,.37,.36),clamp(slope*5.0,0.0,1.0));
-    color=mix(color,vec3(.68,.72,.72),smoothstep(1050.0,1400.0,vElevation));
+    if(uType<.5 || (uType>1.5 && uType<2.5)) color=mix(color,uC,smoothstep(uRelief*.75,uRelief,vElevation));
     float day=max(0.0,dot(normal,uLight));
     float roughness=mix(.85,.5,smoothstep(450.,1100.,vElevation));
     float highlight=pow(max(0.,dot(normal,normalize(uLight+normalize(cameraPosition-vPosition)))),mix(64.,4.,roughness))*.04;
-    color=(color+grain)*(.2+day*1.25)+highlight*day;
+    color=(color+grain)*(.12+day*1.25)+highlight*day;
+    if(uType>2.5 && uType<3.5) color+=uC*(1.-smoothstep(.01,.05,abs(sin(vElevation*.015))))*.65;
     float haze=1.0-exp(-distance*uDensity*.000075);
     vec3 sky=mix(vec3(.025,.04,.08),vec3(.22,.42,.58),max(0.0,dot(uUp,uLight)));
     gl_FragColor=vec4(mix(color,sky,haze*.8),1.0);
@@ -133,12 +139,21 @@ export function PlanetTerrain({
         fragmentShader,
         uniforms: {
           uMorph: { value: 1 },
+          uType: {
+            value: { ocean: 0, desert: 1, ice: 2, volcanic: 3, bands: 4, cratered: 5 }[
+              body.surface.pattern
+            ],
+          },
+          uRelief: { value: body.terrain?.relief ?? 1 },
+          uA: { value: new Color(body.surface.palette[0]) },
+          uB: { value: new Color(body.surface.palette[1]) },
+          uC: { value: new Color(body.surface.palette[2]) },
           uLight: { value: new Vector3(-1, 0, 0) },
           uUp: { value: new Vector3(0, 1, 0) },
           uDensity: { value: 0 },
         },
       }),
-    [],
+    [body],
   );
   const scratch = useMemo(
     () => ({ point: new Vector3(), rotation: new Quaternion(), light: new Vector3() }),

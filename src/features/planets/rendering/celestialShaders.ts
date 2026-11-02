@@ -67,6 +67,12 @@ export const surfaceFragment = /* glsl */ `
         color = mix(uA, uB, smoothstep(0.1, 0.85, bands));
         color = mix(color, uC, smoothstep(0.75, 0.95, bands) * 0.65);
         color *= 0.8 + fbm(p * 18.0 + uSeed) * 0.4;
+        vec3 center=normalize(vec3(sin(uSeed)*.9,.22,cos(uSeed)*.9));
+        vec3 east=normalize(cross(center,vec3(0.,1.,0.)));
+        vec2 storm=vec2(dot(p,east)*.65,p.y-center.y);
+        float vortex=exp(-dot(storm,storm)*220.)*smoothstep(.75,.95,dot(p,center));
+        float swirl=sin(atan(storm.y,storm.x)*3.+length(storm)*95.)*.5+.5;
+        color=mix(color,mix(uA,uC,swirl),vortex*.85);
       } else {
         float craters = smoothstep(0.3, 0.6, noise3(p * 28.0 + uSeed));
         color *= 0.65 + craters * 0.5;

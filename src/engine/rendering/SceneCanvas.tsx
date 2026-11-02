@@ -16,7 +16,7 @@ export function SceneCanvas({ children, onReady, cameraSettings, label }: SceneC
     <Canvas
       camera={cameraSettings ?? { position: INITIAL_CAMERA_POSITION, fov: 42, near: 0.1, far: 200 }}
       onCreated={() => onReady?.()}
-      dpr={[1, 1.75]}
+      dpr={[1, 1.5]}
       gl={{
         logarithmicDepthBuffer: true,
         antialias: true,

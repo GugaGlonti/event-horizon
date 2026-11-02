@@ -1,24 +1,50 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { type DirectionalLight, SphereGeometry, Vector3 } from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
 import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
 import { SurfaceFacilities } from '@/features/planets/rendering/SurfaceFacilities';
+import { WeatherEffects } from '@/features/planets/rendering/WeatherEffects';
 import { FlightEnvironment } from '@/features/space/components/FlightEnvironment';
 import { SpaceBackdrop } from '@/features/space/components/SpaceBackdrop';
 import { StationScene } from '@/features/stations/StationScene';
 
 export function SystemScene({ session }: { session: FlightSession }) {
   const world = session.exploration.world;
-  const terrainReadiness = useMemo(
-    () =>
-      new Map(
-        world.definition.bodies.filter((body) => body.terrain).map((body) => [body.id, false]),
-      ),
-    [world],
-  );
+  const nearestTerrain = () => {
+    const nearest = world.definition.bodies
+      .filter((b) => b.terrain)
+      .map((body) => ({
+        body,
+        distance:
+          (world.positions.get(body.id)?.distanceTo(session.position) ?? Infinity) / body.radius,
+      }))
+      .sort((a, b) => a.distance - b.distance)[0];
+    return nearest && nearest.distance < 2.5 ? nearest.body.id : null;
+  };
+  const [detailedBodyId, setDetailedBodyId] = useState<string | null>(nearestTerrain);
+  useEffect(() => {
+    const update = () => {
+      const nearest = world.definition.bodies
+        .filter((b) => b.terrain)
+        .map((body) => ({
+          body,
+          distance:
+            (world.positions.get(body.id)?.distanceTo(session.position) ?? Infinity) / body.radius,
+        }))
+        .sort((a, b) => a.distance - b.distance)[0];
+      setDetailedBodyId(nearest && nearest.distance < 2.5 ? nearest.body.id : null);
+    };
+    update();
+    const interval = setInterval(update, 200);
+    return () => clearInterval(interval);
+  }, [session, world]);
+  const [readyBodyId, setReadyBodyId] = useState<string | null>(null);
+  useEffect(() => {
+    if (detailedBodyId) setReadyBodyId(null);
+  }, [detailedBodyId]);
   const geometry = useMemo(() => new SphereGeometry(1, 64, 40), []);
   const light = useRef<DirectionalLight>(null);
   const direction = useMemo(() => new Vector3(), []);
@@ -26,7 +52,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
   // Primitive geometry attachments are shared external resources. This component owns disposal.
   useEffect(() => () => geometry.dispose(), [geometry]);
   useFrame(() => {
-    if ([...terrainReadiness.values()].every(Boolean))
+    if (!detailedBodyId || readyBodyId === detailedBodyId)
       session.exploration.markArrivalReady(world.definition.id);
     if (!light.current || !star) return;
     direction
@@ -50,16 +76,17 @@ export function SystemScene({ session }: { session: FlightSession }) {
           world={world}
           origin={session.origin}
           geometry={geometry}
+          surfaceVisible={body.id !== detailedBodyId || readyBodyId !== body.id}
         />
       ))}
       {world.definition.bodies
-        .filter((body) => body.terrain)
+        .filter((body) => body.id === detailedBodyId)
         .map((body) => (
           <PlanetTerrain
             key={body.id}
             body={body}
             session={session}
-            onReady={() => terrainReadiness.set(body.id, true)}
+            onReady={() => setReadyBodyId(body.id)}
           />
         ))}
       {world.definition.bodies
@@ -69,6 +96,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
         ))}
       <StationScene session={session} />
       <AtmosphericSky session={session} />
+      <WeatherEffects session={session} />
       <FlightEnvironment world={world} origin={session.origin} />
     </>
   );

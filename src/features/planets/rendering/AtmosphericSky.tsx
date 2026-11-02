@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import { BackSide, type Mesh, type ShaderMaterial, Vector3 } from 'three';
+import { BackSide, Color, type Mesh, type ShaderMaterial, Vector3 } from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 
@@ -10,6 +10,9 @@ export function AtmosphericSky({ session }: { session: FlightSession }) {
     material = useRef<ShaderMaterial>(null);
   const uniforms = useMemo(
     () => ({
+      uColor: { value: new Color() },
+      uWeather: { value: 0 },
+      uDust: { value: 0 },
       uUp: { value: new Vector3(0, 1, 0) },
       uSun: { value: new Vector3(-1, 0, 0) },
       uDensity: { value: 0 },
@@ -39,6 +42,15 @@ export function AtmosphericSky({ session }: { session: FlightSession }) {
         .copy(world.positions.get(star.id) ?? center)
         .sub(session.position)
         .normalize();
+    uniforms.uColor.value.set(body.atmosphere.color);
+    if (material.current.uniforms.uWeather)
+      material.current.uniforms.uWeather.value = readout.weather?.intensity ?? 0;
+    if (material.current.uniforms.uDust)
+      material.current.uniforms.uDust.value = ['ash', 'dust', 'sandstorm'].includes(
+        readout.weather?.kind ?? '',
+      )
+        ? 1
+        : 0;
     const density = material.current.uniforms.uDensity,
       height = material.current.uniforms.uHeight;
     if (density) density.value = readout.density;
@@ -62,7 +74,7 @@ export function AtmosphericSky({ session }: { session: FlightSession }) {
         depthWrite={false}
         depthTest
         vertexShader={`varying vec3 vDirection;void main(){vDirection=normalize(position);gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_Position.z=gl_Position.w*.9999998;}`}
-        fragmentShader={`uniform vec3 uUp,uSun,uCloudOffset;uniform float uDensity,uHeight,uTime,uEntry;varying vec3 vDirection;
+        fragmentShader={`uniform vec3 uUp,uSun,uCloudOffset,uColor;uniform float uDensity,uHeight,uTime,uEntry,uWeather,uDust;varying vec3 vDirection;
       void main(){vec3 ray=normalize(vDirection);float horizon=pow(1.0-abs(dot(ray,uUp)),5.0);
         float day=smoothstep(-.22,.25,dot(uUp,uSun));float sun=pow(max(0.0,dot(ray,uSun)),32.0);
         vec3 color=mix(vec3(.008,.015,.04),mix(vec3(.035,.13,.31),vec3(.35,.55,.72),horizon),day);
@@ -72,6 +84,8 @@ export function AtmosphericSky({ session }: { session: FlightSession }) {
         float layer=smoothstep(.01,.08,uHeight)*(1.-smoothstep(.65,.9,uHeight));
         float wisps=smoothstep(.35,.85,bands)*layer*(.4+horizon*.6);
         color=mix(color, mix(vec3(.06,.075,.1),vec3(.65,.7,.72),day),wisps*.24);
+        color=mix(color,uColor*(.08+day*.48),.22);
+        color=mix(color,mix(vec3(.28,.32,.36),vec3(.35,.23,.12),uDust)*(.15+day*.85),uWeather*(.3+horizon*.5));
         color+=vec3(.18,.075,.025)*uEntry*horizon*day;
         float alpha=(1.0-smoothstep(.65,1.0,uHeight))*clamp(.3+uDensity*.7+horizon*.35,0.0,1.0);
         gl_FragColor=vec4(color,alpha);
