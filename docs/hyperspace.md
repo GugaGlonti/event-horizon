@@ -100,6 +100,12 @@ shadow map covers only the visible player hull/cockpit, with a 32 m light frustu
 uses projected light depth to avoid logarithmic-depth shadow artifacts. The map is retained across
 jumps, freezes on journey holds and has no normal-flight shadow pass; Fiber disposes it on teardown.
 
+Cloud features now travel from the vanishing point toward the camera, expanding outward instead of
+receding into the center. The texture scroll clock is negative; bends move with the sampled cloud
+field. Wall coordinates turn clockwise at 0.2 rad/s (about 11.5°/s), with a single CPU-computed
+sine/cosine pair reused by the shader. The camera retains its occasional hiccups. Reduced motion
+freezes both cloud travel and spin, and neither has an independent animation clock.
+
 Reduced motion suppresses trails, turbulence, recoil, dynamic FOV, exposure, animated clouds and
 moving highlights, retaining steady blue illumination. No particle stream, asset textures,
 dependencies or audio assets were added. Normal-flight audio ownership and gestures are unchanged.
@@ -145,6 +151,18 @@ before the exponent-only follow-up. All travel used ordinary UI controls, withou
 or game-state injection. The two real-space screenshots show the final sharper cockpit approach.
 
 ## Automated and load verification
+
+The forward-flow/swirl follow-up at `1b85b53` passed `npm run check`: lint, **574 tests across 43
+files**, TypeScript checking and production build, including the nine real-socket integrations.
+New tests cover outward feature projection on all three shells, continuous spin across angle wraps,
+held clocks and reduced-motion suppression.
+
+Chrome completed Solara → Vesper → Aether → Solara in chase/cockpit views, at 1920×1080 and
+390×600 CSS. Successive chase frames were inspected for outward travel and clockwise rotation.
+The compact view had no horizontal overflow; map keyboard focus, abort/reset and an empty
+warning/error console were checked. Browser suspension and the OS reduced-motion preference were
+not rechecked; their motion samples are covered by tests. No new GPU benchmark or multiplayer
+browser measurement was made; earlier measurements retain their stated revisions and limits.
 
 The live lane-map follow-up at `4586e8f` passed `npm run check`: lint, **571 tests across 42 files**, TypeScript
 checking and production build, including the nine real-socket integrations. New pure tests cover
@@ -221,6 +239,8 @@ sample recorded none. Both runs are retained. These short samples do not establi
 Internet latency, renderer performance or simultaneous-transfer capacity, and do not profile the
 departure-heading search under transfer saturation. Transfer behavior is covered by
 real-socket integration tests; moving-boundary and extended receiver-window regressions are headless.
+
+![Clouds flowing toward the ship with a clockwise swirl](verification/hyperspace-tunnel-forward.jpg)
 
 ![Live hyperspace lane map in cockpit view](verification/hyperspace-lane-map.jpg)
 

@@ -503,7 +503,12 @@ materials; shared hull resources retain their existing library ownership.
 
 The tunnel samples three scales of 3D value noise on three bounded, far-to-near depth shells.
 Broad folds, domain-warped wisps and fine luminous filaments create forward flow without an atan
-seam, volume raymarch or extra star streaks. `hyperspaceLighting` samples bounded smooth light pools
+seam, volume raymarch or extra star streaks. `hyperspaceTunnelMotion` supplies a negative texture
+clock so fixed cloud features approach the camera and expand outward. Bends advect with the clouds.
+One reused sine/cosine pair rotates wall sampling at 0.2 rad/s; trigonometry is evaluated once per
+frame on the CPU. The held journey clock freezes both effects, and reduced motion supplies a static
+sample. Camera movement retains the separate occasional-hiccup envelope.
+`hyperspaceLighting` samples bounded smooth light pools
 from the journey clock; both the wall shader and foreground lamps consume that same sample.
 One camera-relative spotlight casts soft shadows, with a dim opposite fill and restrained ambient.
 System sun/ambient/sky fill fade with world coverage so the tunnel light retains contrast.

@@ -376,8 +376,10 @@ near the destination planet, so bodies grow and sweep past as the ship slows.
 
 The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
 visible for about 1.5 seconds before tunnel coverage begins. Trails blend directly into layered blue
-clouds with dark folds, fine luminous wisps and pulsing blue light pools. A moving blue light casts
-soft shadows across the player hull and cockpit, synchronized with the bright tunnel walls.
+clouds with dark folds, fine luminous wisps and pulsing blue light pools. Clouds rush outward from
+the vanishing point toward the ship, with a clockwise wall swirl of about 11 degrees per second.
+A moving blue light casts soft shadows across the player hull and cockpit, synchronized with the
+bright tunnel walls.
 Exit reveals the same glowing streaks before contracting them, while the destination appears
 over roughly 0.84 seconds.
 Short, occasional camera/tunnel hiccups interrupt otherwise steady cruise, with seeded timing and
@@ -482,7 +484,7 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The [hyperspace iteration](docs/hyperspace.md) records the current 571-test run, browser journey,
+The [hyperspace iteration](docs/hyperspace.md) records the current 574-test run, browser journey,
 launch-guidance and tunnel-lighting checks, a 60-second renderer sample, and earlier short
 2/8/16-client measurements with explicit verification limits.
 
