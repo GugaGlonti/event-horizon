@@ -1,0 +1,57 @@
+{
+  "date": "2026-11-02",
+  "revision": "ac131f9 (crossing flashes, before the exit-beam duration extension)",
+  "hardware": {
+    "cpu": "Apple M2 Pro",
+    "memoryGiB": 32
+  },
+  "renderer": {
+    "browser": "Chrome",
+    "viewportCss": {
+      "width": 1920,
+      "height": 1080
+    },
+    "dpr": 1,
+    "conditions": "Warm development foreground capture: one complete Solara to Vesper chase jump, normal flight, chart and menu pauses. Screenshot sampling ran during the jump. The test suite and load harness were stopped.",
+    "limitations": "Mixed rendering with substantial chart/menu time, not an isolated flash or tunnel GPU profile. The DPR 1.5 reference workload, cold initialization, cities, other hardware, audio and OS reduced-motion preferences were not manually profiled. No performance improvement is claimed.",
+    "result": {
+      "seconds": 60,
+      "frames": 7140,
+      "p50": 8.3,
+      "p95": 9.3,
+      "p99": 11.9,
+      "valid": true,
+      "complete": true,
+      "peaks": {
+        "calls": 104,
+        "triangles": 99696,
+        "visualbytes": 4378877.333333334,
+        "scenery": 0,
+        "cells": 0,
+        "blocks": 0
+      },
+      "calls": 67,
+      "triangles": 104450,
+      "geometries": 89,
+      "textures": 11,
+      "patches": 36,
+      "cache": 46,
+      "workerms": 1.2999999523162842,
+      "width": 1920,
+      "height": 1080
+    },
+    "captureStage": "Cloud-only tunnel with beam visibility changes hidden under the two white flashes, before the later exit-beam duration extension."
+  },
+  "verification": {
+    "command": "npm run check",
+    "tests": 582,
+    "files": 43,
+    "browserJourneys": [
+      "Solara to Vesper: 1920x1080 chase",
+      "Vesper to Aether: 1920x1080 cockpit",
+      "Aether to Solara: 390x600 cockpit"
+    ],
+    "consoleWarningsAndErrors": 0,
+    "compactHorizontalOverflow": false
+  }
+}

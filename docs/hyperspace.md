@@ -2,9 +2,10 @@
 
 Galactic coordinates are light years. Heading and distance come from the same catalogue positions;
 local flight and collision coordinates remain metres. Transit lasts `3.4 + distance × 0.12` seconds.
-Charge, entry stretch and exit add 3.2, 3.4 and 2.1 seconds respectively. Cooldown is another four
-seconds after keyboard flight returns. For example, Solara → Vesper is 48.5 LY and about 17.9 seconds
-before control returns; Solara → Aether is 63.0 LY and about 19.7 seconds. Preparation/readiness holds
+Charge, entry stretch and exit add 3.2, 3.4 and 4.114 seconds respectively. Exit includes its existing
+0.714-second flash followed by 3.4 seconds of star-beam animation, matching entry. Cooldown is another
+four seconds after keyboard flight returns. For example, Solara → Vesper is 48.5 LY and about 19.9
+seconds before control returns; Solara → Aether is 63.0 LY and about 21.7 seconds. Preparation/readiness holds
 can extend those estimates.
 
 The live lane map stays visible through charge, stretch, transit and exit. It replaces the telemetry
@@ -68,9 +69,9 @@ guidance and a bounded screen bearing remain available on larger viewports.
 
 Real-space motion uses the game's compressed world scale. Departure covers 1,800 km with a
 small quadratic lead-in plus eighth-power ease-in: forward creep during the stretch, then a steep
-late burst. Arrival retains 800 km/s through the world reveal, then brakes over the final 1.218
+late burst. Arrival retains 800 km/s through the world reveal, then brakes over the final 3.232
 seconds with a ninth-power velocity falloff. Both offline and online journeys use a near-planet endpoint with the derived
-803 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
+964 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
 view from actual ship translation. The physics integrator never receives cinematic speeds. The
 requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
 browser; film footage is not bundled.
@@ -82,13 +83,17 @@ clear space. Over 60% of the departure distance is covered before the cloud blen
 Stretched exposures share the tunnel's logarithmic 80 m optical boundary;
 ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retain foreground depth.
 
-Trails blend directly into three irregular cloud shells. Clouds engulf the center on entry and open
-from the center on exit, with a restrained luminous crossing front. Exact zero/full alpha endpoints
-preserve the world handoff; there is no separate pale blue/white overlay. Exit brings fully glowing
-trails up over the opaque mask during its first 14%, holds full extension until 42%, then contracts
-quadratically through 90%. Star head positions reset while invisible beneath the tunnel and remain
-anchored on arrival; their departure sweep is not reversed. Exit stays opaque through 24%, then
-reveals the destination over 24–42%: about 0.38 seconds. At 42%, heavy braking, trail contraction,
+Entry widens and brightens the star beams into a brief white flash; exit blooms the tunnel light
+into the corresponding flash before revealing stretched stars. A small
+screen-space scatter quad fills their gaps and overexposes the foreground at the peak. It is driven
+by the same beam envelope, with no extra gameplay state or clock. Clouds engulf the center on entry
+and open from the center on exit. The independent depth-tested mask preserves exact zero/full alpha
+endpoints and the destination readiness gate. Star beams vanish under the fully white entry peak;
+the three cloud shells remain beam-free throughout transit. Exit brings star beams back beneath its
+white peak, holds full extension until 0.882 seconds, then contracts quadratically until 4.114 seconds.
+Star head positions reset invisibly under the opaque tunnel and remain anchored afterward; their
+departure sweep is not visibly reversed. Exit stays opaque through 0.504 seconds, then
+reveals the destination over 0.504–0.882 seconds: about 0.38 seconds. At 0.882 seconds, heavy braking, trail contraction,
 engine release and the camera/audio impulse begin together. Lens widening holds through the reveal
 before settling; chase-camera spacing also follows the braking beat. The departure impulse begins
 with the late visible surge and carries its short decay across tunnel entry. Optical trails cannot release the world mask. The analytical coast still ends at
@@ -127,6 +132,33 @@ blends toward the 100 m/s cruise contribution during braking. Both cameras prese
 system commit and control handoff. This removes a 3.33-degree cockpit FOV step that chase damping
 had previously concealed.
 
+The optical sequence is:
+
+```text
+stretched star beams → widening white flash → flowing blue cloud tunnel (no beams)
+                    → widening white flash → stretched star beams → contraction
+```
+
+| Local phase time   | Visible transition                                                              |
+| ------------------ | ------------------------------------------------------------------------------- |
+| Entry 0–3.06 s     | Original stars stretch and hold; real-space acceleration builds.                |
+| Entry 3.06–3.4 s   | The same beams widen and brighten to white; clouds blend underneath.            |
+| Transit 0–0.42 s   | White recovers into the cloud tunnel; star beams are already hidden.            |
+| Remaining transit  | Flowing, rotating cloud walls and pulsing blue light; no star beams.            |
+| Exit 0–0.252 s     | Tunnel light blooms into the second white flash.                                |
+| Exit 0.252–0.336 s | Star beams reappear beneath the fully white peak.                               |
+| Exit 0.336–0.714 s | White recovers into fully stretched star beams; world reveal starts at 0.504 s. |
+| Exit 0.714–0.882 s | Fully stretched stars and the destination become clear.                         |
+| Exit 0.882–4.114 s | Heavy braking and star contraction settle into ordinary flight.                 |
+
+Reduced motion disables both flashes and dynamic star trails. The spotlight, ambient light and
+canopy reflection share the bloom envelope, whitening the ship during each crossing. The scatter
+quad adds one draw/two triangles only during flashes, with no render target, texture or noise sample.
+The clear exit star-beam window now lasts 3.4 seconds (0.714–4.114 seconds), exactly matching the
+entry animation. The flash and destination reveal retain their previous durations. Shared authority
+and client coast integrals/corridor checks use the longer exit, while the endpoint still hands off
+at 100 m/s.
+
 The visual direction follows the requested modern-film cues: screen-filling white/cyan streaks,
 blue cloud depth and illuminated foreground surfaces. Inspected primary references were the
 [official Solo gallery](https://www.starwars.com/films/solo-a-star-wars-story-gallery) and
@@ -137,12 +169,41 @@ in the browser for cloud detail, blue pulses and directional hull illumination.
 
 ## Choreography rework verification — 2 November 2026
 
-This working-tree rework is based on `33bdfe8` and remains uncommitted for review. The final
-`npm run check` passed lint, 580 tests across 43 files (including nine real-socket integrations),
+The choreography rework is recorded in `14277c0`, based on `33bdfe8`; focused follow-up commits add
+the crossing flashes and matching exit-beam duration. The final
+`npm run check` passed lint, 583 tests across 43 files (including nine real-socket integrations),
 TypeScript checking and production build. New regressions cover continuously increasing departure
 speed, visible travel before mask coverage, fixed arrival star heads, synchronized braking/impulses,
 cue timing and both cameras' FOV continuity at commit and control handoff. Vite retains its existing
 large-chunk advisory.
+
+The exit-duration follow-up adds a regression asserting exactly 3.4 seconds of clear exit beams,
+matching entry, while flash recovery and reveal stay at 0.714 and 0.504–0.882 seconds. The longer
+shared arrival integral passed all ninety directed route/corridor checks and the full real-socket
+integration suite. Fresh browser journeys completed Solara → Vesper in wide chase, Vesper → Aether
+in 390×600 cockpit, and Aether → Solara in wide cockpit; extended trails settled into normal control
+without console warnings/errors or compact horizontal overflow. These checks used ordinary flight
+controls with no position fixtures. The earlier renderer measurements predate this duration change;
+no new performance or multiplayer load measurement is claimed.
+
+![Extended star-beam contraction during arrival](verification/hyperspace-longer-exit.jpg)
+
+The final beam-flash follow-up completed Solara → Vesper in 1920×1080 chase, Vesper → Aether in
+1920×1080 cockpit, and Aether → Solara in 390×600 cockpit. Captures show a fully white crossing at
+both ends, beam-free cloud transit, and star streaks recovering before braking. Compact layout had
+no horizontal overflow; the warning/error console was empty. Tests cover phase continuity, exactly
+two bounded flashes, holds/cancellation, reduced-motion suppression, and hiding both beam visibility
+changes beneath fully white peaks. OS reduced motion and audible mixing were not manually checked.
+
+Before the exit-duration extension, a warm 60-second Chrome capture at 1920×1080 CSS / DPR 1 on Apple M2 Pro / 32 GiB recorded
+8.3 / 9.3 / 11.9 ms p50 / p95 / p99 over 7,140 frames, valid/complete. It included one Solara → Vesper
+chase jump plus normal flight and substantial chart/menu time; screenshots were sampled during the
+jump, with no tests or load harness running. This is not an isolated flash/tunnel GPU profile, a
+cold/city workload or the DPR 1.5 reference profile, and establishes no performance improvement or
+other-hardware guarantee. The raw result and conditions are in the
+[beam-flash measurement record](benchmarks/hyperspace-flashes-2026-11-02.json).
+
+![Star stretch, entry flash, cloud-only tunnel, exit flash and arrival streaks](verification/hyperspace-flash-sequence.jpg)
 
 The follow-up star-jitter regression failed in both cameras before the matrix-order fix and passes
 afterward. It compares pre-draw star projections with actual Three.js render matrices across twenty
@@ -161,11 +222,12 @@ overflow. Map Tab focus, disabled maps during jumps, abort during moving departu
 checked. A final 1920×1080 cockpit Solara → Vesper jump checked the corrected speed/FOV handoff.
 The warning/error console was empty.
 
-The shader rework adds no draw calls, noise samples, textures or shadow maps. An interim warm
+The cloud shader rework adds no noise samples, textures or shadow maps; the later beam-flash iteration
+adds one temporary scatter draw. An interim warm
 60-second Chrome cockpit sample at 1920×1080 CSS / DPR 1 on Apple M2 Pro / 32 GiB recorded
 8.3 / 9.5 / 13.7 ms p50 / p95 / p99 over 7,175 frames, valid/complete. It included one Solara → Vesper
 jump, normal flight/combat and a death overlay after arrival; the sample predates the final camera
-FOV continuity correction. It is not an isolated tunnel GPU measurement, a cold/city workload, or
+FOV continuity correction and the beam-flash iteration. It is not an isolated tunnel GPU measurement, a cold/city workload, or
 the DPR 1.5 reference profile. It does not establish a performance improvement or other-hardware
 guarantee.
 
