@@ -18,8 +18,8 @@ The next planned milestone is Missions, Contracts & Player Progression.
 
 ```bash
 npm ci
-npm run server  # terminal one, default ws://127.0.0.1:2567
-npm run dev     # terminal two
+npm run server  # terminal one, default ws://127.0.0.1:43172
+npm run dev     # terminal two, http://127.0.0.1:43170
 ```
 
 Open the Vite URL in two tabs/windows, enter callsigns, choose **Connect multiplayer**, then
@@ -30,6 +30,8 @@ guest within the default 15-second grace; expired guests cleanly rejoin with a n
 
 Optional settings are listed in `.env.example`. `VITE_MULTIPLAYER_URL` is the public endpoint;
 Node settings control host/port, tick/snapshot rates, capacity, relevance and reconnection grace.
+When overriding `SERVER_PORT` in `.env`, update `VITE_MULTIPLAYER_URL` to the matching address and
+restart the server and Vite. Existing `.env` files may still contain the previous port `2567`.
 Development diagnostics expose RTT, tick/FPS, corrections, room IDs and latency/jitter/loss controls.
 See [multiplayer setup, protocol and architecture](docs/multiplayer.md) and the
 [Milestone 5 verification record](docs/milestone-5.md) for measured limits and remaining caveats.
@@ -45,7 +47,7 @@ npm ci
 npm run dev
 ```
 
-Open Vite's printed Local URL (normally `http://127.0.0.1:5173`). Choose **Keyboard flight** or **Fly
+Open Vite's printed Local URL (default `http://127.0.0.1:43170`). Choose **Keyboard flight** or **Fly
 with mouse**. You start stationary near Pelagos in Solara, near its orbital station, 22 km above the reference surface. Hold W to raise
 throttle gradually from 0% to 100%; release W to ease back toward a stop. Hold S for stronger braking.
 T selects the next contact, including the moon Lyra. L opens
@@ -53,6 +55,10 @@ the local system map; M opens the galaxy map. Select Vesper and choose **Engage 
 
 No API keys, external services, or separate asset downloads are required. **No dependencies were added
 for Milestones 3 or 4.** All celestial definitions, shaders, audio, and interface assets are local.
+
+Local ports are `43170` for development, `43171` for `npm run preview` after a build, and `43172`
+for the multiplayer authority. Vite exits if its selected port is occupied. To choose another web
+port, use `npm run dev -- --port 43270` or `npm run preview -- --port 43271`.
 
 The Kestrel uses Quaternius's blue **Spitfire** hull; patrols mix red **Striker** and **Insurgent**
 hulls, each with its own engine mounts. Three bundled GLBs share geometry/materials across enemies

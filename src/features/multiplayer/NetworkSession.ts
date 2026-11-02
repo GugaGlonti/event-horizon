@@ -55,7 +55,7 @@ export class NetworkSession {
   private readonly onSnapshot: (snapshot: WorldSnapshot, first: boolean) => void;
   constructor(onSnapshot: (snapshot: WorldSnapshot, first: boolean) => void, endpoint?: string) {
     this.onSnapshot = onSnapshot;
-    this.endpoint = endpoint || import.meta.env.VITE_MULTIPLAYER_URL || 'ws://127.0.0.1:2567';
+    this.endpoint = endpoint || import.meta.env.VITE_MULTIPLAYER_URL || 'ws://127.0.0.1:43172';
   }
   get connected() {
     return this.room !== null;

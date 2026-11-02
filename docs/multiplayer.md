@@ -16,7 +16,8 @@ npm run server
 npm run dev
 ```
 
-Open the Vite URL in two tabs or windows. Enter different callsigns in the flight briefing and choose
+Open `http://127.0.0.1:43170` in two tabs or windows. The authority listens at
+`ws://127.0.0.1:43172`. Enter different callsigns in the flight briefing and choose
 **Connect multiplayer**, then **Keyboard flight**. Both guests join the public Solara instance. The
 room starts its arrival patrol after eight seconds of engaged controls. Practice target starts a
 stationary shared enemy instead. Use G to acquire ahead, N/Tab to cycle ships, Space/left mouse to
@@ -41,21 +42,25 @@ selects the matchmaking pool, independently of the actual instance identity.
 
 Copy `.env.example` to `.env` for local overrides; it is ignored by Git. Vite reads the public
 `VITE_` settings and `npm run server` reads the Node settings. Restart after changing configuration.
+If changing `SERVER_PORT`, set `VITE_MULTIPLAYER_URL` to the matching address. Update both values in
+any existing `.env` that still uses the previous port `2567`. The web development server uses `43170`
+and `npm run preview` uses `43171`; both exit if their selected port is busy. Override them with
+`npm run dev -- --port 43270` or `npm run preview -- --port 43271`.
 The default endpoint is loopback, never a production endpoint. Deploy the client as static `dist/`
 assets and run the Node authority separately; use a TLS WebSocket endpoint for an HTTPS client.
 `npm run server:dev` watches server/shared files. Normal `npm run dev` remains fully usable offline.
 
-| Setting                      | Default               | Meaning                                             |
-| ---------------------------- | --------------------- | --------------------------------------------------- |
-| `VITE_MULTIPLAYER_URL`       | `ws://127.0.0.1:2567` | Public server address                               |
-| `VITE_INTERPOLATION_MS`      | 100                   | Remote buffer delay, bounded to 50–300 ms           |
-| `SERVER_HOST`, `SERVER_PORT` | `127.0.0.1`, 2567     | Listening address                                   |
-| `SERVER_TICK_RATE`           | 30                    | Fixed authority/input rate, 10–60 Hz                |
-| `SERVER_SNAPSHOT_RATE`       | 20                    | Per-recipient snapshots; capped to tick rate        |
-| `SERVER_CAPACITY`            | 16                    | Guests per room; configurable 2–32, tested up to 16 |
-| `SERVER_RECONNECT_SECONDS`   | 15                    | Dropped guest reservation grace, 1–60 seconds       |
-| `SERVER_RELEVANCE_METRES`    | 6000                  | Full-frequency nearby state, minimum 4000 m         |
-| `SERVER_DEBUG`               | false                 | Five-second room metrics in the Node console        |
+| Setting                      | Default                | Meaning                                             |
+| ---------------------------- | ---------------------- | --------------------------------------------------- |
+| `VITE_MULTIPLAYER_URL`       | `ws://127.0.0.1:43172` | Public server address                               |
+| `VITE_INTERPOLATION_MS`      | 100                    | Remote buffer delay, bounded to 50–300 ms           |
+| `SERVER_HOST`, `SERVER_PORT` | `127.0.0.1`, 43172     | Listening address                                   |
+| `SERVER_TICK_RATE`           | 30                     | Fixed authority/input rate, 10–60 Hz                |
+| `SERVER_SNAPSHOT_RATE`       | 20                     | Per-recipient snapshots; capped to tick rate        |
+| `SERVER_CAPACITY`            | 16                     | Guests per room; configurable 2–32, tested up to 16 |
+| `SERVER_RECONNECT_SECONDS`   | 15                     | Dropped guest reservation grace, 1–60 seconds       |
+| `SERVER_RELEVANCE_METRES`    | 6000                   | Full-frequency nearby state, minimum 4000 m         |
+| `SERVER_DEBUG`               | false                  | Five-second room metrics in the Node console        |
 
 ## Ownership and protocol
 

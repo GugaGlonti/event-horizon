@@ -5,7 +5,7 @@ const integer = (fallback: number, min: number, max: number) =>
 const schema = z.object({
   SERVER_HOST: z.string().min(1).default('127.0.0.1'),
   SERVER_DEBUG: z.enum(['true', 'false']).default('false'),
-  SERVER_PORT: integer(2567, 1, 65535),
+  SERVER_PORT: integer(43172, 1, 65535),
   SERVER_TICK_RATE: integer(30, 10, 60),
   SERVER_SNAPSHOT_RATE: integer(20, 1, 60),
   SERVER_CAPACITY: integer(16, 2, 32),

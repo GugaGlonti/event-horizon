@@ -8,8 +8,8 @@ export default defineConfig({
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
-  server: { host: '127.0.0.1' },
-  preview: { host: '127.0.0.1' },
+  server: { host: '127.0.0.1', port: 43170, strictPort: true },
+  preview: { host: '127.0.0.1', port: 43171, strictPort: true },
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
