@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type DirectionalLight, SphereGeometry, Vector3 } from 'three';
+import { type DirectionalLight, type HemisphereLight, SphereGeometry, Vector3 } from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
@@ -55,6 +55,8 @@ export function SystemScene({ session }: { session: FlightSession }) {
   }, [detailedBodyId]);
   const geometry = useMemo(() => new SphereGeometry(1, 64, 40), []);
   const light = useRef<DirectionalLight>(null);
+  const skyFill = useRef<HemisphereLight>(null);
+  const up = useMemo(() => new Vector3(), []);
   const direction = useMemo(() => new Vector3(), []);
   const star = world.definition.bodies.find((body) => body.kind === 'star');
   // Primitive geometry attachments are shared external resources. This component owns disposal.
@@ -62,6 +64,20 @@ export function SystemScene({ session }: { session: FlightSession }) {
   useFrame(() => {
     if (!detailedBodyId || readyBodyId === detailedBodyId)
       session.exploration.markArrivalReady(world.definition.id);
+    const readout = session.planetaryReadout,
+      bodyCenter = readout.bodyId ? world.positions.get(readout.bodyId) : null;
+    if (skyFill.current) {
+      if (bodyCenter && star) {
+        up.copy(session.position).sub(bodyCenter).normalize();
+        direction
+          .copy(world.positions.get(star.id) ?? bodyCenter)
+          .sub(bodyCenter)
+          .normalize();
+        skyFill.current.position.copy(up);
+        skyFill.current.intensity =
+          Math.sqrt(readout.density) * (0.12 + Math.max(0, up.dot(direction)) * 0.85);
+      } else skyFill.current.intensity = 0;
+    }
     if (!light.current || !star) return;
     direction
       .copy(world.positions.get(star.id) ?? direction)
@@ -76,7 +92,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
       <SpaceBackdrop environment={world.definition.environment} />
       <ambientLight color="#a9bbde" intensity={world.definition.environment.ambient} />
       <directionalLight ref={light} color={star?.surface.palette[0] ?? '#ffffff'} intensity={2.3} />
-      <directionalLight position={[0, 2000, 5000]} color="#7eafce" intensity={0.25} />
+      <hemisphereLight ref={skyFill} color="#c7dbea" groundColor="#737660" intensity={0} />
       {world.definition.bodies.map((body) => (
         <CelestialBody
           key={body.id}
@@ -84,6 +100,8 @@ export function SystemScene({ session }: { session: FlightSession }) {
           world={world}
           origin={session.origin}
           geometry={geometry}
+          generation={generation}
+          detailed={body.id === detailedBodyId}
           surfaceVisible={body.id !== detailedBodyId || readyBodyId !== body.id}
         />
       ))}

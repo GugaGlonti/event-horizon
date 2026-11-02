@@ -17,9 +17,14 @@ import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import {
   atmosphereFragment,
   celestialVertex,
+  cloudFragment,
+  oceanFragment,
   ringFragment,
+  solidSurfaceVertex,
   surfaceFragment,
 } from '@/features/planets/rendering/celestialShaders';
+import type { PlanetGeneration } from '@/features/planets/rendering/PlanetGeneration';
+import { usePlanetSurface } from '@/features/planets/rendering/usePlanetSurface';
 import { useRotationEnabled } from '@/hooks/useRotationEnabled';
 
 const patterns = { ocean: 0, desert: 1, ice: 2, volcanic: 3, bands: 4, cratered: 5 };
@@ -30,20 +35,29 @@ export function CelestialBody({
   origin,
   geometry,
   surfaceVisible = true,
+  detailed,
+  generation,
 }: {
   body: CelestialDefinition;
   world: SystemRuntime;
   origin: RenderOrigin;
   geometry: SphereGeometry;
   surfaceVisible?: boolean;
+  detailed: boolean;
+  generation: PlanetGeneration;
 }) {
+  const atlas = usePlanetSurface(body, detailed, generation);
   const group = useRef<Group>(null);
   const surface = useRef<Mesh>(null),
-    cloudMaterial = useRef<ShaderMaterial>(null);
+    cloudMaterial = useRef<ShaderMaterial>(null),
+    oceanMaterial = useRef<ShaderMaterial>(null);
   const rotating = useRotationEnabled();
   const starId = world.definition.bodies.find((candidate) => candidate.kind === 'star')?.id ?? '';
   const uniforms = useMemo(
     () => ({
+      uSurfaceMap: { value: atlas },
+      uUseSurfaceMap: { value: atlas ? 1 : 0 },
+      uReliefRatio: { value: (body.terrain?.relief ?? 0) / body.radius },
       uA: { value: new Color(body.surface.palette[0]) },
       uB: { value: new Color(body.surface.palette[1]) },
       uC: { value: new Color(body.surface.palette[2]) },
@@ -58,7 +72,7 @@ export function CelestialBody({
       uColor: { value: new Color(body.atmosphere?.color ?? body.surface.palette[0]) },
       uStrength: { value: body.kind === 'star' ? 0.8 : (body.atmosphere?.strength ?? 0) },
     }),
-    [body, world],
+    [body, world, atlas],
   );
   const rings = useMemo(
     () => ({
@@ -88,6 +102,8 @@ export function CelestialBody({
     if (surface.current) surface.current.rotation.y = world.time * body.rotation.speed;
     if (cloudMaterial.current?.uniforms.uTime)
       cloudMaterial.current.uniforms.uTime.value = rotating ? world.time : 0;
+    if (oceanMaterial.current?.uniforms.uTime)
+      oceanMaterial.current.uniforms.uTime.value = rotating ? world.time : 0;
   });
 
   return (
@@ -96,7 +112,7 @@ export function CelestialBody({
         <mesh ref={surface} visible={surfaceVisible}>
           <primitive object={geometry} attach="geometry" />
           <shaderMaterial
-            vertexShader={celestialVertex}
+            vertexShader={body.terrain ? solidSurfaceVertex : celestialVertex}
             fragmentShader={surfaceFragment}
             uniforms={uniforms}
           />
@@ -121,17 +137,8 @@ export function CelestialBody({
           <shaderMaterial
             vertexShader={celestialVertex}
             uniforms={uniforms}
-            fragmentShader={`#include <logdepthbuf_pars_fragment>
-            uniform vec3 uA,uLight;varying vec3 vWorld,vNormalWorld;void main(){
-            #include <logdepthbuf_fragment>
-            vec3 n=normalize(vNormalWorld), light=normalize(uLight), view=normalize(cameraPosition-vWorld);
-            float day=max(0.,dot(n,light));float fresnel=pow(1.-max(0.,dot(n,view)),4.);
-            float reflection=pow(max(0.,dot(reflect(-light,n),view)),110.);
-            vec3 color=uA*(.1+day*.9)+vec3(.15,.3,.42)*fresnel*day+reflection*day*.65;
-            gl_FragColor=vec4(color,1.);
-            #include <tonemapping_fragment>
-            #include <colorspace_fragment>
-            }`}
+            ref={oceanMaterial}
+            fragmentShader={oceanFragment}
           />
         </mesh>
       )}
@@ -144,17 +151,7 @@ export function CelestialBody({
             uniforms={uniforms}
             transparent
             depthWrite={false}
-            fragmentShader={`#include <logdepthbuf_pars_fragment>
-            uniform vec3 uLight;uniform float uTime,uSeed,uClouds;varying vec3 vLocal,vNormalWorld;
-            void main(){
-            #include <logdepthbuf_fragment>
-            vec3 p=normalize(vLocal);float bands=sin(p.x*35.+sin(p.z*23.+uSeed)+uTime*.003)*sin(p.z*27.+p.y*18.);
-            float clouds=smoothstep(1.-uClouds*1.6,1.,bands);
-            float day=max(0.,dot(normalize(vNormalWorld),normalize(uLight)));
-            gl_FragColor=vec4(vec3(.65,.7,.74)*(.08+day),clouds*.65);
-            #include <tonemapping_fragment>
-            #include <colorspace_fragment>
-            }`}
+            fragmentShader={cloudFragment}
           />
         </mesh>
       )}

@@ -14,6 +14,17 @@ export const celestialVertex = /* glsl */ `
   }
 `;
 
+/** Only the solid globe is displaced; water/cloud/ring shells retain their own radii. */
+export const solidSurfaceVertex = celestialVertex
+  .replace(
+    'varying vec3 vLocal;',
+    'uniform samplerCube uSurfaceMap; uniform float uUseSurfaceMap,uReliefRatio;\nvarying vec3 vLocal;',
+  )
+  .replace(
+    'vec4 world = modelMatrix * vec4(position, 1.0);',
+    'vec3 displaced=position*(1.+(uUseSurfaceMap>.5?texture(uSurfaceMap,normalize(position)).a*uReliefRatio:0.));\nvec4 world = modelMatrix * vec4(displaced, 1.0);',
+  );
+
 const noise = /* glsl */ `
   float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
   float noise3(vec3 p) {
@@ -33,17 +44,23 @@ const noise = /* glsl */ `
 export const surfaceFragment = /* glsl */ `
   #include <logdepthbuf_pars_fragment>
   uniform vec3 uA, uB, uC, uLight;
-  uniform float uSeed, uPattern, uStar, uBrightness, uAmbient;
+  uniform float uSeed, uPattern, uStar, uBrightness, uAmbient, uUseSurfaceMap;
+  uniform samplerCube uSurfaceMap;
   varying vec3 vLocal, vWorld, vNormalWorld;
   ${noise}
   void main() {
     #include <logdepthbuf_fragment>
     vec3 p = normalize(vLocal);
-    float n = fbm(p * 4.2 + uSeed);
+    float n = 0.;
+    if(uStar>.5 || uUseSurfaceMap<.5) n=fbm(p*4.2+uSeed);
     vec3 color;
     vec3 emission = vec3(0.0);
     if (uStar > 0.5) {
       color = mix(uA, uB, n * 0.42) * uBrightness * (0.75 + n * 0.55);
+    } else if(uUseSurfaceMap>.5) {
+      color=textureCube(uSurfaceMap,p).rgb;
+      float daylight=max(0.,dot(normalize(vNormalWorld),normalize(uLight)));
+      color*=.12+daylight*1.2;
     } else {
       color = mix(uA, uB, smoothstep(0.25, 0.72, n));
       if (uPattern < 0.5) {
@@ -125,3 +142,40 @@ export const ringFragment = /* glsl */ `
     #include <colorspace_fragment>
   }
 `;
+
+export const oceanFragment = /* glsl */ `
+#include <logdepthbuf_pars_fragment>
+uniform vec3 uA,uLight,uColor;uniform float uTime;
+varying vec3 vWorld,vNormalWorld,vLocal;
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 base=normalize(vNormalWorld), light=normalize(uLight), view=normalize(cameraPosition-vWorld);
+  float distance=length(cameraPosition-vWorld);
+  vec3 p=normalize(vLocal);
+  float close=1.-smoothstep(200.,22000.,distance);
+  vec3 waves=vec3(sin(p.x*9500.+uTime*.65)+sin(p.z*15000.-uTime*.9),sin(p.y*11000.+uTime*.4),cos(p.z*8500.+uTime*.55));
+  vec3 n=normalize(base+waves*.012*close);
+  float day=max(0.,dot(base,light)), fresnel=pow(1.-max(0.,dot(n,view)),4.);
+  float reflection=pow(max(0.,dot(reflect(-light,n),view)),180.);
+  vec3 sky=mix(vec3(.08,.16,.24),uColor*.6,day);
+  vec3 color=uA*(.12+day*.75)+sky*fresnel*day*.55+vec3(1.,.9,.72)*reflection*day*.5;
+  gl_FragColor=vec4(color,1.);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
+export const cloudFragment = /* glsl */ `
+#include <logdepthbuf_pars_fragment>
+uniform vec3 uLight;uniform float uTime,uSeed,uClouds;
+varying vec3 vLocal,vNormalWorld;
+${noise}
+void main(){
+  #include <logdepthbuf_fragment>
+  vec3 p=normalize(vLocal);p.xz=mat2(cos(uTime*.0005),-sin(uTime*.0005),sin(uTime*.0005),cos(uTime*.0005))*p.xz;
+  float field=fbm(p*7.+uSeed+fbm(p*3.+uSeed)*2.);
+  float clouds=smoothstep(.7-uClouds*.36,.82-uClouds*.3,field);
+  float day=max(0.,dot(normalize(vNormalWorld),normalize(uLight)));
+  vec3 color=mix(vec3(.35,.42,.5),vec3(.9,.93,.96),field)*(.12+day*.85);
+  gl_FragColor=vec4(color,clouds*.58);
+  #include <tonemapping_fragment>
+  #include <colorspace_fragment>
+}`;
