@@ -1,5 +1,6 @@
 import { Vector3 } from '@/engine/math/linear';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
+import { describeSurface } from './surfaceDescription';
 import { terrainHeight, terrainNormal, terrainPoint } from './terrain';
 
 export interface TerrainPatch {
@@ -75,11 +76,14 @@ export function selectTerrainPatches(
 }
 export interface PatchMesh {
   anchor: [number, number, number];
-  positions: Float32Array;
-  coarse: Float32Array;
-  normals: Float32Array;
-  elevations: Float32Array;
-  indices: Uint16Array;
+  positions: Float32Array<ArrayBuffer>;
+  coarse: Float32Array<ArrayBuffer>;
+  normals: Float32Array<ArrayBuffer>;
+  elevations: Float32Array<ArrayBuffer>;
+  directions: Float32Array<ArrayBuffer>;
+  cover: Float32Array<ArrayBuffer>;
+  climate: Float32Array<ArrayBuffer>;
+  indices: Uint16Array<ArrayBuffer>;
 }
 /** Patch-local floats; all large-coordinate subtraction happens first in CPU doubles. */
 export function buildTerrainPatch(body: CelestialDefinition, patch: TerrainPatch): PatchMesh {
@@ -91,6 +95,9 @@ export function buildTerrainPatch(body: CelestialDefinition, patch: TerrainPatch
     coarse = new Float32Array(count * 3);
   const normals = new Float32Array(count * 3),
     elevations = new Float32Array(count);
+  const directions = new Float32Array(count * 3),
+    cover = new Float32Array(count * 4),
+    climate = new Float32Array(count * 2);
   const size = 2 / 2 ** patch.level,
     u0 = -1 + patch.x * size,
     v0 = -1 + patch.y * size;
@@ -114,6 +121,15 @@ export function buildTerrainPatch(body: CelestialDefinition, patch: TerrainPatch
       elevations[i] = point.length() - body.radius;
       terrainNormal(body, direction, normal);
       normals.set(normal.toArray(), i * 3);
+      directions.set(direction.toArray(), i * 3);
+      const description = describeSurface(
+        body,
+        direction,
+        elevations[i],
+        1 - normal.dot(direction),
+      );
+      cover.set(description.cover, i * 4);
+      climate.set([description.forest, description.lava], i * 2);
       positions.set(point.sub(anchor).toArray(), i * 3);
       // Parent triangles use every second vertex in this patch's grid.
       const cx = Math.floor(x / 2) * 2,
@@ -166,6 +182,9 @@ export function buildTerrainPatch(body: CelestialDefinition, patch: TerrainPatch
         normals[index * 3 + axis] = normals[source * 3 + axis] ?? 0;
       }
       elevations[index] = elevations[source] ?? 0;
+      directions.set(directions.subarray(source * 3, source * 3 + 3), index * 3);
+      cover.set(cover.subarray(source * 4, source * 4 + 4), index * 4);
+      climate.set(climate.subarray(source * 2, source * 2 + 2), index * 2);
       if (k < resolution) {
         const nextSource =
           edge === 0
@@ -184,6 +203,9 @@ export function buildTerrainPatch(body: CelestialDefinition, patch: TerrainPatch
     coarse,
     normals,
     elevations,
+    directions,
+    cover,
+    climate,
     indices: new Uint16Array(indices),
   };
 }

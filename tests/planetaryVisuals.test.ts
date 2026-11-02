@@ -11,9 +11,11 @@ import {
   naturalTerrainHeight,
   terrainHeight,
 } from '@/engine/planetary/terrain';
+import { buildTerrainPatch, cubeDirection } from '@/engine/planetary/terrainLod';
 import { portPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
+import { bakeSurfaceFace } from '@/features/planets/rendering/surfaceBake';
 import anchors from './fixtures/planetaryAnchors.json';
 
 function required<T>(value: T | undefined | null): T {
@@ -105,6 +107,38 @@ describe('coherent physical surfaces', () => {
     }
     for (const biome of ['ocean', 'forest', 'dunes', 'ice', 'rock', 'basalt'])
       expect(seen.has(biome)).toBe(true);
+  });
+  it('transfers matching radial directions and biome weights across patch edges and skirts', () => {
+    const a = buildTerrainPatch(pelagos, { face: 4, level: 10, x: 512, y: 512 });
+    const b = buildTerrainPatch(pelagos, { face: 4, level: 10, x: 513, y: 512 });
+    const resolution = required(pelagos.terrain).patchResolution,
+      width = resolution + 1;
+    for (let y = 0; y < width; y++) {
+      const i = y * width + resolution,
+        j = y * width;
+      expect([...a.directions.subarray(i * 3, i * 3 + 3)]).toEqual([
+        ...b.directions.subarray(j * 3, j * 3 + 3),
+      ]);
+      expect([...a.cover.subarray(i * 4, i * 4 + 4)]).toEqual([
+        ...b.cover.subarray(j * 4, j * 4 + 4),
+      ]);
+    }
+    expect(a.directions.length / 3).toBe(a.positions.length / 3);
+    expect(a.cover.length / 4).toBe(a.positions.length / 3);
+  });
+  it('bakes exactly the shared field, with strips equal to a whole face and matching edge heights', () => {
+    const size = 16,
+      whole = bakeSurfaceFace(pelagos, 0, size),
+      joined = new Uint8Array(whole.length);
+    for (let row = 0; row < size; row += 4)
+      joined.set(bakeSurfaceFace(pelagos, 0, size, row, 4), row * size * 4);
+    expect(joined).toEqual(whole);
+    const adjacent = bakeSurfaceFace(pelagos, 5, size);
+    for (let y = 0; y < size; y++)
+      expect(whole[(y * size + size - 1) * 4 + 3]).toBe(adjacent[y * size * 4 + 3]);
+    const up = cubeDirection(0, -1, 1),
+      height = terrainHeight(pelagos, up);
+    expect(whole[3]).toBe(Math.round(Math.min(1, height / required(pelagos.terrain).relief) * 255));
   });
 });
 
