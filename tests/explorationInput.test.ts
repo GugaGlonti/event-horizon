@@ -61,6 +61,7 @@ describe('exploration input integration', () => {
     session.exploration.beginJump();
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(useExplorationStore.getState().overlay).toBeNull();
+    expect(useFlightStore.getState().contextAction).toBe('Follow launch waypoint');
     key('KeyF');
     expect(session.controller.flightMode).toBe('travel');
     const waypoint = useExplorationStore.getState().departure?.waypoint;

@@ -12,6 +12,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
   const flightMode = useFlightStore((state) => state.flightMode);
   const overlay = useExplorationStore((state) => state.overlay);
   const jump = useExplorationStore((state) => state.jump.phase);
+  const departure = useExplorationStore((state) => Boolean(state.departure));
   const busy = jump !== 'IDLE' && jump !== 'COOLDOWN';
   if (overlay || busy) return null;
   if (readout.dead)
@@ -45,7 +46,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
       />
       <section
         aria-label="Combat systems"
-        className="absolute top-52 left-4 max-w-[43%] text-[10px] tracking-wider tablet:top-36 tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs [@media(max-height:650px)]:top-28"
+        className={`absolute left-4 max-w-[43%] text-[10px] tracking-wider tablet:left-8 tablet:w-56 tablet:max-w-none tablet:text-xs ${departure ? 'top-48 min-[1100px]:top-36' : 'top-52 tablet:top-36 [@media(max-height:650px)]:top-28'}`}
       >
         <p className="mb-2 text-phosphor-dim [@media(max-height:650px)]:mb-1">
           DEFENSE {readout.invulnerable ? '/ PROTECTED' : '/ LIVE'}

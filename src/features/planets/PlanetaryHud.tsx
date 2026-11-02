@@ -19,6 +19,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
   const phase = useFlightStore((s) => s.phase),
     overlay = useExplorationStore((s) => s.overlay),
     jump = useExplorationStore((s) => s.jump.phase);
+  const departure = useExplorationStore((state) => Boolean(state.departure));
   if (phase !== 'flying' || overlay || !['IDLE', 'COOLDOWN'].includes(jump)) return null;
   const surface = planet && planet.altitude < 60000,
     nearStation = station?.stationId && (station.distance < 5000 || station.phase !== 'undocked');
@@ -26,27 +27,29 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
     <section
       data-flight-scroll
       aria-label="Planetary and docking guidance"
-      className="pointer-events-auto absolute max-h-[max(100px,calc(100svh-530px))] overflow-y-auto overscroll-contain pr-1 top-52 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:max-h-[calc(100svh-390px)] tablet:top-36 tablet:right-8 tablet:text-xs [@media(max-height:650px)]:top-28"
+      className={`pointer-events-auto absolute max-h-[max(100px,calc(100svh-530px))] overflow-y-auto overscroll-contain pr-1 right-4 w-[43%] max-w-72 text-[10px] tracking-wider tablet:max-h-[calc(100svh-390px)] tablet:right-8 tablet:text-xs ${departure ? 'top-48 min-[1100px]:top-36' : 'top-52 tablet:top-36 [@media(max-height:650px)]:top-28'}`}
     >
       {surface && (!nearStation || station.phase === 'undocked') && (
         <>
           <p className="text-instrument">
             {planet.bodyName} / {planet.density > 0.001 ? 'ATMOSPHERE' : 'ORBIT'}
           </p>
-          <InstrumentButton
-            variant="hud"
-            className="mt-2"
-            onClick={() => session.exploration.openMap('planetary')}
-          >
-            Y / Planetary map
-          </InstrumentButton>
+          <div className={departure ? 'hidden min-[1100px]:block' : ''}>
+            <InstrumentButton
+              variant="hud"
+              className="mt-2"
+              onClick={() => session.exploration.openMap('planetary')}
+            >
+              Y / Planetary map
+            </InstrumentButton>
+          </div>
           {planet.restricted && (
             <p role="alert" className="mt-2 text-instrument">
               RESTRICTED / {planet.restricted}
             </p>
           )}
           {planet.weather && (
-            <p className="mt-2 text-phosphor-dim">
+            <p className={`mt-2 text-phosphor-dim ${departure ? 'hidden min-[1100px]:block' : ''}`}>
               {planet.weather.intensity > 0.15 ? planet.weather.kind.toUpperCase() : 'CLEAR'} / VIS{' '}
               {formatDistance(planet.weather.visibility)}
             </p>

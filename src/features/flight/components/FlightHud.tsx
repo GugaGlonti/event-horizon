@@ -77,6 +77,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const toggleCamera = useFlightStore((state) => state.toggleCamera);
   const ready = useFlightStore((state) => state.rendererReady);
   const systemId = useExplorationStore((state) => state.systemId);
+  const departure = useExplorationStore((state) => Boolean(state.departure));
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
   const travelMode = usePlanetaryStore((state) => state.readout?.travelMode ?? 'normal');
   const altitude = usePlanetaryStore((state) => state.readout?.altitude ?? Infinity);
@@ -155,7 +156,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
         </nav>
       </header>
 
-      {!busy && phase === 'flying' && !dead && (
+      {!busy && !departure && phase === 'flying' && !dead && (
         <InstrumentButton
           variant="hud"
           onClick={session.contextAction}
@@ -306,8 +307,12 @@ export function FlightHud({ session }: { session: FlightSession }) {
             </section>
             <NavigationHud session={session} />
           </div>
-          <NavigationMarker />
-          <NearbyPlanetMarkers />
+          {!departure && (
+            <>
+              <NavigationMarker />
+              <NearbyPlanetMarkers />
+            </>
+          )}
         </>
       )}
       <footer className="absolute inset-x-4 bottom-3 flex min-h-8 items-center justify-between gap-2 text-[10px] tracking-wider tablet:inset-x-8">

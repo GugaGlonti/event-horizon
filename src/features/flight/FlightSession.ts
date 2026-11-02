@@ -97,6 +97,7 @@ export class FlightSession {
         this.multiplayer?.network.cancelTravel();
         this.travelPermit = null;
         if (!this.exploration.isSuspended) this.startKeyboard();
+        this.publishPlanetary();
       },
       onPause: this.pause,
       onDepart: (direction) => {
