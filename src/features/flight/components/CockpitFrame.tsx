@@ -62,7 +62,12 @@ export function CockpitFrame({
   useFrame(() => {
     const target = glass.current?.uniforms;
     const jump = session.exploration.jump;
-    if (target?.uTime) target.uTime.value = reduced ? 0 : session.exploration.world.time;
+    if (target?.uTime)
+      target.uTime.value = reduced
+        ? 0
+        : jump.busy
+          ? jump.flightElapsed + (jump.variation % 1000) * 0.1
+          : session.exploration.world.time;
     if (target?.uLight)
       target.uLight.value =
         jump.coverage * 0.65 + (reduced ? 0 : jumpStretch(jump) * 0.25 + jumpExposure(jump) * 0.8);

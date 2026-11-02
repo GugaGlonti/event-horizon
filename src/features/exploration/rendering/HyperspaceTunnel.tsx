@@ -32,7 +32,7 @@ const vertex = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, uMaskDepth, 1.0); }
 `;
 const fragment = /* glsl */ `
-  uniform float uFlowTime, uOpacity, uExposure;
+  uniform float uFlowTime, uOpacity, uExposure, uExit, uMotion;
   uniform vec2 uLens, uDrift, uLightDirection, uPulse, uSpin;
   varying vec2 vUv;
   float hash(vec3 p) {
@@ -61,8 +61,12 @@ const fragment = /* glsl */ `
       float depth = min(240.0, shell / radius);
       // Negative flowTime brings fixed cloud features to smaller depth and larger screen radius.
       float z = depth - uFlowTime * (22.0 + float(layer) * 9.0);
+      // Independent shearing folds keep the corridor from reading as one rotating image.
+      float twist = -uFlowTime * (float(layer) - 1.0) * 0.045
+        + sin(z * 0.035 + float(layer) * 1.7) * 0.16;
+      vec2 wallRay = mat2(cos(twist), sin(twist), -sin(twist), cos(twist)) * turning;
       vec2 bend = vec2(sin(z * 0.09 + 0.6), cos(z * 0.06)) * vec2(0.5, 0.35);
-      vec3 p = vec3(turning * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
+      vec3 p = vec3(wallRay * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
       float broad = noise(p * 0.65);
       float detail = noise(p * 2.3 + broad * 0.8);
       float fine = noise(p * 7.0 + vec3(detail, broad, detail) * 1.5);
@@ -79,9 +83,15 @@ const fragment = /* glsl */ `
     float mist = noise(vec3(ray * 8.0, uFlowTime * 0.45));
     color += mix(vec3(0.015, 0.05, 0.12), vec3(0.09, 0.28, 0.42), mist) * exp(-radius * 5.0) * 0.65;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
-    // The actual clouds crossfade directly with the trails. No intermediate blue/white plate.
+    // The crossing travels across the view: clouds engulf the center on entry and open
+    // from the center on exit. Both endpoints are exact, preserving the opaque handoff.
+    float screenRadius = clamp(length(vUv * 2.0 - 1.0) / 1.414214, 0.0, 1.0);
+    float front = mix(screenRadius, 1.0 - screenRadius, uExit);
+    float mask = mix(uOpacity, smoothstep(front * 0.76, front * 0.76 + 0.24, uOpacity), uMotion);
+    float crest = 4.0 * mask * (1.0 - mask);
+    color += vec3(0.12, 0.38, 0.7) * crest * uExposure * 1.4;
     color *= 1.0 + uExposure * 0.65;
-    gl_FragColor = vec4(color, uOpacity);
+    gl_FragColor = vec4(color, mask);
     #include <tonemapping_fragment>
     #include <colorspace_fragment>
   }
@@ -107,6 +117,8 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uSpin: { value: new Vector2(1, 0) },
       uMaskDepth: { value: -0.477 },
       uOpacity: { value: 0 },
+      uExit: { value: 0 },
+      uMotion: { value: 1 },
       uExposure: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
       uDrift: { value: new Vector2() },
@@ -137,6 +149,8 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
         reduced ? 0 : jumpTurbulence(jump, 1) * 0.035,
       );
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
+    if (target?.uExit) target.uExit.value = jump.phase === 'EXITING' ? 1 : 0;
+    if (target?.uMotion) target.uMotion.value = reduced ? 0 : 1;
     const exposure = reduced ? 0 : jumpExposure(jump);
     if (target?.uExposure) target.uExposure.value = exposure;
     uniforms.uLens.value.set(
@@ -185,8 +199,8 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
         color="#8bcaff"
         intensity={0}
         distance={32}
-        angle={0.85}
-        penumbra={0.65}
+        angle={1.05}
+        penumbra={0.9}
         castShadow
         shadow-mapSize={[512, 512]}
         shadow-camera-near={0.5}

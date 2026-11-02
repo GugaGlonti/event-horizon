@@ -66,35 +66,45 @@ guidance and a bounded screen bearing remain available on larger viewports.
 
 ## Cinematic presentation
 
-Real-space motion uses the game's compressed world scale. Departure covers 1,800 km with an
-eighth-power ease-in after ignition: very little initial movement, then a steep late burst. Arrival
-retains 800 km/s through the world reveal, then brakes over the final 0.63 seconds with a ninth-power
-velocity falloff. Both offline and online journeys use a near-planet endpoint with the derived
-1,226 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
+Real-space motion uses the game's compressed world scale. Departure covers 1,800 km with a
+small quadratic lead-in plus eighth-power ease-in: forward creep during the stretch, then a steep
+late burst. Arrival retains 800 km/s through the world reveal, then brakes over the final 1.218
+seconds with a ninth-power velocity falloff. Both offline and online journeys use a near-planet endpoint with the derived
+803 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
 view from actual ship translation. The physics integrator never receives cinematic speeds. The
 requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
 browser; film footage is not bundled.
 
 The persistent 12,000-star field supplies every streak. Wider white cores, cyan shoulders and blue
-halos build to full stretch by 36% of entry. Tunnel coverage starts at 80%, leaving about 1.5 seconds
-of fully extended stars. Stretched exposures share the tunnel's logarithmic 80 m optical boundary;
+halos build to full stretch by 72% of entry. The physical surge starts at 42%, its shared crossing
+impulse at 90%, and tunnel coverage at 94%, leaving about 0.75 seconds of fully extended stars in
+clear space. Over 60% of the departure distance is covered before the cloud blend is half opaque.
+Stretched exposures share the tunnel's logarithmic 80 m optical boundary;
 ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retain foreground depth.
 
-Trails crossfade directly into three irregular cloud shells. Tunnel opacity follows world coverage;
-a restrained light crest brightens cloud detail without a separate pale blue/white overlay. Exit
-brings fully glowing trails up over the opaque mask during its first 30%, holds full extension until
-50%, then contracts through 94%. Star travel settles earlier, by 45%, so the field is already visible
-when contraction begins. Exit stays opaque through 30%, then reveals the destination over 30–70%:
-about 0.84 seconds. Optical trails cannot release the world mask. The analytical coast still ends at
+Trails blend directly into three irregular cloud shells. Clouds engulf the center on entry and open
+from the center on exit, with a restrained luminous crossing front. Exact zero/full alpha endpoints
+preserve the world handoff; there is no separate pale blue/white overlay. Exit brings fully glowing
+trails up over the opaque mask during its first 14%, holds full extension until 42%, then contracts
+quadratically through 90%. Star head positions reset while invisible beneath the tunnel and remain
+anchored on arrival; their departure sweep is not reversed. Exit stays opaque through 24%, then
+reveals the destination over 24–42%: about 0.38 seconds. At 42%, heavy braking, trail contraction,
+engine release and the camera/audio impulse begin together. Lens widening holds through the reveal
+before settling; chase-camera spacing also follows the braking beat. The departure impulse begins
+with the late visible surge and carries its short decay across tunnel entry. Optical trails cannot release the world mask. The analytical coast still ends at
 exactly 100 m/s. Seeded smooth noise varies camera translation/rotation, cloud drift and reflected
 light between journeys. Camera/tunnel turbulence occurs in brief 0.45–0.7 second hiccups, with
 seeded onset times and at least two seconds of complete rest between events. All camera axes share
 the same event envelope, so most cruise is fully steady. Entry/exit recoil remains separate.
 Impulses are removed before the next camera update and never feed physics.
+The final camera matrices update before the starfield samples its vanishing point. Previously,
+that projection could use the previous frame's camera/origin while star vertices used the current
+frame at draw time, making long streaks shake during rapid origin shifts. Both projections now use
+the same frame; the intended occasional camera hiccups remain.
 
 Three cloud scales now provide broad dark folds, creased wisps and fine luminous filaments on
 far-to-near shells. Blue light pools pulse and drift around the walls; the same explicit clock and
-sample drive a moving spotlight and dim opposite fill on the ship. System light fades with tunnel
+sample drive a broad, asymmetrically drifting spotlight and dim opposite fill on the ship. System light fades with tunnel
 coverage, letting the hull, wings and canopy cast readable moving shadows. A single 512×512 soft
 shadow map covers only the visible player hull/cockpit, with a 32 m light frustum. Its depth material
 uses projected light depth to avoid logarithmic-depth shadow artifacts. The map is retained across
@@ -102,13 +112,20 @@ jumps, freezes on journey holds and has no normal-flight shadow pass; Fiber disp
 
 Cloud features now travel from the vanishing point toward the camera, expanding outward instead of
 receding into the center. The texture scroll clock is negative; bends move with the sampled cloud
-field. Wall coordinates turn clockwise at 0.2 rad/s (about 11.5°/s), with a single CPU-computed
-sine/cosine pair reused by the shader. The camera retains its occasional hiccups. Reduced motion
+field. A common 0.2 rad/s (about 11.5°/s) clockwise rotation uses a CPU-computed sine/cosine pair;
+per-shell differential twists and depth-varying folds add shear without extra noise samples or draws.
+Glass reflections share the journey clock with tunnel lighting across system commit.
+The camera retains its occasional hiccups. Reduced motion
 freezes both cloud travel and spin, and neither has an independent animation clock.
 
 Reduced motion suppresses trails, turbulence, recoil, dynamic FOV, exposure, animated clouds and
-moving highlights, retaining steady blue illumination. No particle stream, asset textures,
+moving highlights, retaining steady blue illumination and a uniform opacity transition. No particle stream, asset textures,
 dependencies or audio assets were added. Normal-flight audio ownership and gestures are unchanged.
+
+The camera retains its pre-jump speed/FOV contribution through the masked world relocation, then
+blends toward the 100 m/s cruise contribution during braking. Both cameras preserve their lens at
+system commit and control handoff. This removes a 3.33-degree cockpit FOV step that chase damping
+had previously concealed.
 
 The visual direction follows the requested modern-film cues: screen-filling white/cyan streaks,
 blue cloud depth and illuminated foreground surfaces. Inspected primary references were the
@@ -117,6 +134,61 @@ blue cloud depth and illuminated foreground surfaces. Inspected primary referenc
 The effect is an original procedural interpretation; film images/footage are not bundled.
 The [requested Andor clip at 0:07](https://www.youtube.com/watch?v=_y92SdOjJ2M&t=7s) was also inspected
 in the browser for cloud detail, blue pulses and directional hull illumination.
+
+## Choreography rework verification — 2 November 2026
+
+This working-tree rework is based on `33bdfe8` and remains uncommitted for review. The final
+`npm run check` passed lint, 580 tests across 43 files (including nine real-socket integrations),
+TypeScript checking and production build. New regressions cover continuously increasing departure
+speed, visible travel before mask coverage, fixed arrival star heads, synchronized braking/impulses,
+cue timing and both cameras' FOV continuity at commit and control handoff. Vite retains its existing
+large-chunk advisory.
+
+The follow-up star-jitter regression failed in both cameras before the matrix-order fix and passes
+afterward. It compares pre-draw star projections with actual Three.js render matrices across twenty
+100 km oblique origin shifts per camera; a steady bearing remains steady without a one-frame lag.
+Fresh Chrome captures exercised Solara → Vesper in chase at 1920×1080 and Vesper → Aether in
+cockpit at 390×600 through departure and arrival. Compact layout had no horizontal overflow and
+the warning/error console was empty. These checks cover the reproduced projection mismatch;
+intentional brief camera impulses remain visible.
+
+Chrome completed Solara → Vesper → Aether in chase view and Aether → Solara in cockpit at 390×600
+CSS. Further wide cockpit jumps checked the tightened exit contraction. Successive entry, tunnel
+and exit frames were captured through ordinary UI controls; no position fixtures or game-state
+injection was used. The player hull/canopy remained visible, clouds flowed outward with differential
+swirl, and the planet rush accompanied the reveal/braking beat. Compact layout had no horizontal
+overflow. Map Tab focus, disabled maps during jumps, abort during moving departure and reset were
+checked. A final 1920×1080 cockpit Solara → Vesper jump checked the corrected speed/FOV handoff.
+The warning/error console was empty.
+
+The shader rework adds no draw calls, noise samples, textures or shadow maps. An interim warm
+60-second Chrome cockpit sample at 1920×1080 CSS / DPR 1 on Apple M2 Pro / 32 GiB recorded
+8.3 / 9.5 / 13.7 ms p50 / p95 / p99 over 7,175 frames, valid/complete. It included one Solara → Vesper
+jump, normal flight/combat and a death overlay after arrival; the sample predates the final camera
+FOV continuity correction. It is not an isolated tunnel GPU measurement, a cold/city workload, or
+the DPR 1.5 reference profile. It does not establish a performance improvement or other-hardware
+guarantee.
+
+Three-second real-client Combat smoke runs on loopback used Node 22.20.0 with server and clients in
+one process. The QA tab was closed and no test suite or renderer capture ran during measurement.
+These exercise join/combat stability; they do not measure simultaneous transfers or sustained capacity.
+
+| Clients | Mean / max tick ms | Down / up KiB/s per client | p95 ack ms | CPU % of one core | RSS MiB | Overruns |
+| ------- | ------------------ | -------------------------- | ---------- | ----------------- | ------- | -------- |
+| 2       | 3.475 / 7.809      | 193.3 / 4.5                | 23         | 21.9              | 173.9   | 0        |
+| 8       | 5.835 / 11.859     | 446.1 / 4.5                | 46         | 33.1              | 177.5   | 0        |
+| 16      | 9.418 / 16.405     | 708.0 / 4.5                | 56         | 51.2              | 173.2   | 0        |
+
+The [raw measurement record](benchmarks/hyperspace-choreography-2026-11-02.json) includes actual
+tick rates and limits. Audible mix assessment, an OS reduced-motion browser pass, native pointer
+capture and a multiplayer browser transfer were not repeated. Reduced-motion envelopes, matching
+scene readiness, all-route corridor clearance and real-socket transfers retain automated coverage.
+
+![Shearing blue tunnel and broad hull illumination](verification/hyperspace-choreography-tunnel.jpg)
+
+![Contracting arrival trails and the visible planet rush](verification/hyperspace-choreography-exit.jpg)
+
+![Compact cockpit arrival](verification/hyperspace-choreography-compact.jpg)
 
 ## Browser verification — 2 November 2026
 

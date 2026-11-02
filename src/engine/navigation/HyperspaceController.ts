@@ -18,6 +18,7 @@ export const HYPERSPACE_TIMING = Object.freeze({
 
 export const HYPERSPACE_MOTION = Object.freeze({
   departureDistance: 1_800_000,
+  departureLeadInDistance: 6_000,
   departureExponent: 8,
   arrivalSpeed: 800_000,
   arrivalExponent: 10,
@@ -32,12 +33,18 @@ export function hyperspaceDuration(distance: number) {
 }
 
 export const HYPERSPACE_ENTRY = Object.freeze({
-  stretchComplete: 0.36,
-  ignitionStart: 0.55,
-  tunnelStart: 0.8,
+  stretchComplete: 0.72,
+  ignitionStart: 0.42,
+  impactStart: 0.9,
+  tunnelStart: 0.94,
 });
 
-export const HYPERSPACE_EXIT = Object.freeze({ revealStart: 0.3, revealEnd: 0.7, settle: 0.72 });
+export const HYPERSPACE_EXIT = Object.freeze({
+  streaksVisible: 0.14,
+  revealStart: 0.24,
+  revealEnd: 0.42,
+  settle: 0.9,
+});
 export const EXIT_COAST_DISTANCE =
   HYPERSPACE_TIMING.EXITING *
   (HYPERSPACE_MOTION.arrivalSpeed * HYPERSPACE_EXIT.revealEnd +
@@ -57,9 +64,11 @@ export function entrySurge(progress: number) {
 
 /** Strong ease-in: most real-space distance is covered by the final ignition burst. */
 export function hyperspaceDepartureDistance(progress: number) {
+  const p = Math.max(0, Math.min(1, progress));
   return (
-    HYPERSPACE_MOTION.departureDistance *
-    entrySurge(progress) ** HYPERSPACE_MOTION.departureExponent
+    HYPERSPACE_MOTION.departureLeadInDistance * p * p +
+    (HYPERSPACE_MOTION.departureDistance - HYPERSPACE_MOTION.departureLeadInDistance) *
+      entrySurge(p) ** HYPERSPACE_MOTION.departureExponent
   );
 }
 
@@ -147,7 +156,8 @@ export class HyperspaceController {
     if (this.phase === 'ACCELERATING')
       return 0.08 + smoothRamp(0, 0.85, entrySurge(this.progress)) * 0.92;
     if (this.phase === 'HYPERSPACE') return 1;
-    if (this.phase === 'EXITING') return 1 - smoothRamp(0.08, 0.4, this.progress);
+    if (this.phase === 'EXITING')
+      return 1 - smoothRamp(HYPERSPACE_EXIT.revealEnd, HYPERSPACE_EXIT.settle, this.progress);
     return 0;
   }
   get coverage() {

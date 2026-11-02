@@ -9,10 +9,9 @@ export interface TunnelLightSample {
 /** Smooth light pools shared by the cloud shader and the foreground lamps. Reuse the output. */
 export function sampleTunnelLights(time: number, reduced: boolean, out: TunnelLightSample) {
   const t = reduced ? 0 : time;
-  const angle = t * 0.72 + Math.sin(t * 0.31) * 0.65;
-  out.x = Math.cos(angle) * 8;
-  out.y = 2.4 + Math.sin(angle) * 5.2;
-  out.z = 5 + Math.sin(t * 0.51) * 2;
+  out.x = Math.sin(t * 0.37 + 0.5) * 7 + Math.sin(t * 0.13) * 1.2;
+  out.y = 3.2 + Math.sin(t * 0.29 + 1.5) * 4.8;
+  out.z = 5 + Math.sin(t * 0.19) * 2;
   out.pulse = reduced
     ? 0.45
     : 0.2 + (0.5 + Math.sin(t * 2.3 + Math.sin(t * 0.67)) * 0.5) ** 3 * 0.8;

@@ -5,6 +5,7 @@ import {
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
 import { HyperdriveRecordings } from '@/features/exploration/audio/HyperdriveRecordings';
+import { jumpImpactAge } from '@/features/exploration/hyperspaceVisuals';
 
 /** Gesture-started recorded machinery, with a quiet synthesized bed and an asset-failure fallback. */
 export class HyperdriveAudio {
@@ -129,7 +130,9 @@ export class HyperdriveAudio {
       (jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart);
     const chargeProgress = jump.phase === 'CHARGING' ? jump.progress : 1;
     const exiting = jump.phase === 'EXITING';
-    const release = exiting ? 1 - smoothRamp(HYPERSPACE_EXIT.revealStart, 0.65, jump.progress) : 1;
+    const release = exiting
+      ? 1 - smoothRamp(HYPERSPACE_EXIT.revealEnd, HYPERSPACE_EXIT.settle, jump.progress)
+      : 1;
     this.subGain?.gain.setTargetAtTime(0.022 * release * synthesized, time, 0.04);
     this.hum.frequency.setTargetAtTime(
       charging ? 48 + chargeProgress ** 2 * 130 : 54 + jump.intensity * 28,
@@ -172,11 +175,11 @@ export class HyperdriveAudio {
       time,
       0.06,
     );
-    if (jump.phase === 'ACCELERATING' && !charging && !this.ignited) {
+    if (!exiting && jumpImpactAge(jump) >= 0 && !this.ignited) {
       this.impact(false);
       this.ignited = true;
     }
-    if (exiting && jump.progress >= HYPERSPACE_EXIT.revealStart && !this.exited) {
+    if (exiting && jumpImpactAge(jump) >= 0 && !this.exited) {
       this.impact(true);
       this.exited = true;
     }

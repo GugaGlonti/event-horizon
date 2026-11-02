@@ -25,19 +25,36 @@ function setup() {
 }
 
 describe('continuous jump motion', () => {
-  it('holds position while the stars stretch, then surges along the aligned route', () => {
+  it('keeps departure speed increasing through the stretch and crossing without a parked beat', () => {
+    const { motion, jump, position, orientation } = setup();
+    jump.phase = 'ACCELERATING';
+    let previousSpeed = 0;
+    const previous = position.clone();
+    const dt = HYPERSPACE_TIMING.ACCELERATING / 240;
+    for (let frame = 1; frame <= 240; frame++) {
+      jump.elapsed = frame * dt;
+      motion.sample(jump, position, orientation);
+      const speed = position.distanceTo(previous) / dt;
+      expect(speed).toBeGreaterThan(previousSpeed);
+      previous.copy(position);
+      previousSpeed = speed;
+    }
+  });
+
+  it('creeps forward during the stretch, then surges along the aligned route', () => {
     const { motion, jump, position, orientation } = setup();
     const launch = position.clone();
     jump.phase = 'ACCELERATING';
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart;
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(launch)).toBeLessThan(1e-9);
+    expect(position.distanceTo(launch)).toBeGreaterThan(1000);
+    expect(position.distanceTo(launch)).toBeLessThan(2000);
     jump.elapsed =
       HYPERSPACE_TIMING.ACCELERATING *
       (HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.6);
     motion.sample(jump, position, orientation);
     const travel = position.clone().sub(launch);
-    expect(travel.length()).toBeGreaterThan(300);
+    expect(travel.length()).toBeGreaterThan(30000);
     expect(travel.clone().normalize().dot(motion.direction)).toBeCloseTo(1);
   });
 
@@ -120,13 +137,17 @@ describe('continuous jump motion', () => {
     const { motion, jump, position, orientation, destination } = setup();
     const launch = position.clone();
     jump.phase = 'ACCELERATING';
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.9;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.tunnelStart;
     motion.sample(jump, position, orientation);
-    expect(jump.coverage).toBeLessThan(0.6);
-    expect(position.distanceTo(launch)).toBeGreaterThan(200000);
+    expect(jump.coverage).toBe(0);
+    expect(position.distanceTo(launch)).toBeGreaterThan(JUMP_MOTION.departureDistance * 0.4);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * ((1 + HYPERSPACE_ENTRY.tunnelStart) / 2);
+    motion.sample(jump, position, orientation);
+    expect(jump.coverage).toBeCloseTo(0.5);
+    expect(position.distanceTo(launch)).toBeGreaterThan(JUMP_MOTION.departureDistance * 0.6);
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.5;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.35;
     motion.sample(jump, position, orientation);
     const before = position.clone();
     jump.elapsed += 0.001;
@@ -143,7 +164,7 @@ describe('continuous jump motion', () => {
       HYPERSPACE_TIMING.ACCELERATING *
       (HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.5);
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(launch)).toBeLessThan(JUMP_MOTION.departureDistance * 0.005);
+    expect(position.distanceTo(launch)).toBeLessThan(JUMP_MOTION.departureDistance * 0.01);
 
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
@@ -176,10 +197,10 @@ describe('continuous jump motion', () => {
     motion.arrive(world);
     const jump = new HyperspaceController();
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.5;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.28;
     motion.sample(jump, position, orientation);
     const before = new Vector3().subVectors(center, position).normalize();
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.8;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.6;
     motion.sample(jump, position, orientation);
     const after = new Vector3().subVectors(center, position).normalize();
     expect(before.angleTo(after)).toBeGreaterThan(Math.PI / 12);

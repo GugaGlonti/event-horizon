@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HYPERSPACE_ENTRY,
+  HYPERSPACE_EXIT,
   HYPERSPACE_TIMING,
   HyperspaceController,
   type JumpPhase,
@@ -24,12 +26,13 @@ describe('hyperspace visual timing', () => {
       jump.elapsed = time;
       if (jumpStretch(jump) >= 0.99 && jump.coverage === 0) visibleHold += 1 / 120;
     }
-    expect(visibleHold).toBeGreaterThan(1.3);
+    expect(visibleHold).toBeGreaterThan(0.65);
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING / 2;
-    expect(jumpStretch(jump)).toBe(1);
+    expect(jumpStretch(jump)).toBeGreaterThan(0.6);
+    expect(jumpStretch(jump)).toBeLessThan(1);
     expect(jump.coverage).toBe(0);
     expect(jumpKick(jump)).toBe(0);
-    expect(jump.intensity).toBeCloseTo(0.08);
+    expect(jump.intensity).toBeGreaterThan(0.08);
   });
 
   it.each<[JumpPhase, JumpPhase]>([
@@ -46,7 +49,6 @@ describe('hyperspace visual timing', () => {
       jumpKick(jump),
       jumpRecoil(jump),
       jumpRattle(jump),
-      jumpStarTravel(jump),
       jumpStarVisibility(jump),
       jumpExposure(jump),
       jump.coverage,
@@ -60,7 +62,6 @@ describe('hyperspace visual timing', () => {
       jumpKick(jump),
       jumpRecoil(jump),
       jumpRattle(jump),
-      jumpStarTravel(jump),
       jumpStarVisibility(jump),
       jumpExposure(jump),
       jump.coverage,
@@ -77,7 +78,7 @@ describe('hyperspace visual timing', () => {
     jump.phase = 'ACCELERATING';
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.55;
     expect(jumpStarTravel(jump)).toBeGreaterThan(0.02);
-    expect(jumpStarTravel(jump)).toBeLessThan(0.065);
+    expect(jumpStarTravel(jump)).toBeLessThan(0.1);
     let previous = 0;
     for (let frame = 0; frame <= 120; frame++) {
       jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
@@ -107,7 +108,7 @@ describe('hyperspace visual timing', () => {
       // The cloud mask and optical trails never both disappear during their handoff.
       expect(jump.coverage + jumpStarVisibility(jump)).toBeGreaterThanOrEqual(1);
     }
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.9;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * ((HYPERSPACE_ENTRY.tunnelStart + 1) / 2);
     expect(jumpExposure(jump)).toBeCloseTo(0.35);
   });
 
@@ -133,6 +134,39 @@ describe('hyperspace visual timing', () => {
     expect(jumpStarTravel(jump)).toBe(0);
     expect(jumpStretch(jump)).toBe(0);
     expect(jumpExposure(jump)).toBe(0);
+  });
+
+  it('anchors arrival star heads instead of reversing their departure sweep', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'HYPERSPACE';
+    expect(jumpStarVisibility(jump)).toBe(0);
+    jump.phase = 'EXITING';
+    expect(jumpStarVisibility(jump)).toBe(0);
+    // The head positions reset only under the opaque tunnel, then remain fixed as tails contract.
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.EXITING * frame) / 120;
+      expect(jumpStarTravel(jump)).toBe(0);
+    }
+  });
+
+  it('unifies braking, trail contraction, engine release and the arrival camera impulse', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealEnd;
+    expect(jump.coverage).toBe(0);
+    expect(jumpStretch(jump)).toBe(1);
+    expect(jump.intensity).toBe(1);
+    expect(jumpKick(jump)).toBe(0);
+    jump.elapsed += 0.1;
+    expect(jumpKick(jump)).toBeGreaterThan(0.7);
+    expect(jumpStretch(jump)).toBeLessThan(1);
+    expect(jump.intensity).toBeLessThan(1);
+    expect(Math.abs(jumpRecoil(jump))).toBeGreaterThan(0.01);
+    jump.elapsed += 0.1;
+    expect(jumpStretch(jump)).toBeLessThan(0.7);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING;
+    expect(jumpKick(jump)).toBe(0);
+    expect(jumpRecoil(jump)).toBeCloseTo(0);
   });
 
   it('leaves calm stretches between brief, smooth tunnel hiccups', () => {

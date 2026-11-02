@@ -1,0 +1,117 @@
+{
+  "date": "2026-11-02",
+  "revision": "uncommitted choreography rework based on 33bdfe8",
+  "hardware": {
+    "cpu": "Apple M2 Pro",
+    "memoryGiB": 32
+  },
+  "renderer": {
+    "browser": "Chrome",
+    "viewportCss": {
+      "width": 1920,
+      "height": 1080
+    },
+    "dpr": 1,
+    "conditions": "Warm development cockpit view: Solara to Vesper, normal flight, combat and the death overlay. No screenshot sampling, tests or load harness during the interval.",
+    "limitations": "Mixed gameplay, not an isolated tunnel GPU profile or the DPR 1.5 reference workload. Includes a death overlay after arrival. Excludes cold initialization and developed cities. Does not establish a performance improvement or other-hardware guarantees.",
+    "result": {
+      "seconds": 60,
+      "frames": 7175,
+      "p50": 8.3,
+      "p95": 9.5,
+      "p99": 13.7,
+      "valid": true,
+      "complete": true,
+      "peaks": {
+        "calls": 60,
+        "triangles": 102900,
+        "visualBytes": 3581341.333333334,
+        "scenery": 0,
+        "cells": 0,
+        "blocks": 0
+      },
+      "calls": 52,
+      "triangles": 61268,
+      "geometries": 62,
+      "textures": 9,
+      "patches": 0,
+      "cache": 0,
+      "workerMs": 0,
+      "width": 1920,
+      "height": 1080
+    },
+    "captureStage": "After the shader/exit-contraction rework, before the final speed/FOV handoff correction; source and renderer logic otherwise match this rework."
+  },
+  "load": {
+    "conditions": "LOAD_SECONDS=3 npm run test:load -- 2 8 16; real SDK clients and server in one process on loopback, default Combat scenario. QA Chrome tab closed; no test suite or renderer capture during measurement.",
+    "limitations": "Short join/combat smoke tests. Not simultaneous transfer saturation, Internet conditions or sustained capacity. Binary rates exclude WebSocket/TCP headers.",
+    "runtime": "v22.20.0",
+    "platform": "darwin",
+    "measurement": "Single process: server plus bots; binary transport payload sizes exclude WebSocket/TCP headers. JSON sizes are diagnostic.",
+    "results": [
+      {
+        "scenario": "space-combat",
+        "flightMode": "combat",
+        "players": 2,
+        "seconds": 3,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 29.99,
+        "meanTickMs": 3.475,
+        "maxTickMs": 7.809083999999984,
+        "overruns": 0,
+        "cpuPercentOneCore": 21.9,
+        "rssMiB": 173.9,
+        "rssDeltaMiB": 18.7,
+        "meanBinaryMessageBytes": 9737,
+        "perClientDownKiBPerSecond": 193.3,
+        "perClientUpKiBPerSecond": 4.5,
+        "meanSnapshotJsonBytes": 14655,
+        "p95SnapshotJsonBytes": 17343,
+        "perClientJsonKiBPerSecond": 286.2,
+        "p95InputAckMs": 23
+      },
+      {
+        "scenario": "space-combat",
+        "flightMode": "combat",
+        "players": 8,
+        "seconds": 3,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 30,
+        "meanTickMs": 5.835,
+        "maxTickMs": 11.858916999999565,
+        "overruns": 0,
+        "cpuPercentOneCore": 33.1,
+        "rssMiB": 177.5,
+        "rssDeltaMiB": 2.3,
+        "meanBinaryMessageBytes": 22470,
+        "perClientDownKiBPerSecond": 446.1,
+        "perClientUpKiBPerSecond": 4.5,
+        "meanSnapshotJsonBytes": 33973,
+        "p95SnapshotJsonBytes": 43709,
+        "perClientJsonKiBPerSecond": 663.4,
+        "p95InputAckMs": 46
+      },
+      {
+        "scenario": "space-combat",
+        "flightMode": "combat",
+        "players": 16,
+        "seconds": 3,
+        "simulatedOneWayLatencyMs": 0,
+        "actualTickHz": 29.66,
+        "meanTickMs": 9.418,
+        "maxTickMs": 16.40520800000013,
+        "overruns": 0,
+        "cpuPercentOneCore": 51.2,
+        "rssMiB": 173.2,
+        "rssDeltaMiB": -4.4,
+        "meanBinaryMessageBytes": 35659,
+        "perClientDownKiBPerSecond": 708,
+        "perClientUpKiBPerSecond": 4.5,
+        "meanSnapshotJsonBytes": 53657,
+        "p95SnapshotJsonBytes": 69448,
+        "perClientJsonKiBPerSecond": 1047.8,
+        "p95InputAckMs": 56
+      }
+    ]
+  }
+}

@@ -1,5 +1,5 @@
 import { MathUtils, type PerspectiveCamera, Quaternion, Vector3 } from 'three';
-import { smoothRamp } from '@/engine/navigation/HyperspaceController';
+import { HYPERSPACE_EXIT, smoothRamp } from '@/engine/navigation/HyperspaceController';
 import { traceStation } from '@/engine/stations/stationGeometry';
 import {
   jumpKick,
@@ -25,6 +25,7 @@ export class FlightCamera {
   private readonly lastImpulse = new Vector3();
   private readonly lastRotation = new Quaternion();
   private jumping = false;
+  private jumpSpeedFov = 0;
   private mode: CameraMode | null = null;
   private resetVersion = -1;
 
@@ -37,6 +38,20 @@ export class FlightCamera {
   ) {
     const config = GAME_CONFIG.camera;
     const jump = session.exploration.jump;
+    const ordinarySpeedFov =
+      config.speedFov * Math.min(1, session.controller.speed / FLIGHT_CONFIG.boostMaxSpeed);
+    if (jump.busy && !this.jumping) this.jumpSpeedFov = ordinarySpeedFov;
+    // The controller is relocated beneath the mask. Preserve the lens through that handoff,
+    // then approach normal cruise widening during the same visible braking beat.
+    const speedFov = jump.busy
+      ? jump.phase === 'EXITING'
+        ? MathUtils.lerp(
+            this.jumpSpeedFov,
+            config.speedFov * Math.min(1, JUMP_MOTION.exitSpeed / FLIGHT_CONFIG.boostMaxSpeed),
+            smoothRamp(HYPERSPACE_EXIT.revealEnd, 1, jump.progress),
+          )
+        : this.jumpSpeedFov
+      : ordinarySpeedFov;
     if (jump.busy && session.exploration.isSuspended) dt = 0;
     const kick = reducedMotion ? 0 : jumpKick(jump);
     camera.position.sub(this.lastImpulse);
@@ -56,7 +71,8 @@ export class FlightCamera {
       this.targetPosition.z *= Math.max(1, config.narrowScreenAspect / camera.aspect);
       if (jump.phase === 'EXITING')
         this.targetPosition.z +=
-          (JUMP_MOTION.exitSpeed / config.positionDamping) * smoothRamp(0.25, 1, jump.progress);
+          (JUMP_MOTION.exitSpeed / config.positionDamping) *
+          smoothRamp(HYPERSPACE_EXIT.revealEnd, 1, jump.progress);
     }
     this.targetPosition.applyQuaternion(session.orientation).add(session.renderPosition);
     if (
@@ -97,14 +113,9 @@ export class FlightCamera {
       baseFov +
       (reducedMotion
         ? 0
-        : config.speedFov *
-            Math.min(
-              1,
-              (jump.phase === 'EXITING' ? JUMP_MOTION.exitSpeed : session.controller.speed) /
-                FLIGHT_CONFIG.boostMaxSpeed,
-            ) +
+        : speedFov +
           config.hyperspaceFov * kick +
-          jump.coverage * 3);
+          (jump.phase === 'EXITING' ? Math.max(jump.coverage, jump.intensity) : jump.coverage) * 3);
     if (!reducedMotion && jump.busy) {
       const strength = jumpRattle(jump) * config.hyperspaceVibration;
       this.right.set(1, 0, 0).applyQuaternion(session.orientation);
@@ -139,6 +150,9 @@ export class FlightCamera {
       camera.fov = fov;
       camera.updateProjectionMatrix();
     }
+    // Later frame callbacks project stars before Three's render-time matrix update. Publish the
+    // final pose now, including this frame's origin rebase and impulses, to avoid trail jitter.
+    camera.updateMatrixWorld();
     this.mode = mode;
     this.resetVersion = session.resetVersion;
     this.previousShip.copy(session.position);

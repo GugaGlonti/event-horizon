@@ -303,22 +303,28 @@ Guidance refreshes after 0.5 seconds or 500 m of movement; launch availability p
 flight, then accepts Tab or the HUD button when the lane is clear. Cancellation/destination changes
 clear the suggestion. Compact layouts reserve room for the guidance banner and flight instruments.
 
-`HyperspaceFlight` samples analytical alignment/bank, an eighth-power departure surge and a heavy
-arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 70% of exit, after
+`HyperspaceFlight` samples analytical alignment/bank, a quadratic forward creep plus an eighth-power
+departure surge and a heavy arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 42% of exit, after
 coverage reaches zero. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
-scalar distance functions supply the path and derived coast extent (about 1,226 km). Offline and
+scalar distance functions supply the path and derived coast extent (about 803 km). Offline and
 multiplayer both use a near-planet final pose with the lead-in behind it. Normal physics never
 integrates hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
 cancellation follows the authoritative admission/recovery path.
 
-The 3.4-second entry reaches full extension by 36%, ignites at 55%, and begins tunnel coverage at
-80%, leaving about 1.5 seconds of clear full stretch. The persistent star field supplies every trail;
+The 3.4-second entry reaches full extension by 72%, starts its physical surge at 42%, and begins tunnel coverage at
+94%, leaving about 0.75 seconds of clear full stretch. A shared crossing impulse starts at 90% and
+carries its decay into the tunnel. Over 60% of departure translation precedes half cloud coverage.
+The persistent star field supplies every trail;
 no particles recycle into another layout. White cores, cyan shoulders and restrained blue halos
-crossfade directly into cloud walls. Tunnel alpha follows coverage exactly; a bounded light crest
-brightens the existing texture without adding an intermediate flat overlay. `hyperspaceVisuals` owns
+crossfade directly into cloud walls. Spatial alpha engulfs the center on entry and opens it on exit,
+with exact zero/full endpoints tied to coverage. A bounded light crest brightens the crossing front
+without adding an intermediate flat overlay. Reduced motion uses a uniform opacity blend.
+`hyperspaceVisuals` owns
 continuous envelopes, recoil, rattle and smooth seeded noise. Per-journey variation affects only
 presentation. Camera impulses and small rotations are removed before each follow update, preventing
-accumulation. Reduced motion suppresses these effects; active journey time drives clouds without a
+accumulation. The camera publishes its final world/view matrices before later frame callbacks sample
+star projections, keeping their vanishing point coherent across render-origin shifts and impulses.
+Reduced motion suppresses these effects; active journey time drives clouds without a
 separate render clock.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
@@ -336,11 +342,16 @@ EXITING stays at zero progress with full coverage until the matching destination
 its first frame after every terrain body has complete six-face base coverage. The renderer reports
 readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
 Both CPU preparation and renderer readiness have
-bounded 12-second deadlines. The first 30% of the 2.1-second exit remains opaque; coverage falls over
-30–70% (about 0.84 seconds), coordinated with exposure and the exit impulse. Optical trail visibility
-rises over the opaque mask during the first 30%; virtual star travel settles by 45%. Full extension
-holds until 50%, then contracts through 94%. This lets exit show the entry's glowing white/cyan
-exposures before shortening them. Optical visibility never changes world-mask coverage or readiness.
+bounded 12-second deadlines. The first 24% of the 2.1-second exit remains opaque; coverage falls over
+24–42% (about 0.38 seconds). Optical trail visibility rises over the opaque mask during the first 14%.
+Star travel resets while invisible at handoff, leaving arrival heads anchored instead of reversing
+their departure sweep. Full extension holds until 42%, then contracts quadratically through 90%.
+Braking, recoil/lens/audio impact and engine release start together at 42%. Lens widening holds
+through the reveal before settling, avoiding a premature collapse and second zoom. Chase-camera
+spacing also eases from that braking beat. Optical visibility never changes world-mask coverage or readiness.
+`FlightCamera` retains the pre-jump speed/FOV contribution through masked relocation, then blends
+it toward the normal 100 m/s contribution during braking. Cockpit's immediate lens updates and
+chase's damped updates preserve FOV at both system commit and the normal-flight handoff.
 The analytical distance integral exactly matches the final pose and handoff velocity. Gameplay
 motion values live in engine/navigation/HyperspaceController.ts and the full swept corridor uses those same bounds. Celestial assets use
 procedural geometry/shaders. The shared spacecraft GLB library stays mounted
@@ -505,12 +516,14 @@ The tunnel samples three scales of 3D value noise on three bounded, far-to-near 
 Broad folds, domain-warped wisps and fine luminous filaments create forward flow without an atan
 seam, volume raymarch or extra star streaks. `hyperspaceTunnelMotion` supplies a negative texture
 clock so fixed cloud features approach the camera and expand outward. Bends advect with the clouds.
-One reused sine/cosine pair rotates wall sampling at 0.2 rad/s; trigonometry is evaluated once per
-frame on the CPU. The held journey clock freezes both effects, and reduced motion supplies a static
+One reused CPU sine/cosine pair rotates wall sampling at 0.2 rad/s. Per-shell shader twists add
+differential shear and depth-varying folds to that common rotation; no extra noise samples or draws
+are added. The held journey clock freezes both effects, and reduced motion supplies a static
 sample. Camera movement retains the separate occasional-hiccup envelope.
 `hyperspaceLighting` samples bounded smooth light pools
 from the journey clock; both the wall shader and foreground lamps consume that same sample.
-One camera-relative spotlight casts soft shadows, with a dim opposite fill and restrained ambient.
+One broad camera-relative spotlight drifts along an asymmetric path and casts soft shadows, with a
+dim opposite fill and restrained ambient.
 System sun/ambient/sky fill fade with world coverage so the tunnel light retains contrast.
 Only the visible player hull or cockpit casts/receives shadows: one hull draw or fourteen small
 cockpit draws into a 512×512 map, with a 32 m light frustum. The light updates its map only during
@@ -522,6 +535,8 @@ camera uses logarithmic depth. Hulls retain their existing shared GLB resource o
 Reduced motion freezes light directions/pulses and cloud motion while retaining steady illumination.
 The original Kestrel canopy has ribs, instrument housings and faint procedural glass highlights.
 It follows the craft's nominal cockpit pose while the camera impulse moves relative to it.
+During jumps, glass highlights share the continuous journey clock with the tunnel lamps, avoiding a
+reflection reset when the destination world changes.
 
 The transparent depth-tested tunnel mask draws after celestial transparency (order 10), preserving
 nearby opaque ship/cockpit depth at a logarithmic 80 m boundary. Star trails draw next (20): normal

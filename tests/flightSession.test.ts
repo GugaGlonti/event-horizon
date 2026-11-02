@@ -114,7 +114,7 @@ describe('flight presentation boundaries', () => {
     const rig = new FlightCamera();
     const jump = session.exploration.jump;
     jump.phase = 'ACCELERATING';
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart + 0.06;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.impactStart + 0.06;
     const baseline = session.renderPosition
       .clone()
       .add(new Vector3(...GAME_CONFIG.camera.cockpitOffset));
@@ -131,7 +131,7 @@ describe('flight presentation boundaries', () => {
     let calm = 0,
       hiccups = 0;
     for (let frame = 0; frame < 1200; frame++) {
-      jump.elapsed = frame / 120;
+      jump.elapsed = 1 + frame / 120;
       rig.update(camera, session, 'cockpit', 1 / 120, false);
       const distance = camera.position.distanceTo(baseline);
       expect(distance).toBeLessThan(0.05);
@@ -166,32 +166,77 @@ describe('flight presentation boundaries', () => {
     }
   });
 
-  it('preserves the camera offset and FOV across the masked system handoff', async () => {
-    const session = new FlightSession();
-    const camera = new PerspectiveCamera();
-    const rig = new FlightCamera();
-    session.exploration.selectDestination('vesper');
-    session.exploration.beginJump();
-    await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
-    const revision = session.resetVersion;
-    let committed = false;
-    for (let frame = 0; frame < 4000; frame += 1) {
-      const previous = session.exploration.jump.phase;
-      const offset = camera.position.clone().sub(session.renderPosition);
-      const fov = camera.fov;
-      session.advance(1 / 120);
-      rig.update(camera, session, 'chase', 1 / 120, false);
-      if (previous === 'HYPERSPACE' && session.exploration.jump.phase === 'EXITING') {
-        expect(session.resetVersion).toBe(revision);
-        expect(camera.position.clone().sub(session.renderPosition).distanceTo(offset)).toBeLessThan(
-          0.01,
-        );
-        expect(Math.abs(camera.fov - fov)).toBeLessThan(0.2);
-        committed = true;
-        break;
+  it.each(['chase', 'cockpit'] as const)(
+    'keeps the %s star projection coherent before rendering across rapid origin shifts',
+    (mode) => {
+      const session = new FlightSession();
+      const camera = new PerspectiveCamera(62, 16 / 9);
+      const rig = new FlightCamera();
+      const direction = new Vector3(0.3, 0.14, -1).normalize();
+      session.orientation.setFromUnitVectors(new Vector3(0, 0, -1), direction);
+      session.exploration.jump.phase = 'ACCELERATING';
+      rig.update(camera, session, mode, 1 / 60, false);
+      camera.updateMatrixWorld();
+      const axis = new Vector3();
+      const baseline = session.renderPosition
+        .clone()
+        .addScaledVector(direction, GAME_CONFIG.environment.starRadius)
+        .project(camera);
+      for (let frame = 0; frame < 20; frame += 1) {
+        session.position.addScaledVector(direction, 100000);
+        session.origin.update(session.position);
+        session.origin.toRender(session.position, session.renderPosition);
+        rig.update(camera, session, mode, 1 / 60, false);
+        // Star uniforms are sampled before Three updates matrices for the actual draw.
+        axis
+          .copy(session.renderPosition)
+          .addScaledVector(direction, GAME_CONFIG.environment.starRadius);
+        const beforeDraw = axis.clone().project(camera);
+        camera.updateMatrixWorld();
+        const atDraw = axis.clone().project(camera);
+        expect(beforeDraw.distanceTo(atDraw)).toBeLessThan(1e-10);
+        expect(beforeDraw.distanceTo(baseline)).toBeLessThan(1e-8);
       }
-    }
-    expect(committed).toBe(true);
-    session.exploration.dispose();
-  });
+    },
+  );
+
+  it.each(['chase', 'cockpit'] as const)(
+    'preserves the %s camera offset and FOV across the masked system handoff',
+    async (mode) => {
+      const session = new FlightSession();
+      const camera = new PerspectiveCamera();
+      const rig = new FlightCamera();
+      session.exploration.selectDestination('vesper');
+      session.exploration.beginJump();
+      await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
+      const revision = session.resetVersion;
+      let committed = false;
+      let resumed = false;
+      for (let frame = 0; frame < 4000; frame += 1) {
+        const previous = session.exploration.jump.phase;
+        const offset = camera.position.clone().sub(session.renderPosition);
+        const fov = camera.fov;
+        session.advance(1 / 120);
+        rig.update(camera, session, mode, 1 / 120, false);
+        if (previous === 'HYPERSPACE' && session.exploration.jump.phase === 'EXITING') {
+          expect(session.resetVersion).toBe(revision);
+          expect(
+            camera.position.clone().sub(session.renderPosition).distanceTo(offset),
+          ).toBeLessThan(0.01);
+          expect(Math.abs(camera.fov - fov)).toBeLessThan(0.2);
+          committed = true;
+        }
+        if (session.exploration.jump.phase === 'EXITING')
+          session.exploration.markArrivalReady(session.exploration.world.definition.id);
+        if (previous === 'EXITING' && session.exploration.jump.phase === 'COOLDOWN') {
+          expect(Math.abs(camera.fov - fov)).toBeLessThan(0.2);
+          resumed = true;
+          break;
+        }
+      }
+      expect(committed).toBe(true);
+      expect(resumed).toBe(true);
+      session.exploration.dispose();
+    },
+  );
 });

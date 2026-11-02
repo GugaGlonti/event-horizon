@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  HYPERSPACE_ENTRY,
   HYPERSPACE_EXIT,
   HYPERSPACE_TIMING,
   HyperspaceController,
@@ -207,7 +208,7 @@ describe('recorded hyperdrive layers', () => {
     jump.phase = 'EXITING';
     recordings.update(jump);
     expect(stub.gains[1]?.gain.setTargetAtTime.mock.lastCall?.[0]).toBe(transitGain);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.85;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.95;
     recordings.update(jump);
     expect(stub.gains[1]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.06);
     recordings.dispose();
@@ -233,6 +234,9 @@ describe('hyperdrive audio lifecycle', () => {
     audio.update(jump, true);
     expect(context.sources).toHaveLength(6);
     audio.update(jump, false);
+    expect(context.sources).toHaveLength(6);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * (HYPERSPACE_ENTRY.impactStart + 0.01);
+    audio.update(jump, false);
     expect(context.sources).toHaveLength(7);
     audio.update(jump, false);
     expect(context.sources).toHaveLength(7);
@@ -240,7 +244,7 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = 0;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(7);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealStart + 0.01);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealEnd + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(7);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);
@@ -251,7 +255,7 @@ describe('hyperdrive audio lifecycle', () => {
     for (const voice of context.sources) expect(voice.disconnect).toHaveBeenCalledOnce();
   });
 
-  it('fires ignition once and waits for the arrival reveal before firing the exit cue', () => {
+  it('fires one crossing cue at the departure burst and one at the arrival braking beat', () => {
     const audio = new HyperdriveAudio();
     audio.start();
     const context = AudioContextStub.instances[0];
@@ -261,6 +265,9 @@ describe('hyperdrive audio lifecycle', () => {
     jump.phase = 'ACCELERATING';
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.6;
     audio.update(jump, false);
+    expect(context.sources).toHaveLength(continuousVoices);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * (HYPERSPACE_ENTRY.impactStart + 0.01);
+    audio.update(jump, false);
     const afterIgnition = context.sources.length;
     expect(afterIgnition).toBeGreaterThan(continuousVoices);
     audio.update(jump, false);
@@ -269,7 +276,10 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = 0;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(afterIgnition);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealStart + 0.01);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealStart;
+    audio.update(jump, false);
+    expect(context.sources).toHaveLength(afterIgnition);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealEnd + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(afterIgnition);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);

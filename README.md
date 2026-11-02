@@ -338,14 +338,14 @@ or external service is needed. Source credits and offline preview commands are i
 Select another system in the galaxy map. The chart shows route distance in light years and estimated
 jump time. Current-system, overlapping and cooldown requests remain unavailable.
 
-| State        | Duration                  | Behavior                                                         |
-| ------------ | ------------------------- | ---------------------------------------------------------------- |
-| CHARGING     | 3.2 s                     | Align, bank, level out and charge                                |
-| ACCELERATING | 3.4 s                     | Build and hold bright star stretches, then surge into the tunnel |
-| HYPERSPACE   | 3.4 s + 0.12 s/light year | Distance-scaled transit under the opaque blue corridor           |
-| EXITING      | 2.1 s                     | Await destination readiness, reveal gradually and coast out      |
-| COOLDOWN     | 4 s                       | Keyboard flight resumes at 100 m/s; hyperdrive recharges         |
-| IDLE         | —                         | Ready for another course                                         |
+| State        | Duration                  | Behavior                                                            |
+| ------------ | ------------------------- | ------------------------------------------------------------------- |
+| CHARGING     | 3.2 s                     | Align, bank, level out and charge                                   |
+| ACCELERATING | 3.4 s                     | Stretch with forward creep, then a visible surge and cloud crossing |
+| HYPERSPACE   | 3.4 s + 0.12 s/light year | Distance-scaled transit under the opaque blue corridor              |
+| EXITING      | 2.1 s                     | Glowing streaks, a central reveal and one coordinated braking beat  |
+| COOLDOWN     | 4 s                       | Keyboard flight resumes at 100 m/s; hyperdrive recharges            |
+| IDLE         | —                         | Ready for another course                                            |
 
 Galactic coordinates supply both headings and light-year distances. Longer routes take longer; ETA
 includes charge, entry, transit and exit, excluding cooldown. Destination preparation or readiness
@@ -368,20 +368,23 @@ atmospheres, rings, ancestor orbital motion and moving/rotating facilities contr
 bounds. Source checks cover transit/preparation waits; receiver checks also cover the remaining
 transit before the destination scene becomes visible. No hyperspeed enters normal flight physics.
 
-The ship covers 1,800 km in real space with a heavy eighth-power entry ease-in. Charge selects a
+The ship covers 1,800 km in real space with a small forward creep and heavy eighth-power entry ease-in. Charge selects a
 clear launch bearing beside obstructing bodies; the galactic arrival bearing settles under the
 opaque tunnel. Arrival coasts at 800 km/s through the reveal, then brakes with a heavy ease-out
-once the mask is gone, handing control back at 100 m/s. The roughly 1,226 km incoming path ends
+once the mask is gone, handing control back at 100 m/s. The roughly 803 km incoming path ends
 near the destination planet, so bodies grow and sweep past as the ship slows.
 
 The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
-visible for about 1.5 seconds before tunnel coverage begins. Trails blend directly into layered blue
+visible for about 0.75 seconds before tunnel coverage begins. The longer buildup keeps the stars
+growing while the ship starts moving; over 60% of the departure distance is covered before the cloud
+blend reaches half coverage. Trails blend directly into layered blue
 clouds with dark folds, fine luminous wisps and pulsing blue light pools. Clouds rush outward from
-the vanishing point toward the ship, with a clockwise wall swirl of about 11 degrees per second.
-A moving blue light casts soft shadows across the player hull and cockpit, synchronized with the
+the vanishing point toward the ship, with shearing layers around an 11-degree-per-second clockwise swirl.
+A broad drifting blue light casts soft shadows across the player hull and cockpit, synchronized with the
 bright tunnel walls.
-Exit reveals the same glowing streaks before contracting them, while the destination appears
-over roughly 0.84 seconds.
+Exit brings fully glowing streaks over the tunnel, then opens the destination from the center over
+roughly 0.38 seconds. Star heads stay fixed on the galactic sky. Braking, fast trail contraction,
+engine release and the camera/audio impulse share one arrival beat, followed by a smooth settle.
 Short, occasional camera/tunnel hiccups interrupt otherwise steady cruise, with seeded timing and
 at least two seconds of complete rest between them. Reflected light varies independently; neither
 effect changes the ship's physical trajectory. Nearby hull/cockpit/exhaust remain visible.
@@ -397,7 +400,7 @@ results cannot resurrect cancelled journeys. The matching
 arrival scene must report its first frame before the tunnel can reveal it.
 
 Optional CC0 machinery recordings and synthesized fallback audio remain independent of gameplay
-clocks. The exit cue follows the visual reveal. Sound controls and source credits remain in the
+clocks. Crossing cues follow the late departure burst and the arrival braking beat. Sound controls and source credits remain in the
 galaxy map and [CREDITS.md](CREDITS.md).
 
 See [hyperspace controls, safety details and verification](docs/hyperspace.md).
@@ -484,7 +487,7 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The [hyperspace iteration](docs/hyperspace.md) records the current 574-test run, browser journey,
+The [hyperspace iteration](docs/hyperspace.md) records the current 580-test run, browser journey,
 launch-guidance and tunnel-lighting checks, a 60-second renderer sample, and earlier short
 2/8/16-client measurements with explicit verification limits.
 
