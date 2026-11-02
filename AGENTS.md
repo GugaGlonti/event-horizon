@@ -140,7 +140,9 @@ without a task requirement. Current scope and verification limits live in docs/g
   revive cancelled/disposed journeys. Before commit, failure retains the source; after commit, abort
   holds a safe destination. Reset cancels before respawning.
 - Jump poses follow bounded analytical paths outside fixed-step physics. Derive headings from shared
-  galactic coordinates; check swept departure/arrival corridors including rings and moon motion. Match
+  galactic coordinates; a blocked direct bearing may use a shared bounded clear departure heading.
+  Settle onto the galactic arrival bearing under full coverage. Check complete 1,800 km departure
+  and derived arrival sweeps including rings and moon motion. Heavy braking follows world reveal. Match
   exit velocity and throttle at the physics handoff. Keep foreground ship/cockpit/exhaust visible;
   order the tunnel mask after celestial transparency and before star trails and exhaust.
 - Scale transit from shared galactic light-year distance. Publish journey progress/ETA at 10 Hz;

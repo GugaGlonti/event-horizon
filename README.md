@@ -365,6 +365,12 @@ atmospheres, rings, ancestor orbital motion and moving/rotating facilities contr
 bounds. Source checks cover transit/preparation waits; receiver checks also cover the remaining
 transit before the destination scene becomes visible. No hyperspeed enters normal flight physics.
 
+The ship covers 1,800 km in real space with a heavy eighth-power entry ease-in. Charge selects a
+clear launch bearing beside obstructing bodies; the galactic arrival bearing settles under the
+opaque tunnel. Arrival coasts at 800 km/s through the reveal, then brakes with a heavy ease-out
+once the mask is gone, handing control back at 100 m/s. The roughly 1,226 km incoming path ends
+near the destination planet, so bodies grow and sweep past as the ship slows.
+
 The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
 visible for about 1.5 seconds before tunnel coverage begins. Trails blend directly into layered blue
 clouds. Exit reveals the same glowing streaks before contracting them, while the destination appears
@@ -469,7 +475,7 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The [hyperspace iteration](docs/hyperspace.md) records the current 556-test run, browser journey and
+The [hyperspace iteration](docs/hyperspace.md) records the current 564-test run, browser journey and
 launch-guidance checks, and short 2/8/16-client measurements with explicit verification limits.
 
 The [2 November expansion record](docs/galaxy-expansion.md#verification-and-measurements) documents

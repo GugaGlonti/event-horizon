@@ -283,17 +283,23 @@ active elapsed time, so readiness holds can show HOLD without falsifying the fli
 HUD snapshots publish at 10 Hz. Shared motion constants and the exit integral live in
 `engine/navigation/HyperspaceController.ts`; feature configuration reuses them.
 
-Blocked plans remain outside the jump state machine and network authorization. The pure
-`hyperspaceDeparture` planner compares ten bounded capsule-boundary escape candidates, checks clear
-local flight segments and chooses the shortest valid candidate. It never steers or assigns authority
-state. Guidance refreshes after 0.5 seconds or 500 m of movement; launch availability publishes at
+The shared departure planner first checks the galactic bearing, then at most forty cone headings
+and the reverse bearing for a clear 1,800 km sweep. Charge aligns the selected local bearing; no
+client-authored direction enters authority. Inside an atmosphere/facility, blocked plans remain
+outside the jump state machine and network authorization. The pure `hyperspaceDeparture` planner
+compares ten boundary escape candidates per attempt, preferring a short outward point with a clear
+launch bearing before falling back to the full capsule. It never assigns authority state.
+Guidance refreshes after 0.5 seconds or 500 m of movement; launch availability publishes at
 10 Hz and is checked again on confirmation. The session closes the chart and restores keyboard
 flight, then accepts Tab or the HUD button when the lane is clear. Cancellation/destination changes
 clear the suggestion. Compact layouts reserve room for the guidance banner and flight instruments.
 
-`HyperspaceFlight` samples analytical alignment/bank, a quadratic departure surge and a decelerating
-arrival coast. Its derivative matches the 100 m/s physics handoff. Normal physics never integrates
-hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
+`HyperspaceFlight` samples analytical alignment/bank, an eighth-power departure surge and a heavy
+arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 70% of exit, after
+coverage reaches zero. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
+scalar distance functions supply the path and derived coast extent (about 1,226 km). Offline and
+multiplayer both use a near-planet final pose with the lead-in behind it. Normal physics never
+integrates hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
 cancellation follows the authoritative admission/recovery path.
 
 The 3.4-second entry reaches full extension by 36%, ignites at 55%, and begins tunnel coverage at
@@ -314,7 +320,8 @@ and the exit coast. Cached facility extents bound orbital and rotational movemen
 covers the backwards client lead-in as well as forward travel, including authority spawn offsets.
 On entry to EXITING the runtime swaps atomically. `FlightSession` changes
 the logical frame while the camera compensates both origin and ship translation, preserving relative
-position, orientation and FOV. A reset still explicitly snaps the camera.
+position, orientation and FOV. The launch-to-galactic turn settles during the first 20% of the fully
+masked transit, before commit. A reset still explicitly snaps the camera.
 
 EXITING stays at zero progress with full coverage until the matching destination SystemScene reports
 its first frame after every terrain body has complete six-face base coverage. The renderer reports
@@ -325,9 +332,8 @@ bounded 12-second deadlines. The first 30% of the 2.1-second exit remains opaque
 rises over the opaque mask during the first 30%; virtual star travel settles by 45%. Full extension
 holds until 50%, then contracts through 94%. This lets exit show the entry's glowing white/cyan
 exposures before shortening them. Optical visibility never changes world-mask coverage or readiness.
-The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
-distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
-in engine/navigation/HyperspaceController.ts and the full swept corridor uses those same bounds. Celestial assets use
+The analytical distance integral exactly matches the final pose and handoff velocity. Gameplay
+motion values live in engine/navigation/HyperspaceController.ts and the full swept corridor uses those same bounds. Celestial assets use
 procedural geometry/shaders. The shared spacecraft GLB library stays mounted
 across handoffs. The old keyed SystemScene releases its owned resources.
 

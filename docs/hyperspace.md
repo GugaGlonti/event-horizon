@@ -14,16 +14,23 @@ freezes it. The existing bounded-delta clock prevents a suspended tab from skipp
 
 ## Departing near a planet or facility
 
-A blocked plan closes the chart and returns to keyboard flight. An amber bearing and distance point
-toward a clear launch waypoint. Follow the route using normal controls; V/R remain planet-relative
-near a landable body. A clear lane offers Tab or the Engage button. Confirmation remains available
+Charge first chooses a clear local launch bearing: the galactic bearing, then at most forty cone
+headings and a reverse bearing. Every candidate checks the full 1,800 km sweep. A planet beside the
+ship can sweep out of view during the burst; heading settles onto the galactic arrival direction
+under full tunnel coverage. The client and server share this bounded search.
+
+A plan still blocked by an atmosphere/facility closes the chart and returns to keyboard flight.
+An amber bearing and distance point toward a clear launch waypoint. Follow the route using normal
+controls; V/R remain planet-relative near a landable body. A clear lane offers Tab or the Engage
+button. Confirmation remains available
 until conditions change; there is no quick-time deadline or automatic launch. The destination stays
 selected and every confirmation rechecks clearance. No multiplayer permit is requested while blocked.
 
-The pure planner compares ten bounded capsule-boundary candidates, rejects obstructed local flight
-segments and chooses the shortest safe candidate found. It refreshes after 0.5 seconds or 500 m of
-movement. This is a local escape planner, not a global optimal pathfinder; overlapping facilities may
-require manual repositioning. If no candidate is available the HUD requests outward flight while it
+The pure escape planner compares ten bounded boundary candidates per attempt, preferring a short
+outward escape that permits a clear launch heading before trying the full departure capsule. It
+rejects obstructed local flight segments and chooses the shortest safe candidate found. It refreshes
+after 0.5 seconds or 500 m of movement. This is a local escape planner, not a global optimal pathfinder;
+overlapping facilities may require manual repositioning. If no candidate is available the HUD requests outward flight while it
 recalculates. Suggestions never steer, teleport, or author authority coordinates.
 
 Below 1100 CSS pixels the bearing becomes a compact banner, leaving hull and altitude instruments
@@ -32,7 +39,7 @@ guidance and a bounded screen bearing remain available on larger viewports.
 
 ## Collision and transition guarantees
 
-- Departure validates the whole 5.2 km cinematic sweep and the source-side transit/preparation window.
+- Departure validates the whole 1,800 km cinematic sweep and the source-side transit/preparation window.
 - Bounds include maximum terrain/engineered foundation height, physical atmosphere height, rings,
   camera margin and orbital motion of every ancestor. Moving/rotating facilities use cached collision
   extents and conservative motion bounds.
@@ -47,6 +54,15 @@ guidance and a bounded screen bearing remain available on larger viewports.
   fields or protocol version are introduced by this iteration.
 
 ## Cinematic presentation
+
+Real-space motion uses the game's compressed world scale. Departure covers 1,800 km with an
+eighth-power ease-in after ignition: very little initial movement, then a steep late burst. Arrival
+retains 800 km/s through the world reveal, then brakes over the final 0.63 seconds with a ninth-power
+velocity falloff. Both offline and online journeys use a near-planet endpoint with the derived
+1,226 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
+view from actual ship translation. The physics integrator never receives cinematic speeds. The
+requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
+browser; film footage is not bundled.
 
 The persistent 12,000-star field supplies every streak. Wider white cores, cyan shoulders and blue
 halos build to full stretch by 36% of entry. Tunnel coverage starts at 80%, leaving about 1.5 seconds
@@ -94,34 +110,47 @@ The visual follow-up at `248a750` repeated Solara → Vesper → Aether → Sola
 controls: chase at 1920×1080 and cockpit at 390×600, with no horizontal overflow. Captured entry/exit
 frames confirm overlapping cloud detail and bright exit streaks, with hull/canopy preserved. Map Tab
 focus, abort during the blend and reset were checked; console warning/error queries remained empty.
-The cloud-blend and exit-glow screenshots below record that follow-up. No new multiplayer load or
-sustained GPU profile was run for these presentation-only changes; the earlier load measurements
-retain their stated revision.
+The cloud-blend and exit-glow screenshots below record that follow-up. That visual-only follow-up
+did not rerun multiplayer load or a sustained GPU profile; the later real-space measurements are below.
+
+The real-space pass completed Solara → Vesper → Aether → Solara at `9cf141e`, using chase at
+1920×1080 and cockpit at both 1920×1080 and 390×600. The sharper `b6ed3b9` easing then repeated
+Solara → Vesper in chase and cockpit, including the compact viewport, with no horizontal overflow
+or console warnings/errors. Abort during the moving departure, reset and map Tab focus were checked
+before the exponent-only follow-up. All travel used ordinary UI controls, without placement fixtures
+or game-state injection. The two real-space screenshots show the final sharper cockpit approach.
 
 ## Automated and load verification
 
-Final `npm run check` passed lint, **557 tests across 40 files**, TypeScript checking and production
+Final `npm run check` passed lint, **564 tests across 40 files**, TypeScript checking and production
 build, including all nine real-socket integration tests. Coverage includes all ninety directed
 catalogue routes, distance/progress clocks, receiver lead-ins and holds, future moon/facility
 incursions, camera continuity and nonaccumulation, seeded turbulence, input/focus and cancellation.
 The visual regression tests also check entry overlap, early exit glow, its visible full-stretch hold
 and continuous optical visibility across phase boundaries.
+Real-space regressions cover late acceleration, fast coasting through reveal, heavy visible braking,
+the exact endpoint/velocity handoff, planet angular movement, clear launch bearings, short atmosphere
+escapes and camera following across 100 km render-origin steps.
 Vite retains its existing large-chunk advisory.
 
-The final code revision `3143148` was measured on an Apple M2 Pro with 32 GiB RAM and Node
+The final code revision `b6ed3b9` was measured on an Apple M2 Pro with 32 GiB RAM and Node
 22.20.0. These three-second Combat join/combat runs used real SDK clients and the server in one
-process on loopback, with no injected latency. A paused browser continued rendering; integration
-tests had completed before measurement. Binary rates exclude WebSocket/TCP headers. Full data,
-actual tick rates and limits are in [the measurement record](benchmarks/hyperspace-2026-11-02.json).
+process on loopback, with no injected latency. QA Chrome tabs were closed; neither browser automation
+nor the test suite ran during measurement. Binary rates exclude WebSocket/TCP headers. Full data,
+actual tick rates and the pre-tuning sample are in
+[the real-space measurement record](benchmarks/hyperspace-realspace-2026-11-02.json).
+The [earlier hyperspace record](benchmarks/hyperspace-2026-11-02.json) remains at its stated revision.
 
 | Clients | Mean / max tick ms | Down / up KiB/s per client | p95 ack ms | CPU % of one core | RSS MiB | Overruns |
 | ------- | ------------------ | -------------------------- | ---------- | ----------------- | ------- | -------- |
-| 2       | 4.908 / 12.91      | 190.0 / 4.4                | 38         | 28.3              | 173.7   | 0        |
-| 8       | 6.411 / 12.85      | 443.2 / 4.4                | 38         | 34.6              | 189.3   | 0        |
-| 16      | 9.616 / 16.45      | 705.7 / 4.4                | 55         | 51.4              | 185.3   | 0        |
+| 2       | 3.332 / 7.63       | 193.2 / 4.5                | 23         | 22.5              | 173.5   | 0        |
+| 8       | 6.283 / 11.98      | 443.1 / 4.5                | 35         | 34.9              | 186.8   | 0        |
+| 16      | 9.612 / 15.88      | 713.7 / 4.5                | 56         | 51.9              | 177.8   | 0        |
 
-No overruns occurred in these short samples. They do not establish sustained capacity, Internet
-latency, renderer performance or simultaneous-transfer capacity. Transfer behavior is covered by
+A pre-tuning run at `9cf141e` recorded one 16-client overrun with a 43.59 ms maximum tick; the final
+sample recorded none. Both runs are retained. These short samples do not establish sustained capacity,
+Internet latency, renderer performance or simultaneous-transfer capacity, and do not profile the
+departure-heading search under transfer saturation. Transfer behavior is covered by
 real-socket integration tests; moving-boundary and extended receiver-window regressions are headless.
 
 ![Full star stretch before ignition](verification/hyperspace-stretch.jpg)
@@ -129,6 +158,10 @@ real-socket integration tests; moving-boundary and extended receiver-window regr
 ![Cloud detail blending directly with entry streaks](verification/hyperspace-cloud-blend.jpg)
 
 ![Glowing exit streaks before contraction](verification/hyperspace-exit-glow.jpg)
+
+![Fast cockpit approach before heavy braking](verification/hyperspace-realspace-approach.jpg)
+
+![Visible real-space arrival and braking](verification/hyperspace-realspace-arrival.jpg)
 
 ![Compact hyperspace HUD](verification/hyperspace-phone.jpg)
 
