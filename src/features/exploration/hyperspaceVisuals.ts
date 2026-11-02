@@ -1,10 +1,8 @@
 import {
   HYPERSPACE_ENTRY,
   HYPERSPACE_EXIT,
-  HYPERSPACE_MOTION,
   HYPERSPACE_TIMING,
   type HyperspaceController,
-  hyperspaceDepartureDistance,
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
 
@@ -27,17 +25,6 @@ export function jumpKick(jump: HyperspaceController) {
   );
 }
 
-/** Departure follows the surge. Arrival heads reset invisibly beneath the opaque tunnel. */
-export function jumpStarTravel(jump: HyperspaceController) {
-  if (jump.phase === 'ACCELERATING')
-    return (
-      jumpStretch(jump) * 0.08 +
-      (hyperspaceDepartureDistance(jump.progress) / HYPERSPACE_MOTION.departureDistance) * 0.92
-    );
-  if (jump.phase === 'HYPERSPACE') return 1;
-  return 0;
-}
-
 /** Exchange beams and clouds only beneath the white peaks; no star beams remain in the tunnel. */
 export function jumpStarVisibility(jump: HyperspaceController) {
   return (
@@ -52,6 +39,11 @@ export function jumpExposure(jump: HyperspaceController, reduced = false) {
   const time = jump.crossingTime;
   const peak = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.flashPeak;
   return jumpStretch(jump) * (1 - smoothRamp(peak, HYPERSPACE_TIMING.EXITING, time));
+}
+
+/** Full-scene scatter closes only the remaining gaps near the thick beams' white peak. */
+export function jumpFlash(jump: HyperspaceController, reduced = false) {
+  return smoothRamp(0.9, 1, jumpExposure(jump, reduced));
 }
 
 /** One crossing impulse drives the lens, recoil and audio; entry decay carries into the tunnel. */

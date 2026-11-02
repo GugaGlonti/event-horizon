@@ -1,12 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { AdditiveBlending, type ShaderMaterial, Vector2, Vector3 } from 'three';
-import {
-  jumpExposure,
-  jumpStarTravel,
-  jumpStarVisibility,
-  jumpStretch,
-} from '@/features/exploration/hyperspaceVisuals';
+import { jumpStarVisibility, jumpStretch } from '@/features/exploration/hyperspaceVisuals';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useSceneStore } from '@/stores/sceneStore';
@@ -57,9 +52,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
   const uniforms = useMemo(
     () => ({
       uStretch: { value: 0 },
-      uFlash: { value: 0 },
       uVisibility: { value: 1 },
-      uTravel: { value: 0 },
       uForegroundDepth: { value: 0 },
       uAtmosphere: { value: 0 },
       uRadius: { value: radius },
@@ -74,14 +67,12 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
     if (!target) return;
     const jump = session.exploration.jump;
     if (target.uStretch) target.uStretch.value = reduced ? 0 : jumpStretch(jump);
-    if (target.uFlash) target.uFlash.value = jumpExposure(jump, reduced);
     if (target.uVisibility)
       target.uVisibility.value = reduced ? 1 - jump.coverage : jumpStarVisibility(jump);
     if (target.uAtmosphere)
       target.uAtmosphere.value = jump.busy
         ? 0
         : Math.min(1, session.planetaryReadout.density * 1.4);
-    if (target.uTravel) target.uTravel.value = reduced ? 0 : jumpStarTravel(jump);
     if (target.uForegroundDepth)
       target.uForegroundDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
     uniforms.uViewport.value.set(size.width, size.height);
@@ -111,72 +102,74 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
         depthWrite={false}
         toneMapped={false}
         vertexShader={`
-          uniform float uStretch, uTravel, uRadius, uForegroundDepth, uFlash;
+          uniform float uStretch, uRadius, uForegroundDepth;
           uniform vec3 uDirection;
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed, aSize;
-          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize, vInward;
+          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize, vWidth, vAcross;
           void main() {
             vec3 travelAxis = (viewMatrix * vec4(uDirection, 0.0)).xyz;
+            // The source is always the original star. Only its exposed endpoint moves closer.
             vec4 view = modelViewMatrix * vec4(position, 1.0);
-            view.xyz -= travelAxis * uTravel * uRadius * 0.55;
             vec4 clip = projectionMatrix * view;
             vec2 ndc = clip.xy / max(clip.w, 0.001);
-            vec2 radial = ndc - uVanishing;
-            vec2 pixelDirection = normalize(radial * uViewport + vec2(0.001));
-            vec2 normal = vec2(-pixelDirection.y, pixelDirection.x);
-            // Project a finite exposure along the route. Depth controls each star's streak.
+            vec2 radialPixels = (ndc - uVanishing) * uViewport * 0.5;
+            float headRadius = length(radialPixels);
+            vec2 direction = headRadius > 0.001 ? radialPixels / headRadius : vec2(0.0, 1.0);
+            vec2 normal = vec2(-direction.y, direction.x);
             vec3 exposed = view.xyz - travelAxis * uStretch * uRadius * (0.18 + aSeed * 0.42);
             exposed.z = min(exposed.z, view.z * 0.12);
             vec4 exposedClip = projectionMatrix * vec4(exposed, 1.0);
             vec2 exposedNdc = exposedClip.xy / max(exposedClip.w, 0.001);
-            float trail = min(length((exposedNdc - ndc) * uViewport * 0.5), length(uViewport) * 1.5);
-            // Anchor the original star head while extending its radial exposure.
+            // Signed distance rejects any projection toward the vanishing point.
+            float trail = clamp(dot((exposedNdc - ndc) * uViewport * 0.5, direction),
+              0.0, length(uViewport) * 1.5);
             float outward = (aCorner.x + 1.0) * 0.5;
-            float proximity = clamp(uRadius / max(-view.z, uRadius * 0.1), 1.0, 4.0);
-            float width = aSize * (1.0 + uStretch * (0.8 + proximity * 0.45))
-              * (1.0 + uFlash * 3.5);
-            // Grow length, viewport-proportional width and inward scatter together, with no
-            // late fill stage. Keep the same catalogue and anchored heads throughout the jump.
-            float growth = uStretch;
-            width += min(uViewport.x, uViewport.y) * 0.0065 * growth
-              * smoothstep(0.4, 0.85, aSeed);
-            float inward = length(radial * uViewport * 0.5) * growth * 0.86;
-            float along = aCorner.x * aSize * 2.0 + outward * trail - (1.0 - outward) * inward;
-            float headRadius = length(radial * uViewport * 0.5);
-            float rayTaper = mix(1.0, clamp((headRadius + along) / max(1.0, headRadius), 0.08, 2.0), growth);
-            vec2 offset = (pixelDirection * along + normal * aCorner.y * width * rayTaper * 5.0) * 2.0 / uViewport;
+            float width = aSize * 2.35 + min(uViewport.x, uViewport.y) * 0.05 * uStretch
+              * (0.45 + aSeed * 0.55);
+            // A circular source halo has room to bloom around the star. The ray itself starts
+            // at zero and has no negative-length segment.
+            float sourceExtent = mix(aSize * 2.0, width * 2.5, uStretch);
+            float along = mix(-sourceExtent, trail + aSize * 2.0, outward);
+            float perspective = mix(1.0,
+              clamp(1.0 + max(0.0, along) / max(1.0, headRadius), 1.0, 3.0), uStretch);
+            vec2 offset = (direction * along + normal * aCorner.y * width * perspective)
+              * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
-            // Normal stars remain celestial. Stretched exposures become an optical foreground
-            // at the same logarithmic 80 m boundary as the tunnel, behind the hull/cockpit.
+            // Match the tunnel's logarithmic 80 m boundary while retaining foreground depth.
             clip.z = clip.w * mix(0.9999999, uForegroundDepth, smoothstep(0.05, 0.85, uStretch));
             gl_Position = view.z < -1.0 ? clip : vec4(2.0, 2.0, 2.0, 1.0);
             vCorner = aCorner;
-            vBrightness = (0.3 + pow(aSeed, 2.0) * 0.7) * mix(1.0, smoothstep(0.2, 0.7, aSeed), uStretch);
-            vAlong = along; vTrailLength = trail; vSize = aSize; vInward = inward;
+            vBrightness = 0.3 + pow(aSeed, 2.0) * 0.7;
+            vAlong = along; vTrailLength = trail; vSize = aSize;
+            vWidth = width; vAcross = aCorner.y * width * perspective;
           }
         `}
         fragmentShader={`
-          uniform float uStretch, uVisibility, uAtmosphere, uFlash;
-          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize, vInward;
+          uniform float uStretch, uVisibility, uAtmosphere;
+          varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize, vWidth, vAcross;
           void main() {
-            if (uVisibility < 0.001 || vBrightness < 0.001) discard;
-            float growth = uStretch;
-            float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
-            float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(1.0, vTrailLength), vAlong));
-            float scatter = step(vAlong, 0.0)
-              * (1.0 - smoothstep(0.0, max(1.0, vInward), -vAlong)) * growth;
-            float shape = max(max(head, scatter), tail * uStretch);
-            float coreWidth = mix(55.0, 22.0, uStretch);
-            float core = exp(-vCorner.y * vCorner.y * mix(coreWidth, 8.0, uFlash));
-            float shoulder = exp(-vCorner.y * vCorner.y * 10.0) * uStretch;
-            float glow = exp(-vCorner.y * vCorner.y * 3.0) * uStretch;
-            vec3 color = vec3(0.9, 0.96, 1.0) * core * (1.0 + uStretch * 0.2 + uFlash * 5.0)
-              + vec3(0.26, 0.58, 1.0) * shoulder * (0.3 + growth * 0.15 + uFlash * 1.5)
-              + mix(vec3(0.08, 0.27, 0.7), vec3(0.8, 0.92, 1.0), max(uFlash, growth * 0.65))
-                * glow * (0.08 + growth * 0.12 + uFlash * 1.8);
+            if (uVisibility < 0.001) discard;
+            float across = abs(vCorner.y);
+            float feather = 1.0 - smoothstep(0.7, 1.0, across);
+            float sourceRadius = mix(vSize * 0.85, vWidth * 0.35, uStretch);
+            float sourceDistance = vAlong * vAlong + vAcross * vAcross;
+            float source = exp(-sourceDistance / (sourceRadius * sourceRadius) * 0.9);
+            float sourceHalo = exp(-sourceDistance / (vWidth * vWidth * 2.25)) * uStretch
+              * (1.0 - smoothstep(2.0, 2.5, -vAlong / vWidth)) * feather;
+            float tail = 1.0 - smoothstep(0.5, 1.0, max(0.0, vAlong) / max(1.0, vTrailLength));
+            float beam = step(0.001, vTrailLength) * smoothstep(0.0, max(1.0, vWidth * 0.5), vAlong)
+              * tail * feather;
+            // Soft white cores and pale cyan bloom merge through width, without hard borders.
+            float core = exp(-across * across * 20.0);
+            float edge = exp(-across * across * 5.5);
+            float halo = exp(-across * across * 1.4);
+            vec3 beamColor = vec3(2.2) * core + vec3(0.42, 0.72, 1.0) * edge * 0.42
+              + vec3(0.18, 0.45, 0.8) * halo * 0.18;
+            vec3 color = max(vec3(0.9, 0.96, 1.0) * source, beamColor * beam)
+              + vec3(0.2, 0.48, 0.72) * sourceHalo * 0.35;
             float fade = uVisibility * (1.0 - uAtmosphere);
-            gl_FragColor = vec4(color, min(1.0, shape * vBrightness * (1.0 + uStretch * 0.9)) * fade);
+            gl_FragColor = vec4(color, vBrightness * fade);
           }
         `}
       />

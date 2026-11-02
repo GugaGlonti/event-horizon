@@ -21,6 +21,7 @@ import {
 } from '@/features/exploration/hyperspaceTunnelMotion';
 import {
   jumpExposure,
+  jumpFlash,
   jumpStretch,
   jumpTurbulence,
 } from '@/features/exploration/hyperspaceVisuals';
@@ -153,10 +154,11 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     if (target?.uMotion) target.uMotion.value = reduced ? 0 : 1;
     const exposure = jumpExposure(jump, reduced);
-    if (target?.uExposure) target.uExposure.value = exposure;
-    if (flash.current) flash.current.visible = exposure > 0;
+    const crossingFlash = jumpFlash(jump, reduced);
+    if (target?.uExposure) target.uExposure.value = crossingFlash;
+    if (flash.current) flash.current.visible = crossingFlash > 0;
     if (flashMaterial.current?.uniforms.uExposure)
-      flashMaterial.current.uniforms.uExposure.value = exposure;
+      flashMaterial.current.uniforms.uExposure.value = crossingFlash;
     uniforms.uLens.value.set(
       1 / camera.projectionMatrix.elements[0],
       1 / camera.projectionMatrix.elements[5],
@@ -246,9 +248,9 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
           fragmentShader={`
             uniform float uExposure;
             void main() {
-              // Optical scatter follows the beam bloom over the complete scene, including
-              // foreground silhouettes. The independent depth-tested world mask stays intact.
-              gl_FragColor = vec4(vec3(1.0), smoothstep(0.08, 0.95, uExposure));
+              // A brief crossing flash seals the thick beams' gaps and overexposes the hull.
+              // Beam buildup stays in the star shader; the world mask remains independent.
+              gl_FragColor = vec4(vec3(1.0), uExposure);
             }
           `}
         />
