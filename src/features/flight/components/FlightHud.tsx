@@ -98,7 +98,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
     <div className="phosphor-glow pointer-events-none absolute inset-0 font-mono uppercase text-phosphor">
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-80 bg-linear-to-t from-space/95 via-space/65 to-transparent tablet:h-64"
+        className="absolute inset-x-0 bottom-0 h-40 bg-linear-to-t from-space/15 via-space/5 to-transparent tablet:h-32"
       />
       <header className="absolute inset-x-4 top-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 tablet:inset-x-8 tablet:top-6 tablet:flex-nowrap">
         <div className="flex w-full items-center gap-3 tablet:w-auto">
