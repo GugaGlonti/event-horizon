@@ -2,13 +2,16 @@
 
 Galactic coordinates are light years. Heading and distance come from the same catalogue positions;
 local flight and collision coordinates remain metres. Transit lasts `3.4 + distance × 0.12` seconds.
-Charge, entry stretch and exit add 3.2, 3.4 and 4.114 seconds respectively. Exit includes its existing
-0.714-second flash followed by 3.4 seconds of star-beam animation, matching entry. Cooldown is another
-four seconds after keyboard flight returns. For example, Solara → Vesper is 48.5 LY and about 19.9
-seconds before control returns; Solara → Aether is 63.0 LY and about 21.7 seconds. Preparation/readiness holds
+Alignment, entry stretch and exit add 3.2, 3.4 and 3.82 seconds respectively. Alignment is silent;
+recorded and synthesized hyperdrive buildup starts with acceleration and reaches full spool at its
+42% ignition point (1.428 seconds). The complete entry optical
+sequence includes 0.42 seconds of flash recovery inside early transit; exit reverses all 3.82 seconds.
+Its flash clears at 0.76 seconds, followed by 3.06 seconds of clear beams. Cooldown is another four
+seconds after keyboard flight returns. Solara → Vesper is 48.5 LY and about 19.6 seconds before
+control returns; Solara → Aether is 63.0 LY and about 21.4 seconds. Preparation/readiness holds
 can extend those estimates.
 
-The live lane map stays visible through charge, stretch, transit and exit. It replaces the telemetry
+The live lane map stays visible through alignment, stretch, transit and exit. It replaces the telemetry
 panel with a route-relative galactic chart: departure/destination beacons, nearby systems, a traveled
 trail, distance ticks, range rings and a moving Kestrel marker. Galactic coordinates supply the
 projection; lateral context is foreshortened for an oblique schematic. Neighboring dots are catalogue
@@ -16,7 +19,7 @@ systems, not intermediate stops or newly invented connections. Range rings mark 
 the route distance around the current position.
 
 The marker uses traveled light years rather than elapsed cinematic time: it stays at departure during
-charge/stretch, crosses the lane during transit and remains at destination during arrival. Distance,
+alignment/stretch, crosses the lane during transit and remains at destination during arrival. Distance,
 ETA, phase and Abort / Esc remain legible beside the map. Wide layouts place it at the lower right;
 narrow layouts use a compact bottom chart. The existing 10 Hz snapshot drives it, with a short marker
 interpolation suppressed for reduced motion and holds. No animation timer, network field or flight
@@ -26,7 +29,7 @@ skipping the journey.
 
 ## Departing near a planet or facility
 
-Charge first chooses a clear local launch bearing: the galactic bearing, then at most forty cone
+Alignment first chooses a clear local launch bearing: the galactic bearing, then at most forty cone
 headings and a reverse bearing. Every candidate checks the full 1,800 km sweep. A planet beside the
 ship can sweep out of view during the burst; heading settles onto the galactic arrival direction
 under full tunnel coverage. The client and server share this bounded search.
@@ -69,9 +72,9 @@ guidance and a bounded screen bearing remain available on larger viewports.
 
 Real-space motion uses the game's compressed world scale. Departure covers 1,800 km with a
 small quadratic lead-in plus eighth-power ease-in: forward creep during the stretch, then a steep
-late burst. Arrival retains 800 km/s through the world reveal, then brakes over the final 3.232
+late burst. Arrival retains 800 km/s through the world reveal and flash, then brakes over the final 3.06
 seconds with a ninth-power velocity falloff. Both offline and online journeys use a near-planet endpoint with the derived
-964 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
+853 km coast behind it; normal flight resumes at exactly 100 m/s. Bodies grow and move across the
 view from actual ship translation. The physics integrator never receives cinematic speeds. The
 requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
 browser; film footage is not bundled.
@@ -88,14 +91,15 @@ ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retai
 Entry widens and brightens the star beams into a brief white flash; exit blooms the tunnel light
 into the corresponding flash before revealing stretched stars. A small
 screen-space scatter quad fills their gaps and overexposes the foreground at the peak. It is driven
-by the same beam envelope, with no extra gameplay state or clock. Clouds engulf the center on entry
-and open from the center on exit. The independent depth-tested mask preserves exact zero/full alpha
+by the same beam envelope, with no extra gameplay state or clock. One canonical optical time advances
+through entry and its flash recovery, holds during cruise and runs backward on exit. Beam growth,
+width/glow, visibility, flash and spatial wipe all share that reversal. The independent depth-tested mask preserves exact zero/full alpha
 endpoints and the destination readiness gate. Star beams vanish under the fully white entry peak;
 the three cloud shells remain beam-free throughout transit. Exit brings star beams back beneath its
-white peak, holds full extension until 0.882 seconds, then contracts quadratically until 4.114 seconds.
+white peak, holds full extension until 0.76 seconds, then reverses the entry growth until 3.82 seconds.
 Star head positions reset invisibly under the opaque tunnel and remain anchored afterward; their
-departure sweep is not visibly reversed. Exit stays opaque through 0.504 seconds, then
-reveals the destination over 0.504–0.882 seconds: about 0.38 seconds. At 0.882 seconds, heavy braking, trail contraction,
+departure sweep is not visibly reversed. Exit stays opaque through 0.42 seconds, then
+reverses the entry wipe over 0.42–0.624 seconds: 0.204 seconds. At 0.76 seconds, heavy braking, trail contraction,
 engine release and the camera/audio impulse begin together. Lens widening holds through the reveal
 before settling; chase-camera spacing also follows the braking beat. The departure impulse begins
 with the late visible surge and carries its short decay across tunnel entry. Optical trails cannot release the world mask. The analytical coast still ends at
@@ -141,24 +145,24 @@ stretched star beams → widening white flash → flowing blue cloud tunnel (no 
                     → widening white flash → stretched star beams → contraction
 ```
 
-| Local phase time   | Visible transition                                                              |
-| ------------------ | ------------------------------------------------------------------------------- |
-| Entry 0–3.06 s     | Original stars continuously lengthen, widen and glow; acceleration builds.      |
-| Entry 3.06–3.4 s   | The same beams widen and brighten to white; clouds blend underneath.            |
-| Transit 0–0.42 s   | White recovers into the cloud tunnel; star beams are already hidden.            |
-| Remaining transit  | Flowing, rotating cloud walls and pulsing blue light; no star beams.            |
-| Exit 0–0.252 s     | Tunnel light blooms into the second white flash.                                |
-| Exit 0.252–0.336 s | Star beams reappear beneath the fully white peak.                               |
-| Exit 0.336–0.714 s | White recovers into fully stretched star beams; world reveal starts at 0.504 s. |
-| Exit 0.714–0.882 s | Fully stretched stars and the destination become clear.                         |
-| Exit 0.882–4.114 s | Heavy braking and star contraction settle into ordinary flight.                 |
+| Local phase time   | Visible transition                                                           |
+| ------------------ | ---------------------------------------------------------------------------- |
+| Entry 0–3.06 s     | Original stars continuously lengthen, widen and glow; acceleration builds.   |
+| Entry 3.06–3.4 s   | The same beams widen and brighten to white; clouds blend underneath.         |
+| Transit 0–0.42 s   | White recovers into the cloud tunnel; star beams are already hidden.         |
+| Remaining transit  | Flowing, rotating cloud walls and pulsing blue light; no star beams.         |
+| Exit 0–0.42 s      | Entry flash recovery plays backward: cloud-only tunnel rises into white.     |
+| Exit 0.42–0.488 s  | Entry beam fade plays backward beneath the white peak; mask starts clearing. |
+| Exit 0.488–0.624 s | The spatial wipe reverses while broad glowing beams recover under white.     |
+| Exit 0.624–0.76 s  | World mask is clear; the flash finishes fading into fully extended beams.    |
+| Exit 0.76–3.82 s   | Entry beam growth reverses while heavy braking settles into ordinary flight. |
 
 Reduced motion disables both flashes and dynamic star trails. The spotlight, ambient light and
 canopy reflection share the bloom envelope, whitening the ship during each crossing. The scatter
 quad adds one draw/two triangles only during flashes, with no render target, texture or noise sample.
-The clear exit star-beam window now lasts 3.4 seconds (0.714–4.114 seconds), exactly matching the
-entry animation. The flash and destination reveal retain their previous durations. Shared authority
-and client coast integrals/corridor checks use the longer exit, while the endpoint still hands off
+Both complete optical sequences last 3.82 seconds. Clear beams occupy 3.06 seconds on each side
+of the crossing. Exit timings are derived from entry instead of independently authored. Shared authority
+and client coast integrals/corridor checks use the derived exit, while the endpoint still hands off
 at 100 m/s.
 
 The visual direction follows the requested modern-film cues: screen-filling white/cyan streaks,
@@ -169,7 +173,27 @@ The effect is an original procedural interpretation; film images/footage are not
 The [requested Andor clip at 0:07](https://www.youtube.com/watch?v=_y92SdOjJ2M&t=7s) was also inspected
 in the browser for cloud detail, blue pulses and directional hull illumination.
 
+## Mirrored optical sequence verification — 3 November 2026
+
+`npm run check` passed lint, all 602 tests across 43 files, strict typecheck and production build.
+Regressions sample the complete 3.82-second entry and reversed exit at 120 Hz, comparing beam
+growth, visibility, exposure and world coverage. All-system route checks, real-server integration,
+100 m/s handoff, audio cue timing and opaque destination-frame holds also passed.
+Browser journeys completed Solara → Vesper → Aether → Solara in wide chase/cockpit, plus a
+390×844 cockpit jump, abort and reset. Chart focus stayed contained, the compact layout had no
+horizontal overflow and the warning/error console was empty. Captures show the full white peaks
+covering beam exchanges, broad arrival beams and cloud-only transit.
+
+A valid 60-second 1920×1080 CSS / DPR 1 Chrome sample on the local M2 Pro recorded 7,136 frames:
+8.3 / 9.3 / 11.4 ms p50 / p95 / p99, with peaks of 104 draws and 326,708 triangles. The mixed
+three-system journey included chart holds, runtime preparation, handoffs and screenshot capture;
+no tests or load harness ran concurrently. It is not an isolated GPU measurement or the DPR 1.5
+reference profile. OS reduced motion and audible mixing were not checked manually, and no new
+multiplayer load measurement is claimed. See the [raw record](benchmarks/hyperspace-mirrored-2026-11-03.json).
+
 ## Choreography rework verification — 2 November 2026
+
+The historical checks below precede the later shared optical timeline.
 
 The choreography rework is recorded in `14277c0`, based on `33bdfe8`; focused follow-up commits add
 the crossing flashes and matching exit-beam duration. The final

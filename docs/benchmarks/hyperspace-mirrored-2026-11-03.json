@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-03",
+  "scenario": "First 60 seconds of Solara → Vesper → Aether → Solara, with charts between legs; chase first, then cockpit",
+  "environment": {
+    "browser": "Chrome",
+    "hardware": "Apple M2 Pro / 32 GiB",
+    "cssWidth": 1920,
+    "cssHeight": 1080,
+    "renderDpr": 1,
+    "conditions": "Foreground; screenshots during the first jump; no tests or load harness running"
+  },
+  "result": {
+    "seconds": 60,
+    "frames": 7136,
+    "p50": 8.3,
+    "p95": 9.3,
+    "p99": 11.4,
+    "valid": true,
+    "complete": true,
+    "peaks": {
+      "calls": 104,
+      "triangles": 326708,
+      "visualBytes": 4301053.333333334,
+      "scenery": 0,
+      "cells": 0,
+      "blocks": 0
+    },
+    "calls": 59,
+    "triangles": 77234,
+    "geometries": 90,
+    "textures": 9,
+    "patches": 27,
+    "cache": 42,
+    "workerMs": 2.9000000953674316,
+    "width": 1920,
+    "height": 1080
+  },
+  "limits": [
+    "Mixed journey, chart, system-preparation and handoff sample; not an isolated tunnel GPU measurement",
+    "Render DPR 1 rather than the DPR 1.5 reference target",
+    "No other-hardware or universal frame-rate guarantee",
+    "No new multiplayer load, audible-mix or OS reduced-motion measurement"
+  ]
+}

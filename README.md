@@ -334,20 +334,20 @@ or external service is needed. Source credits and offline preview commands are i
 Select another system in the galaxy map. The chart shows route distance in light years and estimated
 jump time. Current-system, overlapping and cooldown requests remain unavailable.
 
-| State        | Duration                  | Behavior                                                              |
-| ------------ | ------------------------- | --------------------------------------------------------------------- |
-| CHARGING     | 3.2 s                     | Align, bank, level out and charge                                     |
-| ACCELERATING | 3.4 s                     | Stretch with forward creep, then a visible surge and cloud crossing   |
-| HYPERSPACE   | 3.4 s + 0.12 s/light year | Distance-scaled transit under the opaque blue corridor                |
-| EXITING      | 4.114 s                   | Brief flash, then 3.4 s of star beams with a coordinated braking beat |
-| COOLDOWN     | 4 s                       | Keyboard flight resumes at 100 m/s; hyperdrive recharges              |
-| IDLE         | —                         | Ready for another course                                              |
+| State        | Duration                  | Behavior                                                             |
+| ------------ | ------------------------- | -------------------------------------------------------------------- |
+| ALIGNMENT    | 3.2 s                     | Silently align, bank and level out                                   |
+| ACCELERATING | 3.4 s                     | Audio buildup, star stretch, forward surge and cloud crossing        |
+| HYPERSPACE   | 3.4 s + 0.12 s/light year | Distance-scaled transit under the opaque blue corridor               |
+| EXITING      | 3.82 s                    | Complete entry visual sequence in reverse; braking follows the flash |
+| COOLDOWN     | 4 s                       | Keyboard flight resumes at 100 m/s; hyperdrive recharges             |
+| IDLE         | —                         | Ready for another course                                             |
 
 Galactic coordinates supply both headings and light-year distances. Longer routes take longer; ETA
-includes charge, entry, transit and exit, excluding cooldown. Destination preparation or readiness
+includes alignment, entry, transit and exit, excluding cooldown. Destination preparation or readiness
 can extend it. A live hyperspace-lane map replaces the telemetry panel, showing departure and
 destination, nearby systems, range rings and the Kestrel's position along the active lane. The marker
-advances with actual light-year distance at the existing 10 Hz telemetry cadence; charging stays at
+advances with actual light-year distance at the existing 10 Hz telemetry cadence; alignment stays at
 departure. Distance and arrival ETA remain below the map, with **Abort / Esc** alongside it. The map
 sits at the lower right on wide screens and becomes compact on narrow screens. Arrival waits show
 **HOLD**; focus/visibility suspension freezes the map and clocks until **Resume journey**.
@@ -355,7 +355,7 @@ sits at the lower right on wide screens and becomes compact on narrow screens. A
 A blocked departure returns to keyboard flight with an amber escape waypoint and distance instead
 of stopping at an error. Follow the shortest tested safe local route; guidance never steers the ship.
 Once the current lane clears, press **Tab** or **Engage** to confirm. There is no expiring quick-time
-window. The course remains selected and launch clearance is checked again before charging and network
+window. The course remains selected and launch clearance is checked again before alignment and network
 authorization. Narrow screens use a compact bearing banner above the hull and altitude instruments.
 
 Clearance covers the entire bounded departure and arrival coast, including the lead-in behind the
@@ -364,10 +364,13 @@ atmospheres, rings, ancestor orbital motion and moving/rotating facilities contr
 bounds. Source checks cover transit/preparation waits; receiver checks also cover the remaining
 transit before the destination scene becomes visible. No hyperspeed enters normal flight physics.
 
-The ship covers 1,800 km in real space with a small forward creep and heavy eighth-power entry ease-in. Charge selects a
+Hyperdrive audio stays silent during alignment. Its recorded and synthesized spool-up builds during
+the first 1.428 seconds of acceleration, then carries into the existing ignition and transit mix.
+
+The ship covers 1,800 km in real space with a small forward creep and heavy eighth-power entry ease-in. Alignment selects a
 clear launch bearing beside obstructing bodies; the galactic arrival bearing settles under the
 opaque tunnel. Arrival coasts at 800 km/s through the reveal, then brakes with a heavy ease-out
-once the mask is gone, handing control back at 100 m/s. The roughly 964 km incoming path ends
+once the mask and flash are gone, handing control back at 100 m/s. The roughly 853 km incoming path ends
 near the destination planet, so bodies grow and sweep past as the ship slows.
 
 The persistent 12,000-star field produces broader white/cyan optical trails. Entry length, thickness
@@ -381,11 +384,13 @@ remain inside the tunnel. Clouds rush outward from
 the vanishing point toward the ship, with shearing layers around an 11-degree-per-second clockwise swirl.
 A broad drifting blue light casts soft shadows across the player hull and cockpit, synchronized with the
 bright tunnel walls.
-Exit blooms the tunnel light into a second white flash, recovers the fully glowing star streaks,
-then opens the destination from the center over
-roughly 0.38 seconds. Star heads stay fixed on the galactic sky. Braking, trail contraction,
+Entry and exit share one 3.82-second optical sequence: the 3.4-second entry plus 0.42 seconds of
+flash recovery at the start of tunnel travel. Exit runs that sequence backward, including identical
+beam length, width/glow, flash and spatial-wipe curves. It builds white over 0.42 seconds, restores
+beams beneath the peak and clears the world mask over 0.42–0.624 seconds. The flash clears at
+0.76 seconds. Star heads stay fixed on the galactic sky. Braking, trail contraction,
 engine release and the camera/audio impulse share one arrival beat, followed by a smooth settle.
-After the brief exit flash clears, the star-beam animation runs for 3.4 seconds, matching entry.
+Clear beams grow for 3.06 seconds on entry and contract for the same 3.06 seconds on exit.
 Short, occasional camera/tunnel hiccups interrupt otherwise steady cruise, with seeded timing and
 at least two seconds of complete rest between them. Reflected light varies independently; neither
 effect changes the ship's physical trajectory. Hull/cockpit/exhaust keep foreground depth;

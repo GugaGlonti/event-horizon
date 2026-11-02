@@ -273,9 +273,12 @@ an operation generation and abort its signal; late success/failure cannot affect
 
 ## Hyperdrive transaction
 
-`HyperspaceController` owns explicit IDLE → CHARGING → ACCELERATING → HYPERSPACE → EXITING → COOLDOWN
+`HyperspaceController` owns explicit IDLE → ALIGNMENT → ACCELERATING → HYPERSPACE → EXITING → COOLDOWN
 → IDLE transitions. Exported timing is configurable. Its only inputs are a validated destination,
 preparation readiness and bounded dt. It never changes a world, ship, camera, audio node or store.
+Alignment remains silent; recorded and synthesized spool-up starts with acceleration and reaches
+full charge at its existing 42% ignition threshold. Gesture-time audio setup and destination
+preparation still begin during alignment, without advancing or delaying the journey clock.
 
 `ExplorationSession.beginJump` derives heading and light-year distance from shared galactic
 coordinates. The controller scales transit by distance and keeps planned progress separate from
@@ -287,13 +290,13 @@ HUD snapshots publish at 10 Hz. Shared motion constants and the exit integral li
 The pure feature-owned `hyperspaceLane` helper projects catalogue galactic positions into a
 route-relative frame, with departure at zero and destination at one. The SVG foreshortens lateral
 context, clips range rings and filters off-chart/crowded system labels. The ship marker uses traveled
-distance rather than total cinematic progress, so charging cannot advance it down the lane. Its
+distance rather than total cinematic progress, so alignment cannot advance it down the lane. Its
 small 100 ms transform interpolation stops on holds and for reduced motion. The map remains visible
 behind the existing resume/abort prompt; `HyperspaceStatus` still owns journey notifications and
 departure guidance. The SVG adds no Three.js resources, physics changes or network fields.
 
 The shared departure planner first checks the galactic bearing, then at most forty cone headings
-and the reverse bearing for a clear 1,800 km sweep. Charge aligns the selected local bearing; no
+and the reverse bearing for a clear 1,800 km sweep. Alignment follows the selected local bearing; no
 client-authored direction enters authority. Inside an atmosphere/facility, blocked plans remain
 outside the jump state machine and network authorization. The pure `hyperspaceDeparture` planner
 compares ten boundary escape candidates per attempt, preferring a short outward point with a clear
@@ -304,9 +307,9 @@ flight, then accepts Tab or the HUD button when the lane is clear. Cancellation/
 clear the suggestion. Compact layouts reserve room for the guidance banner and flight instruments.
 
 `HyperspaceFlight` samples analytical alignment/bank, a quadratic forward creep plus an eighth-power
-departure surge and a heavy arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 0.882 seconds of exit, after
-coverage reaches zero. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
-scalar distance functions supply the path and derived coast extent (about 964 km). Offline and
+departure surge and a heavy arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 0.76 seconds of exit, after
+coverage and flash reach zero. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
+scalar distance functions supply the path and derived coast extent (about 853 km). Offline and
 multiplayer both use a near-planet final pose with the lead-in behind it. Normal physics never
 integrates hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
 cancellation follows the authoritative admission/recovery path.
@@ -321,8 +324,13 @@ remain in transit. The inverse transition occurs early in exit, before the braki
 reappear beneath the fully white peak. Star heads reset invisibly under the opaque tunnel.
 A small full-screen quad renders the optical scatter after the
 foreground, only while flashing; the independent 80 m world mask retains its readiness guarantees.
-Spatial alpha engulfs the center on entry and opens it on exit, with exact zero/full endpoints tied
-to coverage. Reduced motion suppresses trails and flashes and uses a uniform opacity blend.
+One optical timeline covers 3.4 seconds of entry plus 0.42 seconds of flash recovery during early
+transit. `HyperspaceController.crossingTime` advances through it, holds its opaque endpoint during
+cruise and runs it backward during the 3.82-second exit. Coverage and the presentation beam/flash
+curves sample that same time. Both shader phases use the same width/glow profile and spatial mask;
+there is no exit-only wipe direction or separately tuned contraction. Star-head travel remains
+forward and resets invisibly under the tunnel. Reduced motion suppresses trails and flashes and
+uses a uniform opacity blend.
 `hyperspaceVisuals` owns
 continuous envelopes, recoil, rattle and smooth seeded noise. Per-journey variation affects only
 presentation. Camera impulses and small rotations are removed before each follow update, preventing
@@ -346,13 +354,13 @@ EXITING stays at zero progress with full coverage until the matching destination
 its first frame after every terrain body has complete six-face base coverage. The renderer reports
 readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
 Both CPU preparation and renderer readiness have
-bounded 12-second deadlines. The 4.114-second exit stays opaque through 0.504 seconds; coverage falls
-over 0.504–0.882 seconds (about 0.38 seconds). Optical trail visibility rises under the white peak
-at 0.252–0.336 seconds.
+bounded 12-second deadlines. The 3.82-second exit stays opaque through 0.42 seconds; coverage falls
+over 0.42–0.624 seconds, matching the 0.204-second entry wipe in reverse. Optical trail visibility
+rises under the white peak at 0.42–0.488 seconds.
 Star travel resets while invisible at handoff, leaving arrival heads anchored instead of reversing
-their departure sweep. The flash clears at 0.714 seconds, leaving exactly 3.4 seconds of star-beam
-animation to match entry. Full extension holds until 0.882 seconds, then contracts quadratically to
-the end. Braking, recoil/lens/audio impact and engine release start together at 0.882 seconds. Lens widening holds
+their departure sweep. The flash clears at 0.76 seconds, leaving exactly 3.06 seconds of clear
+star-beam animation to match entry. Full extension holds until 0.76 seconds, then the entry growth
+curve runs backward. Braking, recoil/lens/audio impact and engine release start together at 0.76 seconds. Lens widening holds
 through the reveal before settling, avoiding a premature collapse and second zoom. Chase-camera
 translation follows the analytical braking path without accumulating a speed-dependent gap. Optical visibility never changes world-mask coverage or readiness.
 `FlightCamera` retains the pre-jump speed/FOV contribution through masked relocation, then blends
@@ -364,12 +372,12 @@ procedural geometry/shaders. The shared spacecraft GLB library stays mounted
 across handoffs. The old keyed SystemScene releases its owned resources.
 
 On cooldown entry, normal keyboard flight returns; pointer-lock recapture needs another user gesture.
-Camera mode, flight mode and shared energy reserve survive. The arrival notice lasts three seconds. Charge is
+Camera mode, flight mode and shared energy reserve survive. The arrival notice lasts three seconds. Alignment is
 a small HUD readout; transit has no central overlay or phase percentages. A held journey shows explicit
 resume/abort controls. `HyperdriveAudio` owns the gesture-resumed context and master compressor.
 `audio/HyperdriveRecordings` fetches four bundled CC0 WAV stems on mount without opening a context,
-then decodes/caches them per context. Spool pitch rises through charge; its loop crossfades into a
-phased machinery bed across ignition. Recorded entry/exit pressure and relay attacks fire once each.
+then decodes/caches them per context. Spool pitch rises during early acceleration; its loop
+crossfades into a phased machinery bed across ignition. Recorded entry/exit pressure and relay attacks fire once each.
 Exit audio waits for reveal progress, including while renderer readiness holds the scene opaque.
 Quiet motor/sub synthesis reinforces the recordings; the existing full synthesized mix remains the
 fallback on fetch/decode failure. No audio promise gates simulation or renderer readiness.
@@ -495,6 +503,17 @@ Solara route, masked handoffs, abort and reset were exercised with a clean brows
 median 8.3 ms, p95 9.4 ms, p99 12.5 ms; peaks were 138 draws / 326,708 triangles. This mixed sample
 includes map holds, generation and system handoffs rather than isolating beam fill. DPR 1.5 and OS
 reduced-motion preferences were not exercised; reduced motion explicitly zeros beam growth.
+
+Mirrored-timeline verification (2026-11-03): `npm run check` passed lint, 602 tests, strict typecheck
+and production build. Complete entry/reversed-exit samples agree at 120 Hz for stretch, visibility,
+flash and coverage; readiness holds retain an opaque, flash-free tunnel. All-system corridor and
+real-server integration checks passed with the derived 853 km arrival coast. Browser checks covered
+Solara → Vesper → Aether → Solara, both cameras, 390×844, chart focus, abort and reset with a clean
+console. A valid 60-second 1920×1080 / DPR 1 mixed journey sample recorded 7,136 frames, p50/p95/p99
+8.3/9.3/11.4 ms, and peaks of 104 draws / 326,708 triangles. It includes charts, preparation,
+handoffs and captures; it establishes no isolated GPU or other-hardware guarantee. No new DPR 1.5,
+OS reduced-motion, audible-mix or multiplayer load measurement is claimed. The raw record is
+`docs/benchmarks/hyperspace-mirrored-2026-11-03.json`.
 
 FlightWorld loads three local, uncompressed GLBs through `useSpacecraftModels`, with remote decoder
 loading disabled. The player uses Spitfire; fixed enemy presentation slots alternate Striker and
