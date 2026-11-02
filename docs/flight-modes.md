@@ -19,7 +19,7 @@ also limits speed. O and the separate approach/transit toggle are removed. Selec
 speed brakes continuously at up to 600 m/s²; weapons stay locked above 361 m/s. No mode switch
 teleports the ship or changes its position.
 
-V/R still select planet-relative surface coasting near landable worlds. This is automatic handling
+G now owns landing, docking, takeoff and undocking (see README). Internal surface coasting remains available to shared simulation commands. This is automatic handling
 inside either flight mode. Release retains radial motion, S brakes, and W returns to forward flight.
 Travel allows the existing 800 m/s descent envelope; Combat limits surface jets to 360 m/s. Terrain
 and gear braking remain active in both modes. Landing, docking, takeoff and hyperspace remain
@@ -44,19 +44,22 @@ Travel consumes no reserve, including while boosting, and can recharge existing 
 The HUD shows the current suggestion. Tab or its HUD button confirms one action:
 
 - A landed ship takes off; a docked ship undocks.
-- An existing docking clearance leads to final capture when range, speed and alignment are safe.
-  Otherwise guidance remains visible; I still cancels clearance.
+- An existing docking approach runs automatically. A second G or Tab cancels it; secured
+  undocking runs to completion.
 - In Combat, acquire the nearest hostile ahead, fall back to a nearby hostile, or cycle the current
   target. Existing missile cone/range validation then provides automatic lock.
-- In Travel, offer landing assistance for a nearby validated landing zone, or cancellation while
-  assistance is active. Otherwise choose the nearest free, reachable station port.
+- In Travel, offer a nearby free berth, otherwise a validated landing zone. Active landing
+  assistance offers cancellation.
 - When no local operation is available, suggest a navigation contact ahead of the ship, with a
   nearby-contact fallback. Repeated presses skip the current navigation target.
 
 Suggestions publish with the existing 10 Hz HUD snapshots and never move the ship themselves.
 Every docking/landing intention is revalidated by the shared authority. Tab retains ordinary focus
 navigation in maps, text fields and focused buttons/links; Shift+Tab also retains focus navigation.
-Manual T/X, N/G/H, K/U, P/I and J remain available as secondary controls.
+G handles gear procedures in either mode, selecting a free nearby berth or valid landing zone.
+It confirms takeoff/undock when secured and cancels an unfinished approach on a second press.
+R/V/K/U/P/I/J are retired. N cycles hostiles; X clears combat and navigation targets.
+Tab still offers contextual suggestions and retains normal map/button focus navigation.
 
 ## Authority and verification
 

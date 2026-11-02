@@ -13,7 +13,7 @@ F selects stabilized Travel or Combat. Travel automatically combines clear-space
 terrain/station/traffic approach braking; Combat enables shields and weapons at lower speeds.
 The existing flight reserve supplies combat weapons, shield upkeep/regeneration and boost; Travel
 consumes no energy. Complete mode/reserve snapshots precede flight-only reconciliation. Internal
-`travelMode` tracks automatic forward/transit/surface handling, including coasting after V/R release.
+`travelMode` tracks automatic forward/transit/surface handling, including surface coasting for shared simulation/AI commands. Player gear procedures use G.
 W/S leave coasting; reset, arrival, grounding and docking clear surface handling. Tab confirms a
 pure contextual suggestion, published with existing HUD telemetry. See [flight modes](flight-modes.md).
 
@@ -62,11 +62,11 @@ Holding W gradually raises stored throttle from 0 to 100%. Releasing W gradually
 zero and slows the full velocity vector at normal deceleration. S lowers throttle and applies stronger
 braking, taking priority over thrust/boost. Holding S engages bounded reverse thrust once requested
 and stored throttle reach zero. Both slow the ship with or without assistance. Boost needs W held.
-Braking caps stored throttle at the remaining forward cruise speed. A/D and R/V command local
-lateral/vertical velocity. Translation jets use configurable acceleration/speed; braking takes
+Braking caps stored throttle at the remaining forward cruise speed. A/D command local lateral velocity; the browser no longer binds manual lift. Shared
+vertical input remains available to AI and simulation fixtures. Translation jets use configurable acceleration/speed; braking takes
 priority over every axis until the reverse command engages at zero throttle.
-Left mouse/Space fires, B begins a patrol, G acquires ahead, H clears, and N/Tab cycles hostile
-contacts independently of T/X navigation. UI clicks are excluded from firing; Tab retains normal
+Left mouse/Space fires, B begins a patrol, N/Tab cycles hostile contacts, and X clears combat/navigation targets.
+G chooses a validated landing zone or free berth and confirms takeoff/undock when secured. UI clicks are excluded from firing; Tab retains normal
 button/map focus traversal and Escape pauses regardless of focused HUD controls.
 
 `FlightController.step(input, dt)` owns logical position, velocity, orientation, throttle, boost and
@@ -354,7 +354,7 @@ their departure sweep. The flash clears at 0.714 seconds, leaving exactly 3.4 se
 animation to match entry. Full extension holds until 0.882 seconds, then contracts quadratically to
 the end. Braking, recoil/lens/audio impact and engine release start together at 0.882 seconds. Lens widening holds
 through the reveal before settling, avoiding a premature collapse and second zoom. Chase-camera
-spacing also eases from that braking beat. Optical visibility never changes world-mask coverage or readiness.
+translation follows the analytical braking path without accumulating a speed-dependent gap. Optical visibility never changes world-mask coverage or readiness.
 `FlightCamera` retains the pre-jump speed/FOV contribution through masked relocation, then blends
 it toward the normal 100 m/s contribution during braking. Cockpit's immediate lens updates and
 chase's damped updates preserve FOV at both system commit and the normal-flight handoff.
@@ -654,3 +654,26 @@ vegetation and small rocks never enter authority or network snapshots.
 See [visual generation and acceptance](planetary-visual-generation.md) for budgets, benchmark
 commands, reference scenes, actual results and remaining limits. Protocol v5 marks the incompatible
 surface/collision revision without expanding the snapshot payload.
+
+
+## Contextual gear, engine effects and high-speed framing
+
+`FlightSession` resolves G into existing zone/berth intentions in both flight modes and publishes its
+label at the normal 10 Hz HUD cadence. Landing remains controller-owned. `StationSimulation` owns
+the entire docking approach: a swept, acceleration-limited path to the moving approach marker,
+alignment to the berth and existing final capture. It uses the existing replicated docking phases
+and flight-locked pose/velocity snapshots. No client coordinates or new protocol fields are accepted.
+Manual input, pause/maps, timeout, disconnect and a second G cancel unfinished docking approaches;
+secured/undocking leases retain existing ownership. Terrain, station geometry and traffic clearance
+are checked before every guided step. Approach obstruction releases the lease rather than crossing it.
+
+`FlightCamera` follows interpolated ship translation before damping the framing offset, with origin
+compensation applied separately. Constant high speed cannot accumulate a velocity-dependent chase
+gap. Reset still snaps; turn damping, camera sweeps, hyperspace impulses and view-matrix publication
+retain their existing ownership.
+
+Engine visuals consume actual throttle (0..1) and a distinct boost range. One fixed instanced quad
+batch per ship contains measured nozzles, lamps, four plume layers, eighteen ions and eight tapered
+trail slices per engine. The trail is an attached exhaust wake, not retained world-space history.
+Particles and trail are suppressed by reduced motion. Mounted material refs receive scalar uniforms;
+no per-frame geometry/resources or additional draw calls are introduced.

@@ -68,7 +68,7 @@ flight deck. See [CREDITS.md](CREDITS.md) for the CC0 release, source mirror and
 
 White-hot engine cores have soft cyan player / amber enemy halos. Steady nose, wing and dorsal
 running lights, colored light spill and a restrained hull rim keep ships visible against dark space,
-including approaching enemies. Short exhaust particles strengthen with thrust and boost. Effects
+including approaching enemies. Engine plumes, ion particles and a tapered exhaust trail grow from zero throttle through full power and boost. Effects
 pause with flight; reduced motion retains steady lights and plumes while suppressing particles.
 Lights remain occluded by solid objects, and their small distant glow stays readable at combat ranges.
 
@@ -143,22 +143,17 @@ visual scenery; they do not add flight collisions. Buildings and terrain remain 
 | S                  | Brake; keep holding to reverse once throttle reaches zero        |
 | Shift              | Hold for engine boost                                            |
 | A / D              | Strafe left/right in the ship’s local frame                      |
-| R / V              | Translate up/down                                                |
 | Left mouse / Space | Hold to fire the selected weapon                                 |
 | 1 / 2 / 3 / 4      | Select gun / homing missiles / railgun / flak scattergun         |
 | B                  | Start a five-ship patrol encounter when the sector is clear      |
+| G                  | Auto land/dock/takeoff/undock; press again to cancel approach    |
 | N                  | Cycle nearby hostile targets in Combat                           |
 | Tab                | Confirm suggested target, docking, landing, takeoff or undocking |
-| G / H              | Select nearest hostile ahead / clear combat target               |
-| K                  | Deploy/retract landing gear; assisted horizon leveling           |
-| U                  | Take off when landed; undock when docked                         |
-| P / I              | Request/capture nearby docking; cancel clearance                 |
-| J                  | Land assist at selected landing zone / cancel                    |
 | C                  | Switch chase/cockpit camera                                      |
 | F                  | Switch stabilized Travel / Combat                                |
 | M                  | Open/close galaxy map                                            |
 | L                  | Open/close local system map                                      |
-| T / X              | Cycle/clear local navigation target                              |
+| T / X              | Cycle navigation / clear navigation and combat target            |
 | Esc                | Close map, pause flight/release mouse, or abort an active jump   |
 
 Map shortcuts are configured in `features/flight/config.ts`. Maps release pointer lock, clear held
@@ -189,8 +184,8 @@ the hull remains vulnerable. Combat enables weapons and shields at 180 m/s cruis
 Weapons, shields and boost use one rechargeable ENERGY reserve. Mode switches clear held fire and
 weapon charge, preserve shield charge and brake excess travel speed before weapons unlock.
 Both modes retain gravity compensation and drift/angular damping. Tab confirms the HUD's contextual
-suggestion: acquire/cycle a combat target, select a destination, request a free berth, capture it,
-start/cancel final landing assistance, take off or undock. Tab keeps normal focus navigation inside
+suggestion: acquire/cycle a combat target, select a destination, start/cancel automatic docking,
+start/cancel landing, take off or undock. Tab keeps normal focus navigation inside
 maps and from focused controls. See [flight modes, contextual actions and energy](docs/flight-modes.md).
 Releasing W gradually lowers throttle; S brakes, then reverses at zero throttle. Release S to slow
 reverse movement, or hold W to accelerate forward again. Shift with W boosts; only Combat drains
@@ -201,27 +196,27 @@ energy, and depleted combat boost requires releasing Shift before rearming at 18
 Start in Solara, use L, T or Tab to select **Pelagos Survey Base** or **Solara Orbital**.
 Travel automatically engages clear-space speed and terrain-aware planetary approach up to 1.4 km/s,
 braking near terrain, stations and traffic. The separate O approach/transit toggle is removed.
-K deploys gear and enables horizon leveling while pitch/roll are released. Near Pelagos, V/R command
-planet-relative descent/lift, up to 800 m/s in Travel and 360 m/s in Combat. Both progressively slow
-near the surface; gear jets reach precision speeds below 55 m and 2.2 m/s below 13 m center altitude.
-V/R automatically select surface coasting: release retains radial momentum while terrain/gear
-braking stays active. S brakes and leaves coasting; W returns to forward flight. The HUD shows
-handling, approximate descent ETA, descent limit, stopping distance and brake warnings.
-Landing still requires vertical speed ≤3 m/s, ground speed ≤5 m/s, an upright ship and gentle terrain.
-U or the contextual Tab action starts powered takeoff.
+**G / Gear** selects a nearby free berth or suitable landing zone and performs the complete
+procedure in either flight mode. The HUD previews the action: land, dock, take off, undock or cancel.
+R/V vertical thrust and K/U/P/I/J procedure shortcuts are retired. Pitch up to climb in ordinary
+flight; G provides the initial lift from the ground. A/D retain horizontal strafe.
 
-For optional final assistance, select **Pelagos Survey Base**, slow below 150 m/s, get below 2.5 km
-altitude and within 1 km horizontally, then release movement controls and press J or confirm the Travel Tab landing suggestion. It deploys gear,
-levels, settles drift above the zone and descends continuously. J, manual movement, F, Escape,
-blur/visibility loss or maps cancel assistance; resume explicitly. The server validates the zone,
-range, speed and clearance in multiplayer. Both flight modes retain gravity compensation and leveling.
-Gear limits forward speed, while V/R retain altitude-aware speeds. The ETA assumes continued descent and can change when
-steering, braking or hovering. See [approach tuning and verification](docs/planetary-approach.md).
+For landing, slow below 150 m/s, fly below 2.5 km altitude and within 1 km horizontally of a landing
+zone, release movement controls and press G. A valid selected zone takes priority over the nearest
+zone. Gear deploys automatically, the ship levels, settles drift and descends continuously. Landing
+still requires safe vertical/ground speed, attitude, slope and traffic clearance. G starts powered
+takeoff once landed and retracts gear when clear. Landings use authored/generated landing zones;
+G does not create a pad on arbitrary terrain. Descent ETA is approximate.
 
-At a station, request a free berth within 2.5 km using its HUD button or P. Follow the amber guide,
-fly through the hangar entrance or approach the external berth, then use P below 45 m, 3 m/s and 7°
-alignment error for final capture. I cancels clearance. Docked services repair hull, recharge shields
-and cool weapons for free; firing and flight input are locked. U undocks once the corridor is clear.
+For docking, slow below 150 m/s and approach within 2.5 km of a free berth's approach marker, then
+press G. Nearby berths take priority over surface landing zones. The authority chooses the nearest
+free berth with a clear approach, guides through its approach marker, aligns and captures it. Terrain,
+station hulls and nearby ships are swept on every guided segment. A new obstruction cancels the
+approach. G, manual movement, F or pause/maps cancel unfinished approaches; resuming does not
+restart them. The existing zone/port intentions remain validated offline and on the server.
+
+Docked services repair hull, recharge shields
+and cool weapons for free; firing and flight input are locked. G undocks once the corridor is clear. See [contextual gear and verification](docs/gear-controls.md).
 Landing/docking preserve damage; services update authoritative state. Other guests see shared port
 occupancy. Menus keep the server running. Planetary and docking instruments publish at 10 Hz.
 
@@ -476,7 +471,7 @@ explicit shared simulation time, independently of the order of definitions or fr
 
 `FlightController` retains the normal-flight logical pose; a bounded analytical journey supplies the
 presented pose during jumps. A 1024-metre grid origin near the player converts that pose into
-render space without moving simulation coordinates. The camera translates by each origin change
+render space without moving simulation coordinates. The camera follows ship translation immediately at any speed and translates by each origin change
 before applying follow damping. Celestial transforms subtract the same origin; distant bodies are
 culled before large transforms reach the GPU. The sky and hyperdrive are camera-relative, and local
 dust wraps through a bounded periodic field. HUD distances always use logical coordinates.

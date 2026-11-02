@@ -154,7 +154,9 @@ without a task requirement. Current scope and verification limits live in docs/g
   revalidates the lane. Normal stars remain celestial; stretched optical trails share the tunnel's
   logarithmic 80 m foreground boundary and preserve hull/cockpit depth. Optical trail visibility may
   overlap the opaque mask; never use it to release destination coverage or readiness.
-- Preserve T/X navigation and R/V lift. G/H acquire/clear combat targets; N cycles during Combat. Tab confirms contextual actions during flight.
+- Preserve T navigation and N/Tab combat targeting; X clears navigation and combat targets. G owns
+  contextual auto landing/docking/takeoff/undocking in both modes. R/V/K/U/P/I/J/H are unbound.
+  Tab confirms contextual actions during flight.
   Left mouse and Space fire only while active; HUD clicks must not fire. Escape works even with a
   button focused, and Tab retains normal focus navigation inside maps and from focused controls.
 - Navigation shortcuts are separate discrete listeners owned by FlightSession, including while maps
@@ -173,8 +175,9 @@ without a task requirement. Current scope and verification limits live in docs/g
 - StationSimulation owns exclusive leases, capture, services and continuous undocking. Free leases on
   removal/destruction. Keep docked leases through reconnect grace; release approaching disconnects.
   Flight-locked ships cannot fire or steer. Repair only live docked ships through validated intentions.
-- Planetary approach uses stopping-distance terrain/station lookahead. V/R are planet-relative near
-  landable worlds and select persistent surface coasting, with a shared altitude/gear speed envelope.
+- Planetary approach uses stopping-distance terrain/station lookahead. Shared lift commands are planet-relative near
+  landable worlds and retain persistent surface coasting for simulation/AI, with a shared altitude/gear
+  speed envelope. Browser flight leaves lift unbound; G selects a validated landing zone or free berth.
   F selects Travel/Combat; both retain stabilization/compensation. Travel automatically selects transit/approach.
   Weapons and shields are offline in Travel; Combat shares energy with boost. Tab suggests validated operations. Release retains radial momentum; damp tangent
   drift without erasing coasting. W/S leave surface mode; reset, relocation, docking and grounding

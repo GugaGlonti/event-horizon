@@ -1,5 +1,8 @@
 # Planetary approach pacing — 2026-11-02
 
+> Current controls: G automatically lands/docks/takes off/undocks; R/V/K/U/P/I/J are retired.
+> The tuning and verification below record earlier iterations. See README for current operation.
+
 This tuning implements the five descent improvements without changing planetary scale. Pelagos
 remains 186 km across its reference radius with a 14 km atmosphere. Existing ordinary flight,
 terrain contacts, landing rules, stations, combat and hyperspace remain on the shared controller.
