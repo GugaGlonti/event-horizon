@@ -4,34 +4,38 @@ import { BufferAttribute, BufferGeometry, DoubleSide, type Mesh } from 'three';
 import { bodyRotation } from '@/engine/planetary/coordinates';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import type { PlanetGeneration } from './PlanetGeneration';
 
 export function SurfaceInfrastructure({
   body,
   session,
+  generation,
 }: {
   body: CelestialDefinition;
   session: FlightSession;
+  generation: PlanetGeneration;
 }) {
   const mesh = useRef<Mesh>(null),
     geometry = useMemo(() => new BufferGeometry(), []);
   useEffect(() => {
-    const worker = new Worker(new URL('./infrastructureWorker.ts', import.meta.url), {
-      type: 'module',
-    });
-    worker.onmessage = (
-      event: MessageEvent<{ vertices: Float32Array; triangles: Uint16Array }>,
-    ) => {
-      geometry.setAttribute('position', new BufferAttribute(event.data.vertices, 3));
-      geometry.setIndex(new BufferAttribute(event.data.triangles, 1));
-      geometry.computeBoundingSphere();
-      worker.terminate();
-    };
-    worker.postMessage(body);
+    let disposed = false;
+    const cancel = generation.request(
+      `${body.id}/roads`,
+      6,
+      { kind: 'roads', body },
+      (response) => {
+        if (disposed || response.result.kind !== 'roads') return;
+        geometry.setAttribute('position', new BufferAttribute(response.result.vertices, 3));
+        geometry.setIndex(new BufferAttribute(response.result.triangles, 1));
+        geometry.computeBoundingSphere();
+      },
+    );
     return () => {
-      worker.terminate();
+      disposed = true;
+      cancel();
       geometry.dispose();
     };
-  }, [body, geometry]);
+  }, [body, geometry, generation]);
   useFrame(() => {
     const center = session.exploration.world.positions.get(body.id);
     if (!mesh.current || !center) return;

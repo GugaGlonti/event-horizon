@@ -2,13 +2,13 @@ import { Vector3 } from '@/engine/math/linear';
 import { generateTransportRoutes } from '@/engine/planetary/cities';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 
-self.onmessage = (event: MessageEvent<CelestialDefinition>) => {
+export function buildInfrastructure(body: CelestialDefinition) {
   const positions: number[] = [],
     indices: number[] = [];
   const point = new Vector3(),
     tangent = new Vector3(),
     side = new Vector3();
-  for (const route of generateTransportRoutes(event.data)) {
+  for (const route of generateTransportRoutes(body)) {
     const base = positions.length / 3;
     route.points.forEach((p, i) => {
       point.fromArray(p);
@@ -33,5 +33,5 @@ self.onmessage = (event: MessageEvent<CelestialDefinition>) => {
   }
   const vertices = new Float32Array(positions),
     triangles = new Uint16Array(indices);
-  self.postMessage({ vertices, triangles }, { transfer: [vertices.buffer, triangles.buffer] });
-};
+  return { vertices, triangles };
+}

@@ -10,8 +10,8 @@ import {
   Vector3,
 } from 'three';
 import { bodyRotation } from '@/engine/planetary/coordinates';
+import { surfacePalette } from '@/engine/planetary/surfaceDescription';
 import {
-  type PatchMesh,
   patchChildren,
   patchKey,
   selectTerrainPatches,
@@ -20,60 +20,19 @@ import {
 } from '@/engine/planetary/terrainLod';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import type { FlightSession } from '@/features/flight/FlightSession';
+import type { PlanetGeneration } from './PlanetGeneration';
+import { createTerrainDetail, terrainFragment, terrainVertex } from './terrainMaterial';
+import { reserveVisualBytes } from './visualBudget';
 
 interface CachedPatch {
   patch: TerrainPatch;
   geometry: BufferGeometry;
   anchor: Vector3;
   born: number;
+  release: () => void;
 }
 export const terrainMetrics = { patches: 0, cache: 0, generationMs: 0, maxGenerationMs: 0 };
 const MAX_CACHED_PATCHES = 384;
-const vertexShader = /* glsl */ `
-  #include <common>
-  #include <logdepthbuf_pars_vertex>
-  attribute vec3 aCoarse;
-  attribute float aElevation;
-  uniform float uMorph;
-  varying vec3 vNormal, vPosition;
-  varying float vElevation;
-  void main(){
-    vec3 p=mix(aCoarse,position,uMorph);
-    vec4 world=modelMatrix*vec4(p,1.0);
-    vPosition=world.xyz;vNormal=normalize(mat3(modelMatrix)*normal);vElevation=aElevation;
-    gl_Position=projectionMatrix*viewMatrix*world;
-    #include <logdepthbuf_vertex>
-  }`;
-const fragmentShader = /* glsl */ `
-  #include <logdepthbuf_pars_fragment>
-  uniform vec3 uLight, uUp;
-  uniform float uDensity, uType, uRelief;
-  uniform vec3 uA,uB,uC;
-  varying vec3 vNormal,vPosition;
-  varying float vElevation;
-  void main(){
-    #include <logdepthbuf_fragment>
-    vec3 normal=normalize(vNormal);
-    float slope=1.0-max(0.0,dot(normal,uUp));
-    float distance=length(cameraPosition-vPosition);
-    float grain=sin(vElevation*.31)*sin(dot(normal,vec3(1171.,2813.,1597.)))*.025*(1.-smoothstep(100.,1500.,distance));
-    vec3 plains=mix(uB,uC,smoothstep(uRelief*.45,uRelief*.85,vElevation));
-    if(uType<1.5 && uType>.5) plains=mix(uA,uB,.3+vElevation/uRelief*.7);
-    if(uType>1.5 && uType<2.5) plains=mix(uB,uC,.4);
-    if(uType>2.5 && uType<3.5) plains=mix(uA,uB,.25);
-    vec3 color=mix(plains,vec3(.35,.37,.36),clamp(slope*5.0,0.0,1.0));
-    if(uType<.5 || (uType>1.5 && uType<2.5)) color=mix(color,uC,smoothstep(uRelief*.75,uRelief,vElevation));
-    float day=max(0.0,dot(normal,uLight));
-    float roughness=mix(.85,.5,smoothstep(450.,1100.,vElevation));
-    float highlight=pow(max(0.,dot(normal,normalize(uLight+normalize(cameraPosition-vPosition)))),mix(64.,4.,roughness))*.04;
-    color=(color+grain)*(.12+day*1.25)+highlight*day;
-    if(uType>2.5 && uType<3.5) color+=uC*(1.-smoothstep(.01,.05,abs(sin(vElevation*.015))))*.65;
-    float haze=1.0-exp(-distance*uDensity*.000075);
-    vec3 sky=mix(vec3(.025,.04,.08),vec3(.22,.42,.58),max(0.0,dot(uUp,uLight)));
-    gl_FragColor=vec4(mix(color,sky,haze*.8),1.0);
-    #include <tonemapping_fragment>
-    #include <colorspace_fragment>
-  }`;
 
 function Patch({
   entry,
@@ -122,23 +81,34 @@ export function PlanetTerrain({
   body,
   session,
   onReady,
+  generation,
 }: {
   body: CelestialDefinition;
   session: FlightSession;
   onReady: () => void;
+  generation: PlanetGeneration;
 }) {
   const ready = useRef(false);
   const [visible, setVisible] = useState<CachedPatch[]>([]);
   const cache = useMemo(() => new Map<string, CachedPatch>(), []);
   const target = useRef(terrainRoots());
   const elapsed = useRef(1);
+  const detail = useMemo(createTerrainDetail, []);
+  const palette = surfacePalette(body);
   const material = useMemo(
     () =>
       new ShaderMaterial({
-        vertexShader,
-        fragmentShader,
+        vertexShader: terrainVertex,
+        fragmentShader: terrainFragment,
         uniforms: {
           uMorph: { value: 1 },
+          uRadius: { value: body.radius },
+          uDetail: { value: detail },
+          uVegetation: { value: new Vector3(...palette.vegetation) },
+          uStone: { value: new Vector3(...palette.stone) },
+          uSediment: { value: new Vector3(...palette.sediment) },
+          uFrozen: { value: new Vector3(...palette.frozen) },
+          uSky: { value: new Color(body.atmosphere?.color ?? '#86abc4') },
           uType: {
             value: { ocean: 0, desert: 1, ice: 2, volcanic: 3, bands: 4, cratered: 5 }[
               body.surface.pattern
@@ -153,7 +123,7 @@ export function PlanetTerrain({
           uDensity: { value: 0 },
         },
       }),
-    [body],
+    [body, detail, palette],
   );
   const scratch = useMemo(
     () => ({ point: new Vector3(), rotation: new Quaternion(), light: new Vector3() }),
@@ -162,7 +132,7 @@ export function PlanetTerrain({
   useEffect(() => {
     let disposed = false,
       busy = false;
-    const worker = new Worker(new URL('./terrainWorker.ts', import.meta.url), { type: 'module' });
+    let cancel = () => {};
     const desired = new Map<string, TerrainPatch>();
     let shown = new Set<string>();
     const add = (patch: TerrainPatch) => {
@@ -182,27 +152,47 @@ export function PlanetTerrain({
         .sort((a, b) => a.level - b.level)[0];
       if (next) {
         busy = true;
-        worker.postMessage({ body, patch: next });
+        cancel = generation.request(
+          `${body.id}/terrain/${patchKey(next)}`,
+          next.level === 0 ? 0 : 1,
+          { kind: 'terrain', body, patch: next },
+          (response) => {
+            if (disposed || response.result.kind !== 'terrain') return;
+            receive(next, response.result.data, response.ms);
+          },
+        );
       }
     };
-    worker.onmessage = (
-      event: MessageEvent<{ patch: TerrainPatch; data: PatchMesh; ms: number }>,
+    const receive = (
+      patch: TerrainPatch,
+      data: import('@/engine/planetary/terrainLod').PatchMesh,
+      ms: number,
     ) => {
       if (disposed) return;
       busy = false;
-      const { patch, data, ms } = event.data;
       // Keep drawn parents pinned while new coverage streams, with a hard transient ceiling.
       if (cache.size >= MAX_CACHED_PATCHES) {
         const unused = [...cache].find(([key]) => !desired.has(key) && !shown.has(key));
         if (!unused) return;
         unused[1].geometry.dispose();
+        unused[1].release();
         cache.delete(unused[0]);
+      }
+      const release = reserveVisualBytes(
+        data.directions.byteLength + data.cover.byteLength + data.climate.byteLength,
+      );
+      if (!release) {
+        pump();
+        return;
       }
       const geometry = new BufferGeometry();
       geometry.setAttribute('position', new BufferAttribute(data.positions, 3));
       geometry.setAttribute('normal', new BufferAttribute(data.normals, 3));
       geometry.setAttribute('aCoarse', new BufferAttribute(data.coarse, 3));
       geometry.setAttribute('aElevation', new BufferAttribute(data.elevations, 1));
+      geometry.setAttribute('aDirection', new BufferAttribute(data.directions, 3));
+      geometry.setAttribute('aCover', new BufferAttribute(data.cover, 4));
+      geometry.setAttribute('aClimate', new BufferAttribute(data.climate, 2));
       geometry.setIndex(new BufferAttribute(data.indices, 1));
       geometry.computeBoundingSphere();
       cache.set(patchKey(patch), {
@@ -210,6 +200,7 @@ export function PlanetTerrain({
         geometry,
         anchor: new Vector3().fromArray(data.anchor),
         born: performance.now(),
+        release,
       });
       terrainMetrics.generationMs = ms;
       terrainMetrics.maxGenerationMs = Math.max(terrainMetrics.maxGenerationMs, ms);
@@ -248,6 +239,7 @@ export function PlanetTerrain({
       for (const [key, entry] of cache)
         if (cache.size > 256 && !desired.has(key) && !keep.has(key)) {
           entry.geometry.dispose();
+          entry.release();
           cache.delete(key);
         }
       setVisible((old) =>
@@ -260,13 +252,23 @@ export function PlanetTerrain({
     return () => {
       disposed = true;
       clearInterval(interval);
-      worker.terminate();
-      for (const entry of cache.values()) entry.geometry.dispose();
+      cancel();
+      for (const entry of cache.values()) {
+        entry.geometry.dispose();
+        entry.release();
+      }
       cache.clear();
       terrainMetrics.patches = terrainMetrics.cache = terrainMetrics.generationMs = 0;
     };
-  }, [body, cache]);
+  }, [body, cache, generation]);
   useEffect(() => () => material.dispose(), [material]);
+  useEffect(() => {
+    const release = reserveVisualBytes((128 * 128 * 4 * 4) / 3);
+    return () => {
+      detail.dispose();
+      release?.();
+    };
+  }, [detail]);
   const coveredFaces = useMemo(
     () => new Set(visible.map((entry) => entry.patch.face)).size,
     [visible],

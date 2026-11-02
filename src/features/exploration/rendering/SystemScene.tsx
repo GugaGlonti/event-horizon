@@ -5,6 +5,7 @@ import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
 import { CityScene } from '@/features/planets/rendering/CityScene';
+import { PlanetGeneration } from '@/features/planets/rendering/PlanetGeneration';
 import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
 import { SurfaceFacilities } from '@/features/planets/rendering/SurfaceFacilities';
 import { SurfaceInfrastructure } from '@/features/planets/rendering/SurfaceInfrastructure';
@@ -15,6 +16,11 @@ import { StationScene } from '@/features/stations/StationScene';
 
 export function SystemScene({ session }: { session: FlightSession }) {
   const world = session.exploration.world;
+  const [generation] = useState(() => new PlanetGeneration());
+  useEffect(() => {
+    generation.start();
+    return () => generation.dispose();
+  }, [generation]);
   const nearestTerrain = () => {
     const nearest = world.definition.bodies
       .filter((b) => b.terrain)
@@ -88,6 +94,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
             key={body.id}
             body={body}
             session={session}
+            generation={generation}
             onReady={() => setReadyBodyId(body.id)}
           />
         ))}
@@ -99,7 +106,12 @@ export function SystemScene({ session }: { session: FlightSession }) {
       {world.definition.bodies
         .filter((body) => body.id === detailedBodyId && body.settlements?.length)
         .map((body) => (
-          <SurfaceInfrastructure key={body.id} body={body} session={session} />
+          <SurfaceInfrastructure
+            key={body.id}
+            body={body}
+            session={session}
+            generation={generation}
+          />
         ))}
       <CityScene session={session} />
       <StationScene session={session} />
