@@ -94,7 +94,7 @@ function EnemySlot({
   );
 }
 
-const remoteSlots = Array.from({ length: 32 }, (_, i) => i);
+const remoteSlots = Array.from({ length: 35 }, (_, i) => i);
 const slots = Array.from({ length: ENCOUNTER_CONFIG.maximumEnemies }, (_, i) => i);
 
 /** Fixed-capacity instance buffers; transforms never pass through React or Zustand. */
@@ -113,7 +113,7 @@ export function CombatScene({
     () => Array(ENCOUNTER_CONFIG.maximumEnemies).fill(null),
     [],
   );
-  const pilotSlots = useMemo<Array<string | null>>(() => Array(32).fill(null), []);
+  const pilotSlots = useMemo<Array<string | null>>(() => Array(35).fill(null), []);
   useFrame(() => {
     const ships = session.combat.simulation.ships;
     syncEnemySlots(enemySlots, ships);

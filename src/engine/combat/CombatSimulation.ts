@@ -84,7 +84,8 @@ export class CombatSimulation {
   ) {
     if (
       [...this.ships.values()].filter((s) => s.team === 'hostile').length >= 10 ||
-      this.ships.has(id)
+      this.ships.has(id) ||
+      this.ships.size >= 42
     )
       return null;
     const ship = new CombatShip(id, 'hostile', config);

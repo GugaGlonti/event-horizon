@@ -16,6 +16,7 @@ import {
   travelDirection,
 } from '@/engine/navigation/hyperspaceRoute';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import { AmbientTraffic } from '@/engine/stations/AmbientTraffic';
 import { StationSimulation } from '@/engine/stations/StationSimulation';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
@@ -37,6 +38,7 @@ export class MultiplayerWorld {
   readonly simulation = new CombatSimulation(PLAYER_SHIP, AI_CONFIG);
   readonly pilots = new Map<string, Pilot>();
   readonly encounter = new Encounter(ENCOUNTER_CONFIG);
+  readonly traffic: AmbientTraffic;
   tick = 0;
   time = 0;
   private eventCursor = 0;
@@ -52,6 +54,7 @@ export class MultiplayerWorld {
     this.simulation.environment = new PlanetaryEnvironment(this.system);
     this.simulation.stations = new StationSimulation(this.system, this.simulation.ships);
     this.simulation.ships.clear();
+    this.traffic = new AmbientTraffic(this.system, this.simulation);
     this.simulation.pvp = true;
     this.encounter.reset(systemId);
     for (const body of definition.bodies) {
@@ -112,6 +115,7 @@ export class MultiplayerWorld {
   ) {
     if (this.pilots.has(id)) throw new Error('Duplicate player.');
     const pose = this.safePose(sourceId);
+    if (this.simulation.ships.size >= 42) this.traffic.clear();
     const ship = new CombatShip(id, 'player', PLAYER_SHIP);
     if (health?.flight) ship.controller.restore(health.flight);
     ship.controller.relocate(pose.position, pose.orientation, sourceId ? 100 : 0);
@@ -284,6 +288,14 @@ export class MultiplayerWorld {
         const center = this.system.positions.get(obstacle.id.slice(5));
         if (center) obstacle.velocity.subVectors(center, obstacle.previous).divideScalar(subDt);
       }
+      this.traffic.update(
+        subDt,
+        [...this.pilots.values()]
+          .filter((pilot) => !pilot.ship.transferring && !pilot.ship.health.destroyed)
+          .map((pilot) => pilot.ship.position),
+      );
+      for (const [id, ship] of this.simulation.ships)
+        if (id.startsWith('traffic-')) this.commands.set(id, ship.command);
       this.simulation.step({ flight: neutralInput().flight, fire: false }, subDt, this.commands);
       for (const obstacle of this.simulation.obstacles) {
         const center = this.system.positions.get(obstacle.id.slice(5));

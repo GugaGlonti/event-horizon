@@ -7,6 +7,7 @@ import { missileCanLock } from '@/engine/combat/weapons';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightInput } from '@/engine/simulation/flightTypes';
+import { AmbientTraffic } from '@/engine/stations/AmbientTraffic';
 import { StationSimulation } from '@/engine/stations/StationSimulation';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { useCombatStore } from '@/stores/combatStore';
@@ -39,11 +40,15 @@ export class CombatSession {
     this.command = { flight: input, fire: false, weapon: 1 };
   }
 
+  private traffic: AmbientTraffic | null = null;
   setWorld(world: SystemRuntime, resetOperations = true) {
     this.world = world;
     this.simulation.environment = new PlanetaryEnvironment(world);
-    if (resetOperations || !this.simulation.stations)
+    if (resetOperations || !this.simulation.stations) {
+      this.traffic?.clear();
       this.simulation.stations = new StationSimulation(world, this.simulation.ships);
+      this.traffic = new AmbientTraffic(world, this.simulation);
+    }
     this.simulation.player.controller.environment = this.simulation.environment;
     this.simulation.clearEncounter();
     this.encounter.reset(world.definition.id);
@@ -69,6 +74,7 @@ export class CombatSession {
 
   depart() {
     this.encounter.clear();
+    this.traffic?.clear();
     this.simulation.clearEncounter();
     this.audio.stop();
     this.status = 'Encounter left behind';
@@ -188,7 +194,7 @@ export class CombatSession {
   }
 
   private updateStatus() {
-    const hostiles = this.simulation.ships.size - 1;
+    const hostiles = [...this.simulation.ships.values()].filter((s) => s.team === 'hostile').length;
     if (this.encounter.mode === 'complete') this.status = 'Sector clear / B for patrol';
     else if (this.encounter.mode === 'practice')
       this.status = 'Practice target / Mouse or Space to fire';
@@ -213,6 +219,10 @@ export class CombatSession {
     }
     this.command.flight = input;
     this.command.fire = fire;
+    this.traffic?.update(
+      dt,
+      this.simulation.player.health.destroyed ? [] : [this.simulation.player.position],
+    );
     this.simulation.step(this.command, dt);
     // Conservative collision iteration limits must not change analytical world trajectories.
     for (const obstacle of this.simulation.obstacles) {
@@ -229,6 +239,7 @@ export class CombatSession {
   }
 
   dispose() {
+    this.traffic?.clear();
     this.simulation.clearEncounter();
     this.audio.dispose();
     this.world = null;
@@ -253,7 +264,7 @@ export class CombatSession {
         hull: player.health.hull / player.config.defense.hull,
         dead: player.health.destroyed,
         invulnerable: player.health.invulnerability > 0,
-        hostiles: simulation.ships.size - 1,
+        hostiles: [...simulation.ships.values()].filter((s) => s.team === 'hostile').length,
         kills: simulation.kills,
         status: this.status,
         target: target
