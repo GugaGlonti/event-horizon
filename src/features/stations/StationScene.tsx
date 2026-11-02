@@ -1,5 +1,5 @@
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   BoxGeometry,
   CanvasTexture,
@@ -43,8 +43,9 @@ function Station({ station, session }: { station: StationDefinition; session: Fl
     if (hull.current) {
       const matrix = new Matrix4(),
         rotation = new Quaternion();
-      for (let i = 0; i < station.boxes.length; i++) {
-        const box = station.boxes[i];
+      const boxes = station.type === 'surface' ? station.boxes.slice(-1) : station.boxes;
+      for (let i = 0; i < (station.type === 'surface' ? 1 : station.boxes.length); i++) {
+        const box = boxes[i];
         if (!box) continue;
         matrix.compose(
           new Vector3().fromArray(box.center),
@@ -82,10 +83,14 @@ function Station({ station, session }: { station: StationDefinition; session: Fl
     <group ref={group}>
       <instancedMesh
         ref={hull}
-        args={[resources.geometry, resources.material, station.boxes.length]}
+        args={[
+          resources.geometry,
+          resources.material,
+          station.type === 'surface' ? 1 : station.boxes.length,
+        ]}
         dispose={null}
       />
-      {station.type === 'orbital' && (
+      {station.type === 'orbital' && station.id === 'solara-orbital' && (
         <mesh position={[0, 110, -230]} rotation={[Math.PI / 2, 0, 0]}>
           <torusGeometry args={[260, 12, 8, 64]} />
           <meshStandardMaterial color="#7f95a0" metalness={0.7} roughness={0.5} />
@@ -127,7 +132,7 @@ function Station({ station, session }: { station: StationDefinition; session: Fl
             ))}
           </group>
         ))}
-        {station.type === 'orbital' && (
+        {station.type === 'orbital' && station.id === 'solara-orbital' && (
           <>
             <mesh position={[-79, 65, 90]}>
               <boxGeometry args={[2, 2, 280]} />
@@ -178,9 +183,24 @@ function DockingGuide({ session }: { session: FlightSession }) {
   );
 }
 export function StationScene({ session }: { session: FlightSession }) {
+  const [nearby, setNearby] = useState<StationDefinition[]>([]);
+  useEffect(() => {
+    const update = () =>
+      setNearby((old) => {
+        const next = (session.exploration.world.definition.stations ?? []).filter(
+          (station) =>
+            stationPose(session.exploration.world, station).position.distanceTo(session.position) <
+            (station.type === 'surface' ? 80000 : 500000),
+        );
+        return old.length === next.length && old.every((s, i) => s === next[i]) ? old : next;
+      });
+    update();
+    const timer = setInterval(update, 250);
+    return () => clearInterval(timer);
+  }, [session]);
   return (
     <>
-      {session.exploration.world.definition.stations?.map((station) => (
+      {nearby.map((station) => (
         <Station key={station.id} station={station} session={session} />
       ))}
       <DockingGuide session={session} />

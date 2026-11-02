@@ -4,8 +4,10 @@ import { type DirectionalLight, SphereGeometry, Vector3 } from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
+import { CityScene } from '@/features/planets/rendering/CityScene';
 import { PlanetTerrain } from '@/features/planets/rendering/PlanetTerrain';
 import { SurfaceFacilities } from '@/features/planets/rendering/SurfaceFacilities';
+import { SurfaceInfrastructure } from '@/features/planets/rendering/SurfaceInfrastructure';
 import { WeatherEffects } from '@/features/planets/rendering/WeatherEffects';
 import { FlightEnvironment } from '@/features/space/components/FlightEnvironment';
 import { SpaceBackdrop } from '@/features/space/components/SpaceBackdrop';
@@ -94,6 +96,12 @@ export function SystemScene({ session }: { session: FlightSession }) {
         .map((body) => (
           <SurfaceFacilities key={body.id} body={body} session={session} />
         ))}
+      {world.definition.bodies
+        .filter((body) => body.id === detailedBodyId && body.settlements?.length)
+        .map((body) => (
+          <SurfaceInfrastructure key={body.id} body={body} session={session} />
+        ))}
+      <CityScene session={session} />
       <StationScene session={session} />
       <AtmosphericSky session={session} />
       <WeatherEffects session={session} />
