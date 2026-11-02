@@ -54,6 +54,24 @@ afterEach(() => {
 });
 
 describe('exploration input integration', () => {
+  it('restores controls for a blocked departure and confirms the cleared lane with Tab', () => {
+    session.exploration.openMap('galaxy');
+    session.exploration.syncPose(new Vector3(0, 0, 1300), new Quaternion());
+    session.exploration.selectDestination('vesper');
+    session.exploration.beginJump();
+    expect(useFlightStore.getState().phase).toBe('flying');
+    expect(useExplorationStore.getState().overlay).toBeNull();
+    key('KeyF');
+    expect(session.controller.flightMode).toBe('travel');
+    const waypoint = useExplorationStore.getState().departure?.waypoint;
+    if (!waypoint) throw new Error('Missing launch waypoint.');
+    session.exploration.syncPose(new Vector3().fromArray(waypoint), new Quaternion());
+    expect(session.exploration.jump.phase).toBe('IDLE');
+    key('Tab');
+    expect(session.exploration.jump.phase).toBe('CHARGING');
+    expect(useExplorationStore.getState().departure).toBeNull();
+  });
+
   it('toggles stabilized Travel/Combat on F and clears held fire across both switches', () => {
     key('Space');
     key('KeyF');

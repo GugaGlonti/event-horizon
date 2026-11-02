@@ -6,10 +6,22 @@ import type { PlanetMarkerSnapshot } from '@/features/exploration/planetMarkers'
 
 export type MapView = 'local' | 'galaxy' | 'planetary';
 
+export interface DepartureGuidance {
+  destinationId: string;
+  blockedBy: string | null;
+  waypoint: Position3 | null;
+  distance: number;
+  bearingX: number;
+  bearingY: number;
+  behind: boolean;
+  ready: boolean;
+}
+
 interface ExplorationState {
   systemId: string;
   overlay: MapView | null;
   destinationId: string | null;
+  departure: DepartureGuidance | null;
   jump: { phase: JumpPhase; progress: number; suspended: boolean; destinationId: string | null };
   navigation: NavigationSnapshot;
   planetMarkers: PlanetMarkerSnapshot | null;
@@ -27,6 +39,7 @@ export const useExplorationStore = create<ExplorationState>()(() => ({
   systemId: 'solara',
   overlay: null,
   destinationId: null,
+  departure: null,
   jump: { phase: 'IDLE', progress: 0, suspended: false, destinationId: null },
   navigation: {
     targetId: 'pelagos',

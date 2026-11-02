@@ -1,5 +1,6 @@
 import { instrumentButtonClassName } from '@/components/ui/InstrumentButton';
 import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import { DepartureGuidance } from '@/features/exploration/components/DepartureGuidance';
 import { SYSTEMS } from '@/features/exploration/data/systems';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -41,6 +42,7 @@ export function HyperspaceStatus({ session }: { session: FlightSession }) {
     );
   return (
     <>
+      <DepartureGuidance session={session} />
       {busy && (
         <p role="status" className="sr-only">
           {jump.phase === 'CHARGING'

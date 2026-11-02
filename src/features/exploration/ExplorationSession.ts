@@ -1,6 +1,7 @@
 import { Quaternion, Vector3 } from 'three';
 import { navigationContacts } from '@/engine/navigation/contacts';
 import { HyperspaceController } from '@/engine/navigation/HyperspaceController';
+import { departureBearing, findDepartureWaypoint } from '@/engine/navigation/hyperspaceDeparture';
 import {
   departureObstruction,
   routeArrival,
@@ -13,7 +14,11 @@ import type { StarSystemDefinition } from '@/engine/world/worldTypes';
 import { loadSystem, SYSTEMS } from '@/features/exploration/data/systems';
 import { HyperdriveAudio } from '@/features/exploration/HyperdriveAudio';
 import { EXIT_COAST_DISTANCE, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
-import { type MapView, useExplorationStore } from '@/stores/explorationStore';
+import {
+  type DepartureGuidance,
+  type MapView,
+  useExplorationStore,
+} from '@/stores/explorationStore';
 
 interface Callbacks {
   onPause: () => void;
@@ -21,6 +26,7 @@ interface Callbacks {
   onCommit: (system: SystemRuntime) => void;
   onRestore: () => void;
   onError: (message: string) => void;
+  onGuide?: () => void;
 }
 type SystemLoader = (id: string, signal: AbortSignal) => Promise<StarSystemDefinition>;
 
@@ -43,6 +49,10 @@ export class ExplorationSession {
   private arrivalElapsed = 0;
   private suspended = false;
   private disposed = false;
+  private departureDestination: string | null = null;
+  private departureWaypoint: Vector3 | null = null;
+  private departurePlanTime = -Infinity;
+  private readonly departurePlanPosition = new Vector3();
 
   constructor(callbacks: Callbacks, loader: SystemLoader = loadSystem) {
     const start = SYSTEMS.find((system) => system.id === 'solara');
@@ -87,8 +97,10 @@ export class ExplorationSession {
     useExplorationStore.setState({ overlay: null });
   };
   selectDestination = (id: string) => {
-    if (!this.jump.busy && !this.authorizing && SYSTEMS.some((system) => system.id === id))
+    if (!this.jump.busy && !this.authorizing && SYSTEMS.some((system) => system.id === id)) {
+      if (id !== this.departureDestination) this.cancelDeparture();
       useExplorationStore.setState({ destinationId: id, error: null });
+    }
   };
   selectTarget = (id: string | null) => {
     if (this.navigation.select(id, this.world)) this.publish();
@@ -107,7 +119,97 @@ export class ExplorationSession {
   authorizeJump: (() => Promise<boolean>) | null = null;
   prepareNetworkDestination: ((id: string, signal: AbortSignal) => Promise<void>) | null = null;
   private authorizing = false;
+  cancelDeparture = () => {
+    this.departureDestination = null;
+    this.departureWaypoint = null;
+    useExplorationStore.setState({ departure: null });
+  };
+
+  private checkDeparture() {
+    const destination = useExplorationStore.getState().destinationId;
+    const target = SYSTEMS.find((system) => system.id === destination);
+    if (this.jump.phase !== 'IDLE' || !target || target.id === this.world.definition.id) {
+      this.jump.request(
+        this.world.definition.id,
+        destination,
+        SYSTEMS.map((system) => system.id),
+      );
+      useExplorationStore.setState({ error: this.jump.error ?? 'Hyperdrive is cooling down.' });
+      return false;
+    }
+    const reason = this.canDepart?.();
+    if (reason) {
+      useExplorationStore.setState({ error: reason });
+      return false;
+    }
+    travelDirection(this.world.definition, target, this.direction);
+    if (
+      departureObstruction(
+        this.world,
+        this.lastPosition,
+        this.direction,
+        JUMP_MOTION.departureDistance,
+      )
+    ) {
+      this.departureDestination = target.id;
+      this.departureWaypoint = null;
+      useExplorationStore.setState({ overlay: null, error: null });
+      this.publish();
+      this.callbacks.onGuide?.();
+      return false;
+    }
+    return true;
+  }
+
+  private departureReadout(): DepartureGuidance | null {
+    if (!this.departureDestination) return null;
+    const target = SYSTEMS.find((system) => system.id === this.departureDestination);
+    if (!target) return null;
+    travelDirection(this.world.definition, target, this.direction);
+    const obstruction = departureObstruction(
+      this.world,
+      this.lastPosition,
+      this.direction,
+      JUMP_MOTION.departureDistance,
+    );
+    if (
+      obstruction &&
+      (!this.departureWaypoint ||
+        this.clock - this.departurePlanTime > 0.5 ||
+        this.lastPosition.distanceToSquared(this.departurePlanPosition) > 500 ** 2 ||
+        departureObstruction(
+          this.world,
+          this.departureWaypoint,
+          this.direction,
+          JUMP_MOTION.departureDistance,
+        ))
+    ) {
+      const waypoint = findDepartureWaypoint(
+        this.world,
+        this.lastPosition,
+        this.direction,
+        JUMP_MOTION.departureDistance,
+      );
+      this.departureWaypoint = waypoint ? new Vector3().copy(waypoint) : null;
+      this.departurePlanPosition.copy(this.lastPosition);
+      this.departurePlanTime = this.clock;
+    }
+    const waypoint = this.departureWaypoint;
+    const reason = this.canDepart?.();
+    return {
+      destinationId: target.id,
+      blockedBy: reason ?? obstruction?.name ?? null,
+      waypoint: waypoint ? [waypoint.x, waypoint.y, waypoint.z] : null,
+      distance: obstruction && waypoint ? this.lastPosition.distanceTo(waypoint) : 0,
+      ...(waypoint
+        ? departureBearing(this.lastPosition, this.lastOrientation, waypoint)
+        : { bearingX: 0, bearingY: 0, behind: false }),
+      ready: !obstruction && !reason,
+    };
+  }
+
   beginJump = () => {
+    if (this.disposed || this.authorizing || this.jump.busy || !this.checkDeparture()) return false;
     if (this.authorizeJump) {
       if (this.authorizing || this.jump.busy) return false;
       this.authorizing = true;
@@ -133,12 +235,7 @@ export class ExplorationSession {
     return this.startJump();
   };
   private startJump = () => {
-    if (this.disposed) return false;
-    const reason = this.canDepart?.();
-    if (reason) {
-      useExplorationStore.setState({ error: reason });
-      return false;
-    }
+    if (this.disposed || !this.checkDeparture()) return false;
     const state = useExplorationStore.getState();
     const destinationDefinition = SYSTEMS.find((system) => system.id === state.destinationId);
     if (
@@ -156,18 +253,7 @@ export class ExplorationSession {
     const target = SYSTEMS.find((system) => system.id === this.jump.destinationId);
     if (!target) return false;
     travelDirection(this.world.definition, target, this.direction);
-    const obstruction = departureObstruction(
-      this.world,
-      this.lastPosition,
-      this.direction,
-      JUMP_MOTION.departureDistance,
-    );
-    if (obstruction) {
-      this.fail(
-        `Departure lane blocked by ${obstruction.name}. Move clear before engaging hyperdrive.`,
-      );
-      return false;
-    }
+    this.cancelDeparture();
     this.callbacks.onDepart(this.direction);
     this.closeMap();
     this.suspended = false;
@@ -204,6 +290,7 @@ export class ExplorationSession {
   };
 
   private fail(message: string) {
+    this.cancelDeparture();
     this.preparation?.abort();
     this.generation += 1;
     this.prepared = null;
@@ -216,6 +303,7 @@ export class ExplorationSession {
   }
 
   cancelJump = (message = 'Jump cancelled. Holding position in the current system.') => {
+    this.cancelDeparture();
     const wasBusy = this.jump.busy || this.authorizing;
     this.authorizing = false;
     this.preparation?.abort();
@@ -248,6 +336,7 @@ export class ExplorationSession {
   };
 
   adoptWorld(system: SystemRuntime, time: number) {
+    this.cancelDeparture();
     this.world = system;
     this.clock = time;
     this.world.update(time);
@@ -332,6 +421,7 @@ export class ExplorationSession {
     const position = this.lastPosition;
     useExplorationStore.setState({
       systemId: this.world.definition.id,
+      departure: this.departureReadout(),
       jump: {
         phase: this.jump.phase,
         progress: this.jump.progress,

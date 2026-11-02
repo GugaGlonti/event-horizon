@@ -12,6 +12,7 @@ const callbacks = () => ({
   onCommit: vi.fn(),
   onRestore: vi.fn(),
   onError: vi.fn(),
+  onGuide: vi.fn(),
 });
 function definition(id: string) {
   const system = SYSTEMS.find((candidate) => candidate.id === id);
@@ -43,17 +44,46 @@ afterEach(() => {
 });
 
 describe('exploration transactions', () => {
-  it('keeps a blocked flight plan open and never begins preparation or departure', () => {
+  it('returns a blocked plan to flight with a launch waypoint and waits for explicit engagement', () => {
     const { session, events } = create();
     session.openMap('galaxy');
     session.syncPose(new Vector3(0, 0, 1300), new Quaternion());
     session.selectDestination('vesper');
     expect(session.beginJump()).toBe(false);
     expect(session.jump.phase).toBe('IDLE');
-    expect(useExplorationStore.getState().overlay).toBe('galaxy');
-    expect(useExplorationStore.getState().error).toMatch(/Departure lane blocked/);
+    expect(useExplorationStore.getState().overlay).toBeNull();
+    expect(useExplorationStore.getState().error).toBeNull();
+    const guidance = useExplorationStore.getState().departure;
+    expect(guidance?.ready).toBe(false);
+    expect(guidance?.waypoint).not.toBeNull();
+    expect(events.onGuide).toHaveBeenCalledOnce();
     expect(events.onDepart).not.toHaveBeenCalled();
     expect(events.onCommit).not.toHaveBeenCalled();
+    if (!guidance?.waypoint) throw new Error('Missing guidance.');
+    session.syncPose(new Vector3().fromArray(guidance.waypoint), new Quaternion());
+    expect(useExplorationStore.getState().departure?.ready).toBe(true);
+    expect(session.jump.phase).toBe('IDLE');
+    expect(session.beginJump()).toBe(true);
+    expect(useExplorationStore.getState().departure).toBeNull();
+    expect(events.onDepart).toHaveBeenCalledOnce();
+  });
+
+  it('never reserves network travel while blocked and rechecks clearance before confirmation', () => {
+    const { session, events } = create();
+    session.authorizeJump = vi.fn(async () => true);
+    session.syncPose(new Vector3(0, 0, 1300), new Quaternion());
+    session.selectDestination('vesper');
+    session.beginJump();
+    expect(session.authorizeJump).not.toHaveBeenCalled();
+    const waypoint = useExplorationStore.getState().departure?.waypoint;
+    if (!waypoint) throw new Error('Missing guidance.');
+    session.syncPose(new Vector3().fromArray(waypoint), new Quaternion());
+    expect(useExplorationStore.getState().departure?.ready).toBe(true);
+    session.syncPose(new Vector3(0, 0, 1300), new Quaternion());
+    expect(session.beginJump()).toBe(false);
+    expect(events.onDepart).not.toHaveBeenCalled();
+    session.selectDestination('aether');
+    expect(useExplorationStore.getState().departure).toBeNull();
   });
 
   it('travels Solara → Vesper → Aether → Solara, commits once per journey and restores flight', async () => {

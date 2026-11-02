@@ -52,7 +52,14 @@ export class FlightSession {
     usePlanetaryStore.setState({
       readout: planetaryTelemetry(this.controller, this.exploration.navigation.targetId),
     });
-    useFlightStore.setState({ contextAction: this.contextSuggestion().label });
+    const departure = useExplorationStore.getState().departure;
+    useFlightStore.setState({
+      contextAction: departure
+        ? departure.ready
+          ? 'Engage hyperdrive'
+          : 'Follow launch waypoint'
+        : this.contextSuggestion().label,
+    });
   }
   readonly controller = new FlightController(FLIGHT_CONFIG);
   readonly position = new Vector3();
@@ -86,6 +93,11 @@ export class FlightSession {
     this.combat = new CombatSession(this.controller, this.input);
     this.combat.audio.connect(this.audioMix);
     this.exploration = new ExplorationSession({
+      onGuide: () => {
+        this.multiplayer?.network.cancelTravel();
+        this.travelPermit = null;
+        if (!this.exploration.isSuspended) this.startKeyboard();
+      },
       onPause: this.pause,
       onDepart: (direction) => {
         if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
@@ -536,6 +548,15 @@ export class FlightSession {
       this.combat.simulation.player.health.destroyed
     )
       return;
+    const departure = useExplorationStore.getState().departure;
+    if (departure) {
+      if (departure.ready) this.exploration.beginJump();
+      else
+        useFlightStore
+          .getState()
+          .setNotice('Follow the amber launch waypoint. Tab engages when the lane is clear.');
+      return;
+    }
     const suggestion = this.contextSuggestion();
     if (suggestion.kind === 'ship') {
       if (suggestion.action.kind === 'dock')
