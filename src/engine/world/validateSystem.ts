@@ -1,3 +1,4 @@
+import { civilizations, validatePlanet } from './validatePlanet';
 import type { StarSystemDefinition } from './worldTypes';
 
 const kinds = new Set(['star', 'rocky', 'gas-giant', 'moon']);
@@ -27,8 +28,21 @@ export function validateSystem(system: StarSystemDefinition): void {
   if (ids.size !== system.bodies.length) fail('Duplicate celestial IDs.');
   if (system.bodies.filter((body) => body.kind === 'star').length !== 1)
     fail('Exactly one central star is required.');
+  if (system.civilization && !civilizations.includes(system.civilization))
+    fail('Invalid system civilization.');
   const navigationIds = new Set(ids.keys());
   for (const body of system.bodies) {
+    validatePlanet(body, fail);
+    for (const city of body.settlements ?? []) {
+      if (navigationIds.has(city.id)) fail('Duplicate navigation contact ID.');
+      navigationIds.add(city.id);
+      if (
+        !system.stations?.some(
+          (s) => s.id === `${city.id}-spaceport` && s.type === 'surface' && s.parentId === body.id,
+        )
+      )
+        fail('Settlement needs a functional spaceport.');
+    }
     if (!body.id || !body.name.trim() || !kinds.has(body.kind) || !positive(body.radius))
       fail('Invalid celestial metadata.');
     if (
@@ -162,6 +176,23 @@ export function validateSystem(system: StarSystemDefinition): void {
       (station.parentId && !ids.has(station.parentId))
     )
       fail('Invalid station definition.');
+    if (!['orbital', 'industrial', 'surface'].includes(station.type)) fail('Invalid station type.');
+    if (station.surfaceAnchor) {
+      const anchor = station.surfaceAnchor,
+        body = ids.get(station.parentId ?? '');
+      if (
+        station.type !== 'surface' ||
+        station.orbit ||
+        !body?.landable ||
+        !Number.isFinite(anchor.latitude) ||
+        Math.abs(anchor.latitude) > Math.PI / 2 ||
+        !Number.isFinite(anchor.longitude) ||
+        Math.abs(anchor.longitude) > Math.PI ||
+        !Number.isFinite(anchor.elevation) ||
+        anchor.elevation <= (body.ocean?.level ?? -Infinity)
+      )
+        fail('Invalid surface station anchor.');
+    } else if (station.type === 'surface') fail('Surface station requires a body anchor.');
     stationIds.add(station.id);
     navigationIds.add(station.id);
     if (
@@ -189,7 +220,7 @@ export function validateSystem(system: StarSystemDefinition): void {
     }
     if (
       !ports.size ||
-      station.boxes.length > 64 ||
+      station.boxes.length > 512 ||
       !station.boxes.length ||
       station.boxes.some(
         (box) => !tuple(box.center, 3) || !tuple(box.size, 3) || !box.size.every(positive),
@@ -208,7 +239,7 @@ export function validateSystem(system: StarSystemDefinition): void {
       fail('Invalid station service.');
   }
   if (
-    (system.stations?.length ?? 0) > 8 ||
+    (system.stations?.length ?? 0) > 16 ||
     (system.stations ?? []).reduce((sum, station) => sum + station.ports.length, 0) > 32
   )
     fail('Station budget exceeded.');

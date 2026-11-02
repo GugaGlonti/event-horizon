@@ -24,7 +24,9 @@ export class StationSimulation {
       !ship ||
       ship.health.destroyed ||
       ship.transferring ||
-      ship.controller.surface.phase !== 'flying'
+      !['flying', ...(station?.type === 'surface' ? ['approaching'] : [])].includes(
+        ship.controller.surface.phase,
+      )
     )
       return 'Ship is unavailable for docking.';
     if (this.state(id).phase !== 'undocked') return 'Cancel the existing clearance first.';
@@ -53,6 +55,7 @@ export class StationSimulation {
       portId: port.id,
     });
     ship.controller.transit = false;
+    ship.controller.landingAssist = null;
     return null;
   }
   cancel(id: string) {

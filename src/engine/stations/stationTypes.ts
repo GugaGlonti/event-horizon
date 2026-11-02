@@ -20,6 +20,12 @@ export interface StationDefinition {
   readonly parentId?: string;
   readonly position: Position3;
   readonly orientation: Rotation4;
+  /** Body-local anchor; follows axial rotation and shares the normal docking authority. */
+  readonly surfaceAnchor?: {
+    readonly latitude: number;
+    readonly longitude: number;
+    readonly elevation: number;
+  };
   readonly orbit?: {
     readonly radius: number;
     readonly period: number;

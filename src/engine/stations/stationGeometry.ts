@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { sweepSphere } from '@/engine/physics/spheres';
+import { bodyRotation, surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
 import { orbitalOffset, type SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { DockingPortDefinition, StationDefinition } from './stationTypes';
 
@@ -10,7 +11,32 @@ export function stationPose(world: SystemRuntime, station: StationDefinition) {
     const parent = world.positions.get(station.parentId);
     if (parent) position.add(parent);
   }
-  const velocity = new Vector3();
+  const velocity = new Vector3(),
+    angularVelocity = new Vector3();
+  let orientation = new Quaternion().fromArray(station.orientation);
+  if (station.surfaceAnchor) {
+    const body = world.definition.bodies.find((b) => b.id === station.parentId);
+    const center = body && world.positions.get(body.id);
+    if (body && center) {
+      const local = surfaceDirection(
+        station.surfaceAnchor.latitude,
+        station.surfaceAnchor.longitude,
+      );
+      const rotation = bodyRotation(body, world.time);
+      position
+        .copy(local)
+        .multiplyScalar(body.radius + station.surfaceAnchor.elevation)
+        .applyQuaternion(rotation)
+        .add(center);
+      orientation = rotation.clone().multiply(tangentFrame(local)).multiply(orientation);
+      angularVelocity
+        .set(0, body.rotation.speed, 0)
+        .applyQuaternion(
+          new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), body.rotation.tilt),
+        );
+      velocity.crossVectors(angularVelocity, new Vector3().subVectors(position, center));
+    }
+  }
   const addOrbit = (orbit: NonNullable<StationDefinition['orbit']>) => {
     const angle = orbit.phase + (world.time * Math.PI * 2) / orbit.period,
       rate = (orbit.radius * Math.PI * 2) / orbit.period;
@@ -29,7 +55,7 @@ export function stationPose(world: SystemRuntime, station: StationDefinition) {
     if (body?.orbit) addOrbit(body.orbit);
     parent = body?.parentId;
   }
-  return { position, velocity, orientation: new Quaternion().fromArray(station.orientation) };
+  return { position, velocity, orientation, angularVelocity };
 }
 export function portPose(
   world: SystemRuntime,
@@ -38,7 +64,12 @@ export function portPose(
 ) {
   const pose = stationPose(world, station);
   return {
-    velocity: pose.velocity,
+    velocity: pose.velocity.add(
+      new Vector3().crossVectors(
+        pose.angularVelocity,
+        new Vector3().fromArray(port.position).applyQuaternion(pose.orientation),
+      ),
+    ),
     position: new Vector3()
       .fromArray(port.position)
       .applyQuaternion(pose.orientation)

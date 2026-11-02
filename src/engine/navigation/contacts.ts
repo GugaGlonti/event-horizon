@@ -2,7 +2,7 @@ import type { BodyKind, StarSystemDefinition } from '@/engine/world/worldTypes';
 export interface NavigationContact {
   id: string;
   name: string;
-  kind: BodyKind | 'station' | 'landing-zone' | 'surface-poi';
+  kind: BodyKind | 'station' | 'landing-zone' | 'surface-poi' | 'capital' | 'city' | 'outpost';
   radius: number;
   parentId?: string;
 }
@@ -23,6 +23,18 @@ export function navigationContacts(system: StarSystemDefinition): NavigationCont
       ...(station.parentId ? { parentId: station.parentId } : {}),
     })),
     ...system.bodies.flatMap((body) => [
+      ...(body.settlements ?? []).map((city) => ({
+        id: city.id,
+        name: city.name,
+        kind:
+          city.kind === 'capital'
+            ? ('capital' as const)
+            : city.kind === 'regional'
+              ? ('city' as const)
+              : ('outpost' as const),
+        radius: 0,
+        parentId: body.id,
+      })),
       ...(body.landingZones ?? []).map((zone) => ({
         id: zone.id,
         name: zone.name,

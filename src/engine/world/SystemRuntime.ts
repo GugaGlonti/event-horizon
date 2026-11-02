@@ -1,5 +1,5 @@
-import { Vector3 } from '@/engine/math/linear';
-import { bodyRotation, surfaceDirection } from '@/engine/planetary/coordinates';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { bodyRotation, surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
 import { terrainHeight } from '@/engine/planetary/terrain';
 import { validateSystem } from './validateSystem';
 import type { CelestialDefinition, Position3, StarSystemDefinition } from './worldTypes';
@@ -40,7 +40,11 @@ export class SystemRuntime {
     for (const body of definition.bodies) visit(body);
     for (const station of definition.stations ?? []) this.positions.set(station.id, new Vector3());
     for (const body of definition.bodies)
-      for (const point of [...(body.landingZones ?? []), ...(body.pointsOfInterest ?? [])])
+      for (const point of [
+        ...(body.landingZones ?? []),
+        ...(body.pointsOfInterest ?? []),
+        ...(body.settlements ?? []),
+      ])
         this.positions.set(point.id, new Vector3());
     this.update(time);
   }
@@ -62,7 +66,29 @@ export class SystemRuntime {
     for (const station of this.definition.stations ?? []) {
       const position = this.positions.get(station.id);
       if (!position) continue;
-      position.fromArray(station.position);
+      if (station.surfaceAnchor) {
+        const body = this.definition.bodies.find((b) => b.id === station.parentId);
+        if (body)
+          surfaceDirection(
+            station.surfaceAnchor.latitude,
+            station.surfaceAnchor.longitude,
+            position,
+          )
+            .multiplyScalar(body.radius + station.surfaceAnchor.elevation)
+            .applyQuaternion(bodyRotation(body, time));
+        // Surface navigation points at a usable approach beacon, away from civic buildings.
+        const port = station.ports[0];
+        if (body && port) {
+          const local = surfaceDirection(
+            station.surfaceAnchor.latitude,
+            station.surfaceAnchor.longitude,
+          );
+          const frame = bodyRotation(body, time)
+            .multiply(tangentFrame(local))
+            .multiply(new Quaternion().fromArray(station.orientation));
+          position.add(new Vector3().fromArray(port.approach).applyQuaternion(frame));
+        }
+      } else position.fromArray(station.position);
       if (station.orbit) position.add(orbitalOffset(station.orbit, time, new Vector3()));
       const parent = station.parentId && this.positions.get(station.parentId);
       if (parent) position.add(parent);
@@ -71,7 +97,11 @@ export class SystemRuntime {
       const center = this.positions.get(body.id);
       if (!center) continue;
       const rotation = bodyRotation(body, time);
-      for (const point of [...(body.landingZones ?? []), ...(body.pointsOfInterest ?? [])]) {
+      for (const point of [
+        ...(body.landingZones ?? []),
+        ...(body.pointsOfInterest ?? []),
+        ...(body.settlements ?? []),
+      ]) {
         const position = this.positions.get(point.id);
         if (!position) continue;
         surfaceDirection(point.latitude, point.longitude, position);
