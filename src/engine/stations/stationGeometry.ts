@@ -130,6 +130,9 @@ function colliders(station: StationDefinition) {
   colliderCache.set(station, data);
   return data;
 }
+export function stationExtent(station: StationDefinition) {
+  return colliders(station).extent;
+}
 /** Continuous sphere/expanded oriented-box sweep. Cached shapes, no per-box allocation. */
 export function traceStation(
   world: SystemRuntime,

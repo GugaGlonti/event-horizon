@@ -3,9 +3,10 @@ import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
   jumpBodyRadius,
+  jumpStationBounds,
   routeOrientation,
 } from '@/engine/navigation/hyperspaceRoute';
-import { stationPose, traceStation } from '@/engine/stations/stationGeometry';
+import { traceStation } from '@/engine/stations/stationGeometry';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 
 /** Find the shortest clear local escape among bounded capsule-boundary candidates.
@@ -17,26 +18,15 @@ export function findDepartureWaypoint(
   start: Readonly<Vector3>,
   direction: Readonly<Vector3>,
   distance: number,
+  horizon = HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING,
 ) {
-  const horizon = HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING;
   const volumes = world.definition.bodies.flatMap((body) => {
     const center = world.positions.get(body.id);
     return center ? [{ center, radius: jumpBodyRadius(world, body, horizon) + 150 }] : [];
   });
   for (const station of world.definition.stations ?? []) {
-    const pose = stationPose(world, station);
-    const extent = Math.max(
-      0,
-      ...station.boxes.map(
-        (box) =>
-          new Vector3().fromArray(box.center).length() +
-          new Vector3().fromArray(box.size).length() / 2,
-      ),
-    );
-    volumes.push({
-      center: pose.position,
-      radius: extent + pose.velocity.length() * horizon + 230,
-    });
+    const bounds = jumpStationBounds(world, station, horizon);
+    volumes.push({ center: bounds.center, radius: bounds.radius + 150 });
   }
   const orientation = routeOrientation(direction);
   const right = new Vector3(1, 0, 0).applyQuaternion(orientation);
@@ -71,7 +61,8 @@ export function findDepartureWaypoint(
       if (!moved) break;
     }
     const length = point.distanceTo(start);
-    if (length >= shortest || departureObstruction(world, point, direction, distance)) continue;
+    if (length >= shortest || departureObstruction(world, point, direction, distance, horizon))
+      continue;
     const delta = new Vector3().subVectors(point, start);
     const heading = delta.clone().normalize();
     const clear = volumes.every(({ center, radius }) => {

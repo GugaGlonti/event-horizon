@@ -10,9 +10,14 @@ import {
 import { Encounter } from '@/engine/combat/Encounter';
 import { encounterSpace } from '@/engine/combat/encounterSpace';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
-import { EXIT_COAST_DISTANCE, HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import {
+  EXIT_COAST_DISTANCE,
+  HYPERSPACE_MOTION,
+  HYPERSPACE_TIMING,
+} from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
+  departureWindow,
   routeArrival,
   travelDirection,
 } from '@/engine/navigation/hyperspaceRoute';
@@ -221,7 +226,8 @@ export class MultiplayerWorld {
       this.system,
       pilot.ship.position,
       travelDirection(this.system.definition, target),
-      5200,
+      HYPERSPACE_MOTION.departureDistance,
+      departureWindow(this.system.definition, target),
     );
   }
   startEncounter(practice: boolean) {

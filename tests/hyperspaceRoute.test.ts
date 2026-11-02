@@ -2,12 +2,14 @@ import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   departureObstruction,
+  departureWindow,
   jumpBodyRadius,
   routeArrival,
   routeOrientation,
   travelDirection,
   travelDistance,
 } from '@/engine/navigation/hyperspaceRoute';
+import { stationPose } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { validateCatalog, validateSystem } from '@/engine/world/validateSystem';
 import { SYSTEMS } from '@/features/exploration/data/systems';
@@ -75,6 +77,66 @@ describe('galactic jump routes', () => {
       expect(new Vector3(0, 0, -1).applyQuaternion(orientation).y).toBeCloseTo(y);
       expect(orientation.angleTo(new Quaternion())).toBeGreaterThan(0);
     }
+  });
+
+  it('protects the rendered source throughout transit and preparation holds, not only ignition', () => {
+    const source = SYSTEMS[0],
+      destination = SYSTEMS[1];
+    if (!source || !destination) throw new Error('Missing fixture.');
+    const world = new SystemRuntime(source);
+    const moon = source.bodies.find((body) => body.kind === 'moon');
+    const center = moon && world.positions.get(moon.id);
+    const parent = moon?.parentId && world.positions.get(moon.parentId);
+    if (!moon || !center || !parent) throw new Error('Missing moon.');
+    const direction = center.clone().sub(parent).normalize();
+    const point = center
+      .clone()
+      .addScaledVector(
+        direction,
+        (jumpBodyRadius(world, moon, 7) +
+          jumpBodyRadius(world, moon, departureWindow(source, destination))) /
+          2,
+      );
+    expect(departureWindow(source, destination)).toBeGreaterThan(15);
+    expect(departureObstruction(world, point, direction, 0, 7)).toBeNull();
+    expect(
+      departureObstruction(world, point, direction, 0, departureWindow(source, destination))?.id,
+    ).toBe(moon.id);
+  });
+
+  it('blocks a facility that will orbit into a corridor after the current collision sweep', () => {
+    const source = SYSTEMS[0];
+    const template = source?.stations?.find((station) => station.type === 'orbital');
+    if (!source || !template) throw new Error('Missing orbital station.');
+    const { parentId: _parentId, surfaceAnchor: _anchor, ...free } = template;
+    const station = {
+      ...free,
+      position: [10000000, 0, 0] as const,
+      orbit: { radius: 5000, period: 20, phase: 0, inclination: 0 },
+    };
+    const world = new SystemRuntime(
+      {
+        ...source,
+        stations:
+          source.stations?.map((candidate) =>
+            candidate.id === template.id ? station : candidate,
+          ) ?? [],
+      },
+      4,
+    );
+    const box = station.boxes[0];
+    if (!box) throw new Error('Missing hull.');
+    const future = stationPose(world, station);
+    const point = new Vector3()
+      .fromArray(box.center)
+      .applyQuaternion(future.orientation)
+      .add(future.position);
+    const direction = new Vector3(0, -1, 0);
+    point.addScaledVector(direction, -1000);
+    expect(departureObstruction(world, point, direction, 2000, 0)?.id).toBe(station.id);
+    world.update(0);
+    expect(departureObstruction(world, point, direction, 2000, 0)).toBeNull();
+    expect(departureObstruction(world, point, direction, 2000, 4)?.id).toBe(station.id);
   });
 
   it('includes physical atmosphere height, terrain and parent orbital motion in clearance', () => {

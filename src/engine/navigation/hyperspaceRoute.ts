@@ -1,7 +1,8 @@
 import { Quaternion, quaternionFromBasis, Vector3 } from '@/engine/math/linear';
-import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import { HYPERSPACE_TIMING, hyperspaceDuration } from '@/engine/navigation/HyperspaceController';
 import { maximumTerrainHeight } from '@/engine/planetary/terrain';
-import { traceStation } from '@/engine/stations/stationGeometry';
+import { stationExtent, stationPose, traceStation } from '@/engine/stations/stationGeometry';
+import type { StationDefinition } from '@/engine/stations/stationTypes';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { CelestialDefinition, StarSystemDefinition } from '@/engine/world/worldTypes';
 
@@ -11,8 +12,21 @@ export function travelDistance(source: StarSystemDefinition, destination: StarSy
     .distanceTo(new Vector3().fromArray(destination.galacticPosition));
 }
 
+/** The source remains rendered until commit, including a delayed destination preparation. */
+export function departureWindow(source: StarSystemDefinition, destination: StarSystemDefinition) {
+  return (
+    HYPERSPACE_TIMING.CHARGING +
+    HYPERSPACE_TIMING.ACCELERATING +
+    Math.max(
+      HYPERSPACE_TIMING.preparationTimeout,
+      hyperspaceDuration(travelDistance(source, destination)),
+    ) +
+    1
+  );
+}
+
 /** Include every ancestor's orbital speed, even for moons of an orbiting planet. */
-export function jumpBodyRadius(world: SystemRuntime, body: CelestialDefinition, seconds: number) {
+function orbitalMotion(world: SystemRuntime, body: CelestialDefinition, seconds: number) {
   let motion = 0;
   let ancestor: CelestialDefinition | undefined = body;
   while (ancestor) {
@@ -20,6 +34,10 @@ export function jumpBodyRadius(world: SystemRuntime, body: CelestialDefinition, 
     const parentId: string | undefined = ancestor.parentId;
     ancestor = world.definition.bodies.find((candidate) => candidate.id === parentId);
   }
+  return motion * seconds;
+}
+
+export function jumpBodyRadius(world: SystemRuntime, body: CelestialDefinition, seconds: number) {
   return (
     Math.max(
       body.radius + maximumTerrainHeight(body),
@@ -27,9 +45,29 @@ export function jumpBodyRadius(world: SystemRuntime, body: CelestialDefinition, 
       body.radius * (body.atmosphere?.scale ?? 1),
       body.radius + (body.atmosphere?.height ?? 0),
     ) +
-    motion * seconds +
+    orbitalMotion(world, body, seconds) +
     200
   );
+}
+
+/** A moving facility stays within this sphere even while its boxes rotate. */
+export function jumpStationBounds(
+  world: SystemRuntime,
+  station: StationDefinition,
+  seconds: number,
+) {
+  const pose = stationPose(world, station);
+  const extent = stationExtent(station);
+  const parent = world.definition.bodies.find((body) => body.id === station.parentId);
+  let motion = parent ? orbitalMotion(world, parent, seconds) : 0;
+  if (station.orbit)
+    motion += ((Math.PI * 2 * station.orbit.radius) / station.orbit.period) * seconds;
+  if (station.surfaceAnchor && parent)
+    motion +=
+      Math.abs(parent.rotation.speed) *
+      (parent.radius + station.surfaceAnchor.elevation + extent) *
+      seconds;
+  return { center: pose.position, radius: extent + motion + 80, moving: motion > 0 };
 }
 
 export function travelDirection(
@@ -79,20 +117,24 @@ export function departureObstruction(
     new Vector3().copy(start).addScaledVector(direction, distance),
     80,
   );
-  const movingHit =
-    stationHit ??
-    traceStation(
-      world,
-      start,
-      new Vector3().copy(start).addScaledVector(direction, distance),
-      80,
-      seconds,
-    );
-  if (movingHit) {
+  if (stationHit) {
     const station = world.definition.stations?.find(
-      (candidate) => candidate.id === movingHit.stationId,
+      (candidate) => candidate.id === stationHit.stationId,
     );
     if (station) return { ...station, kind: 'station' as const };
+  }
+  for (const station of world.definition.stations ?? []) {
+    const bounds = jumpStationBounds(world, station, seconds);
+    if (!bounds.moving) continue;
+    const along = Math.max(
+      0,
+      Math.min(distance, offset.copy(bounds.center).sub(start).dot(direction)),
+    );
+    if (
+      closest.copy(start).addScaledVector(direction, along).distanceToSquared(bounds.center) <
+      bounds.radius ** 2
+    )
+      return { ...station, kind: 'station' as const };
   }
   return null;
 }

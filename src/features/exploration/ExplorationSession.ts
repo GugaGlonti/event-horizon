@@ -4,6 +4,7 @@ import { HyperspaceController } from '@/engine/navigation/HyperspaceController';
 import { departureBearing, findDepartureWaypoint } from '@/engine/navigation/hyperspaceDeparture';
 import {
   departureObstruction,
+  departureWindow,
   routeArrival,
   travelDirection,
   travelDistance,
@@ -150,6 +151,7 @@ export class ExplorationSession {
         this.lastPosition,
         this.direction,
         JUMP_MOTION.departureDistance,
+        departureWindow(this.world.definition, target),
       )
     ) {
       this.departureDestination = target.id;
@@ -172,6 +174,7 @@ export class ExplorationSession {
       this.lastPosition,
       this.direction,
       JUMP_MOTION.departureDistance,
+      departureWindow(this.world.definition, target),
     );
     if (
       obstruction &&
@@ -183,6 +186,7 @@ export class ExplorationSession {
           this.departureWaypoint,
           this.direction,
           JUMP_MOTION.departureDistance,
+          departureWindow(this.world.definition, target),
         ))
     ) {
       const waypoint = findDepartureWaypoint(
@@ -190,6 +194,7 @@ export class ExplorationSession {
         this.lastPosition,
         this.direction,
         JUMP_MOTION.departureDistance,
+        departureWindow(this.world.definition, target),
       );
       this.departureWaypoint = waypoint ? new Vector3().copy(waypoint) : null;
       this.departurePlanPosition.copy(this.lastPosition);
