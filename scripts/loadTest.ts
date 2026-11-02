@@ -6,6 +6,7 @@ import { createGameServer } from '../server/createServer';
 import { placeVerificationPilots, verificationScenarios } from './planetaryFixtures';
 
 const scenario = verificationScenarios.find((s) => s === process.env.LOAD_SCENARIO);
+const flightMode = process.env.LOAD_FLIGHT_MODE === 'travel' ? 'travel' : 'combat';
 const seconds = Math.max(3, Math.min(120, Number(process.env.LOAD_SECONDS) || 10));
 const latency = Math.max(0, Math.min(1000, Number(process.env.LOAD_LATENCY_MS) || 0));
 const populations = process.argv
@@ -91,6 +92,7 @@ try {
           const command = {
             ...neutralInput(seq),
             paused: false,
+            flightMode,
             fire: scenario !== 'descent',
             flight: {
               ...neutralInput().flight,
@@ -129,6 +131,7 @@ try {
     ackDelays.sort((a, b) => a - b);
     results.push({
       scenario: scenario ?? 'space-combat',
+      flightMode,
       players: count,
       seconds: Number(elapsed.toFixed(2)),
       simulatedOneWayLatencyMs: latency,
