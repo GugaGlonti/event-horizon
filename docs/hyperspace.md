@@ -53,8 +53,12 @@ halos build to full stretch by 36% of entry. Tunnel coverage starts at 80%, leav
 of fully extended stars. Stretched exposures share the tunnel's logarithmic 80 m optical boundary;
 ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retain foreground depth.
 
-One soft exposure crest blends into three irregular cloud shells. Exit stays opaque through 30%,
-then reveals the destination over 30–70%: about 0.84 seconds. The analytical coast still ends at
+Trails crossfade directly into three irregular cloud shells. Tunnel opacity follows world coverage;
+a restrained light crest brightens cloud detail without a separate pale blue/white overlay. Exit
+brings fully glowing trails up over the opaque mask during its first 30%, holds full extension until
+50%, then contracts through 94%. Star travel settles earlier, by 45%, so the field is already visible
+when contraction begins. Exit stays opaque through 30%, then reveals the destination over 30–70%:
+about 0.84 seconds. Optical trails cannot release the world mask. The analytical coast still ends at
 exactly 100 m/s. Seeded smooth noise varies camera translation/rotation, cloud drift and reflected
 light between journeys. Impulses are removed before the next camera update and never feed physics.
 
@@ -86,12 +90,22 @@ multiplayer focus suspensions, simultaneous transfer saturation and a new sixty-
 profile were not exercised. Camera/reduced-motion and async lifecycle behavior have unit coverage.
 FPS readouts in screenshots are observations on this machine, not a hardware guarantee.
 
+The visual follow-up at `248a750` repeated Solara → Vesper → Aether → Solara using ordinary UI
+controls: chase at 1920×1080 and cockpit at 390×600, with no horizontal overflow. Captured entry/exit
+frames confirm overlapping cloud detail and bright exit streaks, with hull/canopy preserved. Map Tab
+focus, abort during the blend and reset were checked; console warning/error queries remained empty.
+The cloud-blend and exit-glow screenshots below record that follow-up. No new multiplayer load or
+sustained GPU profile was run for these presentation-only changes; the earlier load measurements
+retain their stated revision.
+
 ## Automated and load verification
 
-Final `npm run check` passed lint, **556 tests across 40 files**, TypeScript checking and production
+Final `npm run check` passed lint, **557 tests across 40 files**, TypeScript checking and production
 build, including all nine real-socket integration tests. Coverage includes all ninety directed
 catalogue routes, distance/progress clocks, receiver lead-ins and holds, future moon/facility
 incursions, camera continuity and nonaccumulation, seeded turbulence, input/focus and cancellation.
+The visual regression tests also check entry overlap, early exit glow, its visible full-stretch hold
+and continuous optical visibility across phase boundaries.
 Vite retains its existing large-chunk advisory.
 
 The final code revision `3143148` was measured on an Apple M2 Pro with 32 GiB RAM and Node
@@ -111,6 +125,10 @@ latency, renderer performance or simultaneous-transfer capacity. Transfer behavi
 real-socket integration tests; moving-boundary and extended receiver-window regressions are headless.
 
 ![Full star stretch before ignition](verification/hyperspace-stretch.jpg)
+
+![Cloud detail blending directly with entry streaks](verification/hyperspace-cloud-blend.jpg)
+
+![Glowing exit streaks before contraction](verification/hyperspace-exit-glow.jpg)
 
 ![Compact hyperspace HUD](verification/hyperspace-phone.jpg)
 

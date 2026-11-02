@@ -150,7 +150,8 @@ without a task requirement. Current scope and verification limits live in docs/g
 - Blocked courses keep normal flight active with a bounded local escape suggestion. Never request
   a network permit while obstructed or auto-engage when clearance appears; Tab/button confirmation
   revalidates the lane. Normal stars remain celestial; stretched optical trails share the tunnel's
-  logarithmic 80 m foreground boundary and preserve hull/cockpit depth.
+  logarithmic 80 m foreground boundary and preserve hull/cockpit depth. Optical trail visibility may
+  overlap the opaque mask; never use it to release destination coverage or readiness.
 - Preserve T/X navigation and R/V lift. G/H acquire/clear combat targets; N cycles during Combat. Tab confirms contextual actions during flight.
   Left mouse and Space fire only while active; HUD clicks must not fire. Escape works even with a
   button focused, and Tab retains normal focus navigation inside maps and from focused controls.

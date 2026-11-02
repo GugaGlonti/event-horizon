@@ -298,11 +298,13 @@ cancellation follows the authoritative admission/recovery path.
 
 The 3.4-second entry reaches full extension by 36%, ignites at 55%, and begins tunnel coverage at
 80%, leaving about 1.5 seconds of clear full stretch. The persistent star field supplies every trail;
-no particles recycle into another layout. White cores, cyan shoulders and restrained blue halos fade
-through one exposure crest into cloud walls. `hyperspaceVisuals` owns continuous envelopes, recoil,
-rattle and smooth seeded noise. Per-journey variation affects only presentation. Camera impulses and
-small rotations are removed before each follow update, preventing accumulation. Reduced motion
-suppresses these effects; active journey time drives clouds without a separate render clock.
+no particles recycle into another layout. White cores, cyan shoulders and restrained blue halos
+crossfade directly into cloud walls. Tunnel alpha follows coverage exactly; a bounded light crest
+brightens the existing texture without adding an intermediate flat overlay. `hyperspaceVisuals` owns
+continuous envelopes, recoil, rattle and smooth seeded noise. Per-journey variation affects only
+presentation. Camera impulses and small rotations are removed before each follow update, preventing
+accumulation. Reduced motion suppresses these effects; active journey time drives clouds without a
+separate render clock.
 
 A prepared destination cannot commit until HYPERSPACE has run for its minimum duration. Before commit,
 `routeArrival` rechecks a source-facing corridor against conservative terrain/foundation, atmosphere,
@@ -319,7 +321,10 @@ its first frame after every terrain body has complete six-face base coverage. Th
 readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
 Both CPU preparation and renderer readiness have
 bounded 12-second deadlines. The first 30% of the 2.1-second exit remains opaque; coverage falls over
-30–70% (about 0.84 seconds), coordinated with star contraction, exposure and the exit impulse.
+30–70% (about 0.84 seconds), coordinated with exposure and the exit impulse. Optical trail visibility
+rises over the opaque mask during the first 30%; virtual star travel settles by 45%. Full extension
+holds until 50%, then contracts through 94%. This lets exit show the entry's glowing white/cyan
+exposures before shortening them. Optical visibility never changes world-mask coverage or readiness.
 The arrival speed falls from 3200 to 100 m/s with a seventh-power velocity curve; its analytical
 distance integral exactly matches the final pose and handoff velocity. Gameplay motion values live
 in engine/navigation/HyperspaceController.ts and the full swept corridor uses those same bounds. Celestial assets use
@@ -500,7 +505,7 @@ geometry or publish React state per frame. The flight frame callback has priorit
 origin and camera update before world/effect presentation. No positive-priority callback takes over
 rendering.
 
-Reduced motion disables dynamic FOV, turbulence, recoil/rattle, tunnel animation, star trails, exposure flashes,
+Reduced motion disables dynamic FOV, turbulence, recoil/rattle, tunnel animation, star trails, light crests,
 moving light/glass highlights, alignment bank and axial spin. The tunnel still
 masks a transition and progress remains legible. Device pixel ratio stays bounded. LOD/adaptive quality
 and broader hardware profiling are future improvements, not a promise of universal 60 FPS.

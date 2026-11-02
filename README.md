@@ -366,8 +366,9 @@ bounds. Source checks cover transit/preparation waits; receiver checks also cove
 transit before the destination scene becomes visible. No hyperspeed enters normal flight physics.
 
 The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
-visible for about 1.5 seconds before tunnel coverage begins. One exposure crest merges the trails
-into layered blue clouds, while a roughly 0.84-second arrival reveal replaces the old abrupt cut.
+visible for about 1.5 seconds before tunnel coverage begins. Trails blend directly into layered blue
+clouds. Exit reveals the same glowing streaks before contracting them, while the destination appears
+over roughly 0.84 seconds.
 Seeded smooth camera/tunnel turbulence and reflected light vary each journey without changing the
 ship's physical trajectory. Nearby hull/cockpit/exhaust remain visible. Reduced-motion preferences
 suppress trails, turbulence, recoil, animated clouds/light, exposure and dynamic FOV.
