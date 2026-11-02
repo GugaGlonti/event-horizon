@@ -127,15 +127,28 @@ describe('flight presentation boundaries', () => {
     rig.update(camera, session, 'cockpit', 1 / 120, true);
     expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
     jump.phase = 'HYPERSPACE';
-    jump.elapsed = 1;
-    rig.update(camera, session, 'cockpit', 1 / 120, false);
-    expect(camera.position.distanceTo(baseline)).toBeLessThan(0.05);
-    const drifted = camera.position.clone();
-    jump.elapsed = 1.2;
-    rig.update(camera, session, 'cockpit', 1 / 120, false);
-    expect(camera.position.distanceTo(drifted)).toBeGreaterThan(1e-6);
-    rig.update(camera, session, 'cockpit', 1 / 120, true);
-    expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
+    jump.distance = 100;
+    let calm = 0,
+      hiccups = 0;
+    for (let frame = 0; frame < 1200; frame++) {
+      jump.elapsed = frame / 120;
+      rig.update(camera, session, 'cockpit', 1 / 120, false);
+      const distance = camera.position.distanceTo(baseline);
+      expect(distance).toBeLessThan(0.05);
+      if (distance < 1e-8) {
+        calm++;
+        expect(camera.quaternion.angleTo(session.orientation)).toBeLessThan(1e-7);
+      } else {
+        hiccups++;
+        const held = camera.position.clone();
+        rig.update(camera, session, 'cockpit', 0, false);
+        expect(camera.position.distanceTo(held)).toBeLessThan(1e-8);
+        rig.update(camera, session, 'cockpit', 1 / 120, true);
+        expect(camera.position.distanceTo(baseline)).toBeLessThan(1e-8);
+      }
+    }
+    expect(calm / 1200).toBeGreaterThan(0.8);
+    expect(hiccups).toBeGreaterThan(0);
   });
 
   it('keeps cinematic camera lag bounded while the departure crosses render-origin cells', () => {

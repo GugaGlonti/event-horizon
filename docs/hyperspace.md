@@ -76,7 +76,10 @@ brings fully glowing trails up over the opaque mask during its first 30%, holds 
 when contraction begins. Exit stays opaque through 30%, then reveals the destination over 30–70%:
 about 0.84 seconds. Optical trails cannot release the world mask. The analytical coast still ends at
 exactly 100 m/s. Seeded smooth noise varies camera translation/rotation, cloud drift and reflected
-light between journeys. Impulses are removed before the next camera update and never feed physics.
+light between journeys. Camera/tunnel turbulence occurs in brief 0.45–0.7 second hiccups, with
+seeded onset times and at least two seconds of complete rest between events. All camera axes share
+the same event envelope, so most cruise is fully steady. Entry/exit recoil remains separate.
+Impulses are removed before the next camera update and never feed physics.
 
 Three cloud scales now provide broad dark folds, creased wisps and fine luminous filaments on
 far-to-near shells. Blue light pools pulse and drift around the walls; the same explicit clock and
@@ -131,6 +134,15 @@ before the exponent-only follow-up. All travel used ordinary UI controls, withou
 or game-state injection. The two real-space screenshots show the final sharper cockpit approach.
 
 ## Automated and load verification
+
+The occasional-hiccup follow-up passed `npm run check`: lint, **568 tests across 41 files**,
+TypeScript checking and production build. Regression checks cover brief events, multi-second gaps,
+over 80% calm cruise, smooth boundaries, per-journey variation and an exactly steady cockpit between
+events, including held-clock nonaccumulation and reduced-motion suppression.
+Chrome completed Solara → Vesper → Aether → Solara across chase/cockpit views, including 390×600
+without horizontal overflow. Map focus, abort/reset and a clean warning/error console were checked
+through ordinary UI controls. No new performance capture or multiplayer browser run was performed;
+the renderer/load records below retain their stated revisions and limits.
 
 The tunnel-lighting follow-up at `607006a` passed `npm run check`: lint, **566 tests across 41 files**,
 TypeScript checking and production build, including the nine real-socket integration tests. New

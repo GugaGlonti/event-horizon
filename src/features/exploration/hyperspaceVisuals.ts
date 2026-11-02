@@ -87,7 +87,17 @@ function softNoise(time: number, seed: number) {
   return noiseCell(cell, seed) * (1 - f) + noiseCell(cell + 1, seed) * f;
 }
 
-/** Bounded, repeatable per journey, nonperiodic turbulence. Never feeds back into flight physics. */
+/** Brief shared jolts, with at least two seconds of complete rest between seeded events. */
+function turbulencePulse(time: number, seed: number) {
+  const cell = Math.floor(time / 4.8);
+  const start = 0.7 + (noiseCell(cell, seed + 193) + 1) * 0.9;
+  const duration = 0.45 + (noiseCell(cell, seed + 389) + 1) * 0.125;
+  const age = time - cell * 4.8 - start;
+  if (age <= 0 || age >= duration) return 0;
+  return Math.sin((Math.PI * age) / duration) ** 2;
+}
+
+/** Bounded, occasional hiccups. Never feeds back into flight physics. */
 export function jumpTurbulence(jump: HyperspaceController, channel = 0) {
   if (!jump.busy || jump.phase === 'CHARGING') return 0;
   const envelope =
@@ -97,8 +107,11 @@ export function jumpTurbulence(jump: HyperspaceController, channel = 0) {
         ? 1 - smoothRamp(0, 0.4, jump.progress)
         : 1;
   const time = Math.max(jump.flightElapsed, jump.journeyElapsed) - HYPERSPACE_TIMING.CHARGING;
+  const pulse = turbulencePulse(time, jump.variation);
   const seed = jump.variation + channel * 104729;
   return (
-    (softNoise(time * 1.15, seed) * 0.72 + softNoise(time * 3.7, seed + 997) * 0.28) * envelope
+    (softNoise(time * 1.15, seed) * 0.72 + softNoise(time * 3.7, seed + 997) * 0.28) *
+    envelope *
+    pulse
   );
 }

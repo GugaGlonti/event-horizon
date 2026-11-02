@@ -377,8 +377,10 @@ clouds with dark folds, fine luminous wisps and pulsing blue light pools. A movi
 soft shadows across the player hull and cockpit, synchronized with the bright tunnel walls.
 Exit reveals the same glowing streaks before contracting them, while the destination appears
 over roughly 0.84 seconds.
-Seeded smooth camera/tunnel turbulence and reflected light vary each journey without changing the
-ship's physical trajectory. Nearby hull/cockpit/exhaust remain visible. Reduced-motion preferences
+Short, occasional camera/tunnel hiccups interrupt otherwise steady cruise, with seeded timing and
+at least two seconds of complete rest between them. Reflected light varies independently; neither
+effect changes the ship's physical trajectory. Nearby hull/cockpit/exhaust remain visible.
+Reduced-motion preferences
 suppress trails, turbulence, recoil, animated clouds/light, exposure and dynamic FOV.
 
 Arrival preserves damage, energy, trip distance, flight mode and camera preference, then restores
@@ -477,7 +479,7 @@ See [architecture and extension guide](docs/architecture.md), including how to a
 
 ## Verification and limitations
 
-The [hyperspace iteration](docs/hyperspace.md) records the current 566-test run, browser journey,
+The [hyperspace iteration](docs/hyperspace.md) records the current 568-test run, browser journey,
 launch-guidance and tunnel-lighting checks, a 60-second renderer sample, and earlier short
 2/8/16-client measurements with explicit verification limits.
 

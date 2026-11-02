@@ -135,26 +135,73 @@ describe('hyperspace visual timing', () => {
     expect(jumpExposure(jump)).toBe(0);
   });
 
-  it('varies bounded turbulence between journeys, stays smooth and settles before arrival', () => {
+  it('leaves calm stretches between brief, smooth tunnel hiccups', () => {
     const jump = new HyperspaceController();
-    jump.request('solara', 'vesper', ['solara', 'vesper']);
+    jump.request('solara', 'vesper', ['solara', 'vesper'], 300);
     jump.phase = 'HYPERSPACE';
     let previous = jumpTurbulence(jump);
+    let quiet = 0,
+      duration = 0,
+      calm = 0,
+      events = 0;
+    for (let frame = 0; frame < 3600; frame++) {
+      jump.elapsed = frame / 120;
+      const channels = [0, 1, 2].map((channel) => jumpTurbulence(jump, channel));
+      const value = channels[0] ?? 0;
+      expect(Math.abs(value)).toBeLessThanOrEqual(1);
+      expect(Math.abs(value - previous)).toBeLessThan(0.08);
+      if (channels.every((sample) => sample === 0)) {
+        quiet++;
+        calm += 1 / 120;
+        if (duration) {
+          expect(duration).toBeGreaterThan(0.4);
+          expect(duration).toBeLessThan(0.75);
+          duration = 0;
+        }
+      } else {
+        if (!duration) {
+          if (events) expect(calm).toBeGreaterThan(2);
+          events++;
+          calm = 0;
+        }
+        duration += 1 / 120;
+      }
+      previous = value;
+    }
+    expect(quiet / 3600).toBeGreaterThan(0.8);
+    expect(events).toBeGreaterThanOrEqual(4);
+    expect(events).toBeLessThanOrEqual(7);
+  });
+
+  it('varies hiccup timing between journeys and keeps the shared clock deterministic', () => {
+    const jump = new HyperspaceController();
+    jump.request('solara', 'vesper', ['solara', 'vesper'], 100);
+    jump.phase = 'HYPERSPACE';
+    const first: number[] = [];
     for (let frame = 0; frame < 1200; frame++) {
       jump.elapsed = frame / 120;
       const value = jumpTurbulence(jump);
-      expect(Math.abs(value)).toBeLessThanOrEqual(1);
-      expect(Math.abs(value - previous)).toBeLessThan(0.08);
-      previous = value;
+      first.push(value);
+      expect(jumpTurbulence(jump)).toBe(value);
+      if (Math.abs(value) > 0.01) expect(jumpTurbulence(jump, 1)).not.toBeCloseTo(value, 5);
     }
-    jump.elapsed = 1;
-    const first = jumpTurbulence(jump);
     jump.cancel();
-    jump.request('solara', 'vesper', ['solara', 'vesper']);
+    expect(jumpTurbulence(jump)).toBe(0);
+    jump.request('solara', 'vesper', ['solara', 'vesper'], 100);
+    expect(jumpTurbulence(jump)).toBe(0);
     jump.phase = 'HYPERSPACE';
-    jump.elapsed = 1;
-    expect(jumpTurbulence(jump)).not.toBeCloseTo(first, 5);
-    expect(jumpTurbulence(jump, 1)).not.toBeCloseTo(jumpTurbulence(jump), 5);
+    const second: number[] = [];
+    for (let frame = 0; frame < 1200; frame++) {
+      jump.elapsed = frame / 120;
+      second.push(jumpTurbulence(jump));
+    }
+    expect(second).not.toEqual(first);
+    expect(second.map((value) => value === 0)).not.toEqual(first.map((value) => value === 0));
+  });
+
+  it('settles all hiccups before the arrival reveal', () => {
+    const jump = new HyperspaceController();
+    jump.request('solara', 'vesper', ['solara', 'vesper']);
     jump.phase = 'EXITING';
     jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.4;
     expect(jumpTurbulence(jump)).toBeCloseTo(0);
