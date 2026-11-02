@@ -2,7 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { AdditiveBlending, type ShaderMaterial, Vector2, Vector3 } from 'three';
 import {
-  jumpKick,
+  jumpExposure,
   jumpStarTravel,
   jumpStarVisibility,
   jumpStretch,
@@ -57,7 +57,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
   const uniforms = useMemo(
     () => ({
       uStretch: { value: 0 },
-      uCrossing: { value: 0 },
+      uFlash: { value: 0 },
       uVisibility: { value: 1 },
       uTravel: { value: 0 },
       uForegroundDepth: { value: 0 },
@@ -74,7 +74,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
     if (!target) return;
     const jump = session.exploration.jump;
     if (target.uStretch) target.uStretch.value = reduced ? 0 : jumpStretch(jump);
-    if (target.uCrossing) target.uCrossing.value = reduced ? 0 : jumpKick(jump);
+    if (target.uFlash) target.uFlash.value = jumpExposure(jump, reduced);
     if (target.uVisibility)
       target.uVisibility.value = reduced ? 1 - jump.coverage : jumpStarVisibility(jump);
     if (target.uAtmosphere)
@@ -111,7 +111,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
         depthWrite={false}
         toneMapped={false}
         vertexShader={`
-          uniform float uStretch, uTravel, uRadius, uForegroundDepth, uCrossing;
+          uniform float uStretch, uTravel, uRadius, uForegroundDepth, uFlash;
           uniform vec3 uDirection;
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed, aSize;
@@ -135,7 +135,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
             float outward = (aCorner.x + 1.0) * 0.5;
             float proximity = clamp(uRadius / max(-view.z, uRadius * 0.1), 1.0, 4.0);
             float width = aSize * (1.0 + uStretch * (0.8 + proximity * 0.45))
-              * (1.0 + uCrossing * 0.18);
+              * (1.0 + uFlash * 3.5);
             float along = aCorner.x * aSize * 2.0 + outward * trail;
             vec2 offset = (pixelDirection * along + normal * aCorner.y * width * 5.0) * 2.0 / uViewport;
             clip.xy = (ndc + offset) * clip.w;
@@ -149,18 +149,19 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
           }
         `}
         fragmentShader={`
-          uniform float uStretch, uVisibility, uAtmosphere, uCrossing;
+          uniform float uStretch, uVisibility, uAtmosphere, uFlash;
           varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize;
           void main() {
             float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
             float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(1.0, vTrailLength), vAlong));
             float shape = max(head, tail * uStretch);
-            float core = exp(-vCorner.y * vCorner.y * mix(55.0, 30.0, uStretch));
+            float core = exp(-vCorner.y * vCorner.y * mix(mix(55.0, 30.0, uStretch), 8.0, uFlash));
             float shoulder = exp(-vCorner.y * vCorner.y * 10.0) * uStretch;
             float glow = exp(-vCorner.y * vCorner.y * 3.0) * uStretch;
-            vec3 color = vec3(0.9, 0.96, 1.0) * core * (1.0 + uStretch * 0.2 + uCrossing * 0.6)
-              + vec3(0.26, 0.58, 1.0) * shoulder * 0.3
-              + vec3(0.08, 0.27, 0.7) * glow * (0.08 + uCrossing * 0.16);
+            vec3 color = vec3(0.9, 0.96, 1.0) * core * (1.0 + uStretch * 0.2 + uFlash * 5.0)
+              + vec3(0.26, 0.58, 1.0) * shoulder * (0.3 + uFlash * 1.5)
+              + mix(vec3(0.08, 0.27, 0.7), vec3(0.8, 0.92, 1.0), uFlash)
+                * glow * (0.08 + uFlash * 1.8);
             float fade = uVisibility * (1.0 - uAtmosphere);
             gl_FragColor = vec4(color, min(1.0, shape * vBrightness * (1.0 + uStretch * 0.9)) * fade);
           }

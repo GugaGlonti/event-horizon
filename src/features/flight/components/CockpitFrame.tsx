@@ -70,7 +70,9 @@ export function CockpitFrame({
           : session.exploration.world.time;
     if (target?.uLight)
       target.uLight.value =
-        jump.coverage * 0.65 + (reduced ? 0 : jumpStretch(jump) * 0.25 + jumpExposure(jump) * 0.8);
+        jump.coverage * 0.65 +
+        (reduced ? 0 : jumpStretch(jump) * 0.25) +
+        jumpExposure(jump, reduced) * 0.8;
   });
   return (
     <group ref={frameRef} visible={visible}>

@@ -94,57 +94,127 @@ describe('hyperspace visual timing', () => {
     expect(jumpStarTravel(jump)).toBeGreaterThan(earlier);
   });
 
-  it('crossfades directly into clouds without exposing a separate wash before the tunnel', () => {
+  it('blooms fully stretched beams through white before recovering into the tunnel', () => {
     const jump = new HyperspaceController();
     jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.impactStart;
+    expect(jumpStretch(jump)).toBe(1);
+    expect(jumpExposure(jump)).toBe(0);
     for (let frame = 0; frame <= 120; frame++) {
       jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
       if (jump.coverage === 0) {
-        expect(jumpExposure(jump)).toBe(0);
         expect(jumpStarVisibility(jump)).toBe(1);
       }
       expect(jumpExposure(jump)).toBeGreaterThanOrEqual(0);
-      expect(jumpExposure(jump)).toBeLessThanOrEqual(0.35);
+      expect(jumpExposure(jump)).toBeLessThanOrEqual(1);
       // The cloud mask and optical trails never both disappear during their handoff.
       expect(jump.coverage + jumpStarVisibility(jump)).toBeGreaterThanOrEqual(1);
     }
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * ((HYPERSPACE_ENTRY.tunnelStart + 1) / 2);
-    expect(jumpExposure(jump)).toBeCloseTo(0.35);
+    expect(jumpExposure(jump)).toBeGreaterThan(0.8);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING;
+    expect(jumpExposure(jump)).toBe(1);
+    jump.phase = 'HYPERSPACE';
+    jump.elapsed = 0.21;
+    expect(jumpExposure(jump)).toBeCloseTo(0.5);
+    expect(jump.coverage).toBe(1);
+    jump.elapsed = 0.45;
+    expect(jumpExposure(jump)).toBe(0);
+    expect(jump.coverage).toBe(1);
+  });
+
+  it('flashes out of the tunnel before revealing the arrival streaks and braking', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'EXITING';
+    expect(jumpExposure(jump)).toBe(0);
+    jump.elapsed = 0.252;
+    expect(jumpExposure(jump)).toBe(1);
+    expect(jump.coverage).toBe(1);
+    expect(jumpStretch(jump)).toBe(1);
+    jump.elapsed = 0.525;
+    expect(jumpExposure(jump)).toBeCloseTo(0.5);
+    jump.elapsed = 0.714;
+    expect(jumpExposure(jump)).toBe(0);
+    expect(jumpStarVisibility(jump)).toBe(1);
+    expect(jumpStretch(jump)).toBe(1);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealEnd + 0.1;
+    expect(jumpKick(jump)).toBeGreaterThan(0);
+    expect(jumpExposure(jump)).toBe(0);
+  });
+
+  it('has one bounded flash per crossing, freezes on holds and suppresses reduced-motion flashes', () => {
+    const jump = new HyperspaceController();
+    let pulses = 0;
+    let bright = false;
+    for (const phase of [
+      'CHARGING',
+      'ACCELERATING',
+      'HYPERSPACE',
+      'EXITING',
+      'COOLDOWN',
+    ] as const) {
+      jump.phase = phase;
+      for (let frame = 0; frame <= Math.ceil(jump.duration(phase) * 120); frame++) {
+        jump.elapsed = Math.min(frame / 120, jump.duration(phase));
+        const exposure = jumpExposure(jump);
+        expect(exposure).toBeGreaterThanOrEqual(0);
+        expect(exposure).toBeLessThanOrEqual(1);
+        expect(jumpExposure(jump, true)).toBe(0);
+        expect(jumpExposure(jump)).toBe(exposure);
+        if (exposure > 0.9 && !bright) pulses++;
+        bright = exposure > 0.9;
+      }
+    }
+    expect(pulses).toBe(2);
+    jump.phase = 'ACCELERATING';
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.97;
+    expect(jumpExposure(jump)).toBeGreaterThan(0);
+    jump.cancel();
+    expect(jumpExposure(jump)).toBe(0);
   });
 
   it('reveals fully glowing exit streaks over the mask before contracting them', () => {
     const jump = new HyperspaceController();
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.2;
+    jump.elapsed = 0.42;
     expect(jump.coverage).toBe(1);
     expect(jumpStarVisibility(jump)).toBeGreaterThan(0.7);
     expect(jumpStretch(jump)).toBe(1);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.3;
+    jump.elapsed = 0.63;
     expect(jumpStarVisibility(jump)).toBe(1);
     expect(jumpStarTravel(jump)).toBeLessThan(0.3);
     let visibleHold = 0;
-    for (let frame = 0; frame <= 120; frame++) {
-      jump.elapsed = (HYPERSPACE_TIMING.EXITING * frame) / 120;
-      if (jumpStretch(jump) === 1 && jumpStarVisibility(jump) >= 0.8)
-        visibleHold += HYPERSPACE_TIMING.EXITING / 120;
+    for (let time = 0; time <= HYPERSPACE_TIMING.EXITING; time += 1 / 120) {
+      jump.elapsed = time;
+      if (jumpStretch(jump) === 1 && jumpStarVisibility(jump) >= 0.8) visibleHold += 1 / 120;
       expect(jump.coverage + jumpStarVisibility(jump)).toBeGreaterThanOrEqual(1);
     }
     expect(visibleHold).toBeGreaterThan(0.55);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.95;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING;
     expect(jumpStarTravel(jump)).toBe(0);
     expect(jumpStretch(jump)).toBe(0);
     expect(jumpExposure(jump)).toBe(0);
   });
 
-  it('anchors arrival star heads instead of reversing their departure sweep', () => {
+  it('exchanges beams and clouds only under white and keeps all beams out of the tunnel', () => {
     const jump = new HyperspaceController();
+    jump.phase = 'ACCELERATING';
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
+      if (jumpStarVisibility(jump) < 1) expect(jumpExposure(jump)).toBeGreaterThanOrEqual(0.95);
+    }
     jump.phase = 'HYPERSPACE';
-    expect(jumpStarVisibility(jump)).toBe(0);
+    for (let frame = 0; frame <= 120; frame++) {
+      jump.elapsed = (jump.duration('HYPERSPACE') * frame) / 120;
+      expect(jumpStarVisibility(jump)).toBe(0);
+    }
     jump.phase = 'EXITING';
+    jump.elapsed = 0;
     expect(jumpStarVisibility(jump)).toBe(0);
-    // The head positions reset only under the opaque tunnel, then remain fixed as tails contract.
     for (let frame = 0; frame <= 120; frame++) {
       jump.elapsed = (HYPERSPACE_TIMING.EXITING * frame) / 120;
+      const visibility = jumpStarVisibility(jump);
+      if (visibility > 0 && visibility < 1) expect(jumpExposure(jump)).toBe(1);
       expect(jumpStarTravel(jump)).toBe(0);
     }
   });
@@ -162,7 +232,9 @@ describe('hyperspace visual timing', () => {
     expect(jumpStretch(jump)).toBeLessThan(1);
     expect(jump.intensity).toBeLessThan(1);
     expect(Math.abs(jumpRecoil(jump))).toBeGreaterThan(0.01);
-    jump.elapsed += 0.1;
+    jump.elapsed =
+      HYPERSPACE_TIMING.EXITING *
+      (HYPERSPACE_EXIT.revealEnd + (HYPERSPACE_EXIT.settle - HYPERSPACE_EXIT.revealEnd) * 0.2);
     expect(jumpStretch(jump)).toBeLessThan(0.7);
     jump.elapsed = HYPERSPACE_TIMING.EXITING;
     expect(jumpKick(jump)).toBe(0);

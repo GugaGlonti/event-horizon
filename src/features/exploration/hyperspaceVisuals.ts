@@ -38,7 +38,7 @@ export function jumpKick(jump: HyperspaceController) {
   );
 }
 
-/** Departure follows the physical surge. Arrival heads stay on the galactic sky; tails contract. */
+/** Departure follows the surge. Arrival heads reset invisibly beneath the opaque tunnel. */
 export function jumpStarTravel(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return (
@@ -49,16 +49,24 @@ export function jumpStarTravel(jump: HyperspaceController) {
   return 0;
 }
 
-/** Optical trails may appear over the opaque mask without exposing an unready destination. */
+/** Exchange beams and clouds only beneath the white peaks; no star beams remain in the tunnel. */
 export function jumpStarVisibility(jump: HyperspaceController) {
-  if (jump.phase === 'EXITING') return smoothRamp(0, HYPERSPACE_EXIT.streaksVisible, jump.progress);
-  return 1 - jump.coverage;
+  if (jump.phase === 'ACCELERATING') return 1 - smoothRamp(0.98, 1, jump.progress);
+  if (jump.phase === 'HYPERSPACE') return 0;
+  if (jump.phase === 'EXITING') return smoothRamp(0.12, 0.16, jump.progress);
+  return 1;
 }
 
-/** Light the handoff itself, without a separate white-out ahead of the cloud blend. */
-export function jumpExposure(jump: HyperspaceController) {
-  if (jump.phase !== 'ACCELERATING' && jump.phase !== 'EXITING') return 0;
-  return 4 * jump.coverage * (1 - jump.coverage) * 0.35;
+/** Beam bloom crosses white once at each tunnel boundary, independently of the braking impulse. */
+export function jumpExposure(jump: HyperspaceController, reduced = false) {
+  if (reduced) return 0;
+  if (jump.phase === 'ACCELERATING')
+    return smoothRamp(HYPERSPACE_ENTRY.impactStart, 0.99, jump.progress);
+  // Carry the entry peak through the phase boundary, then reveal the flowing cloud tunnel.
+  if (jump.phase === 'HYPERSPACE') return 1 - smoothRamp(0, 0.42, jump.elapsed);
+  if (jump.phase === 'EXITING')
+    return smoothRamp(0, 0.12, jump.progress) * (1 - smoothRamp(0.16, 0.34, jump.progress));
+  return 0;
 }
 
 /** One crossing impulse drives the lens, recoil and audio; entry decay carries into the tunnel. */

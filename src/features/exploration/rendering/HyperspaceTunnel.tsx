@@ -3,6 +3,7 @@ import { useMemo, useRef } from 'react';
 import {
   type AmbientLight,
   type Group,
+  type Mesh,
   Object3D,
   type PointLight,
   type ShaderMaterial,
@@ -101,6 +102,8 @@ const fragment = /* glsl */ `
 export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const group = useRef<Group>(null);
   const material = useRef<ShaderMaterial>(null);
+  const flash = useRef<Mesh>(null);
+  const flashMaterial = useRef<ShaderMaterial>(null);
   const light = useRef<AmbientLight>(null);
   const reflection = useRef<SpotLight>(null);
   const fill = useRef<PointLight>(null);
@@ -111,6 +114,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const lamps = useMemo<TunnelLightSample>(() => ({ x: 8, y: 2.4, z: 5, pulse: 0, fill: 0 }), []);
   const motion = useMemo<TunnelMotionSample>(() => ({ flowTime: 0, spinCos: 1, spinSin: 0 }), []);
   const reduced = useReducedMotion();
+  const flashUniforms = useMemo(() => ({ uExposure: { value: 0 } }), []);
   const uniforms = useMemo(
     () => ({
       uFlowTime: { value: 0 },
@@ -151,17 +155,22 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
     if (target?.uExit) target.uExit.value = jump.phase === 'EXITING' ? 1 : 0;
     if (target?.uMotion) target.uMotion.value = reduced ? 0 : 1;
-    const exposure = reduced ? 0 : jumpExposure(jump);
+    const exposure = jumpExposure(jump, reduced);
     if (target?.uExposure) target.uExposure.value = exposure;
+    if (flash.current) flash.current.visible = exposure > 0;
+    if (flashMaterial.current?.uniforms.uExposure)
+      flashMaterial.current.uniforms.uExposure.value = exposure;
     uniforms.uLens.value.set(
       1 / camera.projectionMatrix.elements[0],
       1 / camera.projectionMatrix.elements[5],
     );
-    if (light.current)
+    if (light.current) {
+      light.current.color.setRGB(0.13 + exposure * 0.87, 0.34 + exposure * 0.66, 1);
       light.current.intensity =
         jump.coverage * 0.12 +
         (1 - jump.coverage) * (reduced ? 0 : jumpStretch(jump) * 0.6) +
-        exposure * 0.25;
+        exposure * 1.8;
+    }
     if (reflection.current) {
       right.set(1, 0, 0).applyQuaternion(camera.quaternion);
       up.set(0, 1, 0).applyQuaternion(camera.quaternion);
@@ -173,11 +182,17 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
         .addScaledVector(right, lamps.x)
         .addScaledVector(up, lamps.y)
         .addScaledVector(back, lamps.z);
-      reflection.current.color.setRGB(0.2 + lamps.pulse * 0.15, 0.52 + lamps.pulse * 0.18, 1);
+      const blueRed = 0.2 + lamps.pulse * 0.15;
+      const blueGreen = 0.52 + lamps.pulse * 0.18;
+      reflection.current.color.setRGB(
+        blueRed + (1 - blueRed) * exposure,
+        blueGreen + (1 - blueGreen) * exposure,
+        1,
+      );
       reflection.current.intensity =
         jump.coverage * (180 + lamps.pulse * 900) +
         (reduced ? 0 : jumpStretch(jump) * 18) +
-        exposure * 100;
+        exposure * 1400;
       reflection.current.shadow.needsUpdate = !session.exploration.isSuspended;
       if (fill.current) {
         fill.current.position
@@ -185,7 +200,7 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
           .addScaledVector(right, -lamps.x * 0.7)
           .addScaledVector(up, -lamps.y * 0.5)
           .addScaledVector(back, 2);
-        fill.current.intensity = jump.coverage * (10 + lamps.fill * 35) + exposure * 12;
+        fill.current.intensity = jump.coverage * (10 + lamps.fill * 35) + exposure * 120;
       }
     }
   });
@@ -219,6 +234,26 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
           uniforms={uniforms}
           transparent
           depthWrite={false}
+        />
+      </mesh>
+      <mesh ref={flash} renderOrder={40} frustumCulled={false} visible={false}>
+        <planeGeometry args={[2, 2]} />
+        <shaderMaterial
+          ref={flashMaterial}
+          uniforms={flashUniforms}
+          transparent
+          depthTest={false}
+          depthWrite={false}
+          toneMapped={false}
+          vertexShader={`void main() { gl_Position = vec4(position.xy, 0.0, 1.0); }`}
+          fragmentShader={`
+            uniform float uExposure;
+            void main() {
+              // Optical scatter follows the beam bloom over the complete scene, including
+              // foreground silhouettes. The independent depth-tested world mask stays intact.
+              gl_FragColor = vec4(vec3(1.0), smoothstep(0.08, 0.95, uExposure));
+            }
+          `}
         />
       </mesh>
     </group>
