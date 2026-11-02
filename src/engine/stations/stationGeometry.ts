@@ -85,7 +85,14 @@ const colliderCache = new WeakMap<
   StationDefinition,
   {
     extent: number;
-    boxes: { center: Vector3; half: Vector3; rotation: Quaternion; inverse: Quaternion }[];
+    boxes: {
+      center: Vector3;
+      half: Vector3;
+      rotation: Quaternion;
+      inverse: Quaternion;
+      bounds: Vector3;
+      padding: Vector3;
+    }[];
   }
 >();
 function colliders(station: StationDefinition) {
@@ -93,9 +100,25 @@ function colliders(station: StationDefinition) {
   if (existing) return existing;
   const boxes = station.boxes.map((box) => {
     const rotation = new Quaternion().fromArray(box.orientation ?? [0, 0, 0, 1]);
+    const half = new Vector3().fromArray(box.size).multiplyScalar(0.5);
+    const east = new Vector3(1, 0, 0).applyQuaternion(rotation),
+      up = new Vector3(0, 1, 0).applyQuaternion(rotation),
+      south = new Vector3(0, 0, 1).applyQuaternion(rotation);
+    const bounds = new Vector3(
+      Math.abs(east.x) * half.x + Math.abs(up.x) * half.y + Math.abs(south.x) * half.z,
+      Math.abs(east.y) * half.x + Math.abs(up.y) * half.y + Math.abs(south.y) * half.z,
+      Math.abs(east.z) * half.x + Math.abs(up.z) * half.y + Math.abs(south.z) * half.z,
+    );
+    const padding = new Vector3(
+      Math.abs(east.x) + Math.abs(up.x) + Math.abs(south.x),
+      Math.abs(east.y) + Math.abs(up.y) + Math.abs(south.y),
+      Math.abs(east.z) + Math.abs(up.z) + Math.abs(south.z),
+    );
     return {
       center: new Vector3().fromArray(box.center),
-      half: new Vector3().fromArray(box.size).multiplyScalar(0.5),
+      half,
+      bounds,
+      padding,
       rotation,
       inverse: rotation.clone().invert(),
     };
@@ -137,7 +160,26 @@ export function traceStation(
       null
     )
       continue;
+    const minX = Math.min(local.x, local.x + delta.x),
+      maxX = Math.max(local.x, local.x + delta.x);
+    const minY = Math.min(local.y, local.y + delta.y),
+      maxY = Math.max(local.y, local.y + delta.y);
+    const minZ = Math.min(local.z, local.z + delta.z),
+      maxZ = Math.max(local.z, local.z + delta.z);
     for (const box of data.boxes) {
+      // Bounds include the existing expanded OBB's rotated corner padding, not just a sphere.
+      const hx = box.bounds.x + box.padding.x * radius + 1e-6,
+        hy = box.bounds.y + box.padding.y * radius + 1e-6,
+        hz = box.bounds.z + box.padding.z * radius + 1e-6;
+      if (
+        minX > box.center.x + hx ||
+        maxX < box.center.x - hx ||
+        minY > box.center.y + hy ||
+        maxY < box.center.y - hy ||
+        minZ > box.center.z + hz ||
+        maxZ < box.center.z - hz
+      )
+        continue;
       from.copy(local).sub(box.center).applyQuaternion(box.inverse);
       boxDelta.copy(delta).applyQuaternion(box.inverse);
       let enter = 0,

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
 import { generateSettlements } from '@/engine/planetary/cities';
 import { generateCityLayout, selectCityBlocks } from '@/engine/planetary/cityLayout';
@@ -137,5 +138,45 @@ describe('districts and shared building recipes', () => {
           expect(foundationRadius(city, 0)).not.toBe(foundationRadius(city, 1));
         }
     }
+  });
+  it('preserves rotated expanded-corner contacts and fast sweeps through thin walls', () => {
+    const rotation = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI / 4);
+    const station = {
+      id: 'test-wall',
+      name: 'Wall',
+      type: 'industrial' as const,
+      position: [0, 0, 0] as const,
+      orientation: [0, 0, 0, 1] as const,
+      ports: [
+        {
+          id: 'test-port',
+          name: 'Test',
+          kind: 'external' as const,
+          position: [0, 1000, 0] as const,
+          approach: [0, 1200, 0] as const,
+          orientation: [0, 0, 0, 1] as const,
+        },
+      ],
+      services: [],
+      boxes: [
+        {
+          center: [0, 0, 0] as const,
+          size: [200, 10, 10] as const,
+          role: 'hull' as const,
+          orientation: rotation.toArray(),
+        },
+      ],
+    };
+    const world = new SystemRuntime({ ...solara, stations: [...(solara.stations ?? []), station] });
+    const start = new Vector3(102.5, 0, 9.75).applyQuaternion(rotation),
+      end = new Vector3(102.49, 0, 9.74).applyQuaternion(rotation);
+    expect(traceStation(world, start, end, 5)?.fraction).toBe(0);
+    const fast = traceStation(
+      world,
+      new Vector3(-1000, 0, 0).applyQuaternion(rotation),
+      new Vector3(1000, 0, 0).applyQuaternion(rotation),
+      5,
+    );
+    expect(fast?.fraction).toBeCloseTo(0.4475, 6);
   });
 });
