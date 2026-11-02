@@ -4,7 +4,7 @@ import { NavigationComputer } from '@/engine/navigation/NavigationComputer';
 import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
 import type { FlightMode } from '@/engine/simulation/flightTypes';
 import { stationTelemetry } from '@/engine/stations/telemetry';
-import { suggestContextAction } from '@/features/flight/contextAction';
+import { suggestContextAction, suggestGearAction } from '@/features/flight/contextAction';
 
 function context() {
   const world = new MultiplayerWorld('solara');
@@ -77,22 +77,33 @@ describe('contextual Tab suggestions', () => {
     ];
     const docking = { ...base.docking, stationId: 'station', ports };
     expect(suggestContextAction({ ...base, docking })).toMatchObject({
-      action: { kind: 'dock', portId: 'near' },
+      action: { kind: 'dock', stationId: 'station' },
     });
     expect(
       suggestContextAction({ ...base, docking: { ...docking, phase: 'approaching' } }),
-    ).toMatchObject({ kind: 'guidance' });
+    ).toMatchObject({ action: { kind: 'cancel-docking' } });
     expect(
       suggestContextAction({
         ...base,
         docking: { ...docking, phase: 'aligning', captureDistance: 20, speed: 2, alignment: 4 },
       }),
-    ).toMatchObject({ action: { kind: 'capture' } });
+    ).toMatchObject({ action: { kind: 'cancel-docking' } });
     expect(
       suggestContextAction({
         ...base,
         docking: { ...docking, phase: 'aligning', captureDistance: 20, speed: 5, alignment: 4 },
       }),
+    ).toMatchObject({ action: { kind: 'cancel-docking' } });
+  });
+
+  it('makes gear available in either flight mode and waits through takeoff and undocking', () => {
+    const base = context();
+    expect(
+      suggestGearAction({ ...base, landingZone: { id: 'zone', name: 'Survey' } }),
+    ).toMatchObject({ action: { kind: 'landing-assist', zoneId: 'zone' } });
+    expect(suggestGearAction({ ...base, takingOff: true })).toMatchObject({ kind: 'guidance' });
+    expect(
+      suggestGearAction({ ...base, docking: { ...base.docking, phase: 'undocking' } }),
     ).toMatchObject({ kind: 'guidance' });
   });
 

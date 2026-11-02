@@ -82,20 +82,20 @@ describe('integrated combat lifecycle', () => {
     buttonKey('Escape');
     expect(useExplorationStore.getState().overlay).toBeNull();
   });
-  it('selects, cycles and clears combat targets without conflicting with navigation or lift', () => {
+  it('selects, cycles and clears combat targets using shared target shortcuts', () => {
     session.startEncounter(true);
     const id = session.combat.simulation.targetId;
-    key('KeyH');
+    key('KeyX');
     expect(session.combat.simulation.targetId).toBeNull();
-    key('KeyG');
+    key('KeyN');
     expect(session.combat.simulation.targetId).toBe(id);
-    key('KeyH');
+    key('KeyX');
     const tab = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Tab' });
     target.dispatchEvent(tab);
     expect(tab.defaultPrevented).toBe(true);
     expect(session.combat.simulation.targetId).toBe(id);
     key('KeyL');
-    key('KeyH');
+    key('KeyX');
     expect(session.combat.simulation.targetId).toBe(id);
     const menuTab = Object.assign(new Event('keydown', { cancelable: true }), { code: 'Tab' });
     target.dispatchEvent(menuTab);

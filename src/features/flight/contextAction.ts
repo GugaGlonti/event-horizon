@@ -8,61 +8,80 @@ export type ContextAction =
   | { kind: 'combat-target'; label: string }
   | { kind: 'guidance'; label: string; notice: string };
 
-/** A suggestion never performs motion or assigns authority state. Tab confirms one intention. */
-export function suggestContextAction(context: {
-  mode: FlightMode;
+interface GearContext {
   landed: boolean;
+  takingOff?: boolean;
   landingAssist: string | null;
   docking: StationReadout;
   landingZone: { id: string; name: string } | null;
-  contact: { id: string; name: string } | null;
-  hasCombatTarget: boolean;
-}): ContextAction {
+}
+
+/** G confirms one validated procedure; a second press cancels an unfinished approach. */
+export function suggestGearAction(context: GearContext): ContextAction {
   const { docking } = context;
   if (docking.phase === 'docked')
     return { kind: 'ship', label: 'Undock', action: { kind: 'undock' } };
   if (context.landed) return { kind: 'ship', label: 'Take off', action: { kind: 'takeoff' } };
-  if (['requested', 'approaching', 'aligning', 'docking', 'undocking'].includes(docking.phase)) {
-    if (
-      ['approaching', 'aligning'].includes(docking.phase) &&
-      docking.captureDistance < 45 &&
-      docking.speed < 3 &&
-      docking.alignment < 7
-    )
-      return { kind: 'ship', label: 'Capture berth', action: { kind: 'capture' } };
+  if (context.takingOff || docking.phase === 'undocking')
     return {
       kind: 'guidance',
-      label: 'Follow berth marker',
-      notice:
-        'Follow the berth marker. Final capture: below 45 m, 3 m/s and 7°. I cancels clearance.',
+      label: context.takingOff ? 'Taking off' : 'Undocking',
+      notice: 'Gear procedure in progress. Flight controls return when clear.',
     };
-  }
-  if (context.mode === 'combat')
-    return {
-      kind: 'combat-target',
-      label: context.hasCombatTarget ? 'Next combat target' : 'Acquire combat target',
-    };
+  if (docking.phase !== 'undocked')
+    return { kind: 'ship', label: 'Cancel docking', action: { kind: 'cancel-docking' } };
   if (context.landingAssist)
     return {
       kind: 'ship',
       label: 'Cancel landing',
       action: { kind: 'landing-assist', zoneId: null },
     };
-  if (context.landingZone)
-    return {
-      kind: 'ship',
-      label: `Land at ${context.landingZone.name}`,
-      action: { kind: 'landing-assist', zoneId: context.landingZone.id },
-    };
-  const port = docking.ports
-    .filter((candidate) => !candidate.occupant && candidate.approachDistance <= 2500)
-    .sort((a, b) => a.approachDistance - b.approachDistance)[0];
+  // A nearby berth takes priority over the landing zone underneath a surface spaceport.
+  const port = docking.ports.some(
+    (candidate) => !candidate.occupant && candidate.approachDistance <= 2500,
+  );
   if (docking.stationId && port)
     return {
       kind: 'ship',
-      label: `Dock / ${port.name}`,
-      action: { kind: 'dock', stationId: docking.stationId, portId: port.id },
+      label: `Dock / ${docking.stationName}`,
+      action: { kind: 'dock', stationId: docking.stationId },
     };
+  if (context.landingZone)
+    return {
+      kind: 'ship',
+      label: `Land / ${context.landingZone.name}`,
+      action: { kind: 'landing-assist', zoneId: context.landingZone.id },
+    };
+  return {
+    kind: 'guidance',
+    label: 'Land / dock',
+    notice:
+      'Fly within 2.5 km of a free berth, or below 2.5 km altitude and within 1 km of a landing zone at under 150 m/s. G handles the approach.',
+  };
+}
+
+/** Tab handles targets and can confirm an available gear procedure in Travel. */
+export function suggestContextAction(
+  context: GearContext & {
+    mode: FlightMode;
+    contact: { id: string; name: string } | null;
+    hasCombatTarget: boolean;
+  },
+): ContextAction {
+  const gear = suggestGearAction(context);
+  if (
+    context.landed ||
+    context.takingOff ||
+    context.landingAssist ||
+    context.docking.phase !== 'undocked'
+  )
+    return gear;
+  if (context.mode === 'combat')
+    return {
+      kind: 'combat-target',
+      label: context.hasCombatTarget ? 'Next combat target' : 'Acquire combat target',
+    };
+  if (gear.kind === 'ship') return gear;
   if (context.contact)
     return {
       kind: 'target',
@@ -72,6 +91,7 @@ export function suggestContextAction(context: {
   return {
     kind: 'guidance',
     label: 'Navigation guidance',
-    notice: 'Point toward a destination and press Tab to select it. F switches to Combat.',
+    notice:
+      'Point toward a destination and press Tab to select it. G handles landing and docking. F switches to Combat.',
   };
 }

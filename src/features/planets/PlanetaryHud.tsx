@@ -82,11 +82,6 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
               </>
             )}
           </dl>
-          {planet.travelMode === 'surface' && !planet.landingAssist && (
-            <p className="mt-2 text-phosphor-dim">
-              V/R set motion · release to coast · S brake · W normal flight
-            </p>
-          )}
           {planet.phase !== 'landed' && planet.phase !== 'taking-off' && (
             <p role={planet.brakeNow ? 'alert' : undefined} className="mt-2 text-instrument">
               {planet.brakeNow ? 'BRAKE / S — descent too fast' : planet.approachStage}
@@ -99,22 +94,6 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
             </p>
           )}
           <p className="mt-2 text-instrument">{planet.phase.toUpperCase()}</p>
-          <div className="mt-1 flex flex-wrap gap-1">
-            <InstrumentButton
-              variant="hud"
-              onClick={() => session.shipAction({ kind: 'landing-gear', enabled: !planet.gear })}
-            >
-              K / Gear {planet.gear ? 'down' : 'up'}
-            </InstrumentButton>
-            {planet.phase === 'landed' && (
-              <InstrumentButton
-                variant="hud"
-                onClick={() => session.shipAction({ kind: 'takeoff' })}
-              >
-                U / Take off
-              </InstrumentButton>
-            )}
-          </div>
           {planet.gear && (
             <p className={`mt-1 ${planet.safe ? 'text-phosphor' : 'text-instrument'}`}>
               {planet.guidance}
@@ -129,23 +108,15 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
               {planet.zoneName} / {formatDistance(planet.zoneDistance)}
             </button>
           )}
-          {planet.phase !== 'landed' && planet.phase !== 'taking-off' && (
-            <div className="mt-2">
-              <InstrumentButton
-                variant="hud"
-                aria-pressed={Boolean(planet.landingAssist)}
-                disabled={!planet.landingAssist && Boolean(planet.assistReason)}
-                onClick={session.toggleLandingAssist}
-              >
-                J / {planet.landingAssist ? 'Cancel land assist' : 'Land assist'}
-              </InstrumentButton>
-              <p className="mt-1 text-phosphor-dim">
-                {planet.landingAssist
-                  ? 'Landing assist / manual input cancels'
-                  : planet.assistReason}
-              </p>
-            </div>
-          )}
+          <p className="mt-2 text-phosphor-dim">
+            {planet.landingAssist
+              ? 'Auto landing / G or manual movement cancels'
+              : planet.phase === 'landed'
+                ? 'G / Automatic takeoff'
+                : planet.phase === 'taking-off'
+                  ? 'Automatic takeoff / controls return when clear'
+                  : 'Fly low near a landing zone / G to land'}
+          </p>
         </>
       )}
       {nearStation && (
@@ -157,24 +128,10 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
             {station.phase.toUpperCase()} {station.portName}
           </p>
           {station.phase === 'undocked' ? (
-            <div className="mt-2 grid gap-1">
-              {station.ports.map((port) => (
-                <InstrumentButton
-                  key={port.id}
-                  variant="hud"
-                  disabled={Boolean(port.occupant)}
-                  onClick={() =>
-                    session.shipAction({
-                      kind: 'dock',
-                      stationId: station.stationId ?? '',
-                      portId: port.id,
-                    })
-                  }
-                >
-                  {port.name} / {port.occupant ? 'occupied' : 'request'}
-                </InstrumentButton>
-              ))}
-            </div>
+            <p className="mt-2 text-phosphor-dim">
+              G / Automatic docking · {station.ports.filter((port) => !port.occupant).length} free
+              berths
+            </p>
           ) : station.phase === 'docked' ? (
             <>
               <p className="mt-2 text-phosphor-dim">Berth secured / services free</p>
@@ -193,13 +150,7 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
                   </InstrumentButton>
                 ))}
               </div>
-              <InstrumentButton
-                variant="hud"
-                className="mt-2"
-                onClick={() => session.shipAction({ kind: 'undock' })}
-              >
-                U / Undock
-              </InstrumentButton>
+              <p className="mt-2 text-phosphor-dim">G / Automatic undock</p>
             </>
           ) : (
             <>
@@ -210,21 +161,11 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
               <p>
                 ALIGN {station.alignment.toFixed(1)}° / REL {station.speed.toFixed(1)} m/s
               </p>
-              <p className="mt-1 text-phosphor-dim">Final: &lt;45 m / &lt;3 m/s / &lt;7°</p>
-              <div className="mt-2 flex flex-wrap gap-1">
-                <InstrumentButton
-                  variant="hud"
-                  onClick={() => session.shipAction({ kind: 'capture' })}
-                >
-                  P / Capture
-                </InstrumentButton>
-                <InstrumentButton
-                  variant="hud"
-                  onClick={() => session.shipAction({ kind: 'cancel-docking' })}
-                >
-                  I / Cancel
-                </InstrumentButton>
-              </div>
+              <p className="mt-2 text-phosphor-dim">
+                {station.phase === 'undocking'
+                  ? 'Clearing berth / controls return when clear'
+                  : 'Automatic docking / G or manual movement cancels'}
+              </p>
             </>
           )}
         </div>

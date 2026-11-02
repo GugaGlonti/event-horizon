@@ -72,6 +72,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const phase = useFlightStore((state) => state.phase);
   const cameraMode = useFlightStore((state) => state.cameraMode);
   const flightMode = useFlightStore((state) => state.flightMode);
+  const gearAction = useFlightStore((state) => state.gearAction);
   const contextAction = useFlightStore((state) => state.contextAction);
   const inputMode = useFlightStore((state) => state.inputMode);
   const toggleCamera = useFlightStore((state) => state.toggleCamera);
@@ -157,14 +158,24 @@ export function FlightHud({ session }: { session: FlightSession }) {
       </header>
 
       {!busy && !departure && phase === 'flying' && !dead && (
-        <InstrumentButton
-          variant="hud"
-          onClick={session.contextAction}
-          className="pointer-events-auto absolute top-26 right-4 min-h-5 max-w-[calc(100%-32px)] py-0 text-[10px] tablet:top-16 tablet:right-8 tablet:min-h-9 tablet:max-w-96 tablet:py-2 [@media(max-height:650px)]:top-auto [@media(max-height:650px)]:bottom-11 [@media(max-height:650px)]:min-h-5 [@media(max-height:650px)]:py-0"
-        >
-          <kbd className="text-instrument">TAB</kbd> /{' '}
-          <span className="truncate">{contextAction}</span>
-        </InstrumentButton>
+        <div className="pointer-events-auto absolute top-26 right-4 flex max-w-[calc(100%-32px)] gap-2 text-[10px] tablet:top-16 tablet:right-8 tablet:max-w-[36rem] [@media(max-height:650px)]:top-auto [@media(max-height:650px)]:bottom-11">
+          <InstrumentButton
+            variant="hud"
+            onClick={session.gearAction}
+            className="min-w-0 min-h-5 py-0 text-[10px] tablet:min-h-9 tablet:py-2"
+          >
+            <kbd className="text-instrument">G</kbd> /{' '}
+            <span className="truncate">{gearAction}</span>
+          </InstrumentButton>
+          <InstrumentButton
+            variant="hud"
+            onClick={session.contextAction}
+            className="min-w-0 min-h-5 py-0 text-[10px] tablet:min-h-9 tablet:py-2"
+          >
+            <kbd className="text-instrument">TAB</kbd> /{' '}
+            <span className="truncate">{contextAction}</span>
+          </InstrumentButton>
+        </div>
       )}
       {!busy && (
         <>
@@ -367,18 +378,16 @@ export function FlightHud({ session }: { session: FlightSession }) {
         Left and Right arrows roll left and right. Q and E yaw left and right. Hold W to gradually
         raise throttle; release to slow down. Hold S to brake, then reverse once throttle reaches
         zero. Left mouse or Space fires the selected weapon. 1 selects the gun, 2 homing missiles, 3
-        the railgun, and 4 the flak scattergun. Hold Space to charge the railgun. A/D strafe, R/V
-        move up/down. G selects the nearest hostile ahead, H clears it, N cycles hostiles. Tab
-        confirms the suggested contextual action. B starts a patrol encounter. Use Shift with W for
-        boost, C for camera, F for Travel or Combat mode, and Escape to pause. M opens the galaxy
-        map; L opens the local system map; Y opens the planetary map. T cycles navigation targets; X
-        clears the target. K toggles landing gear. U takes off or undocks. P requests or captures
-        docking; I cancels clearance. Travel automatically adjusts speed for planetary approach. J
-        assists landing at the selected zone; manual input cancels. V/R use planet-relative
-        descent/lift near landable worlds; release to coast, S to brake or W for normal flight. Both
-        flight modes stay stabilized. Travel powers down weapons and shields. Combat uses shared
-        energy for weapons, shields and boost. Maps pause offline flight. Controls are available in
-        the flight briefing.
+        the railgun, and 4 the flak scattergun. Hold Space to charge the railgun. A/D strafe. N
+        cycles hostiles. G automatically lands, docks, takes off or undocks. Press G again to cancel
+        an approach. Tab confirms the suggested contextual action. B starts a patrol encounter. Use
+        Shift with W for boost, C for camera, F for Travel or Combat mode, and Escape to pause. M
+        opens the galaxy map; L opens the local system map; Y opens the planetary map. T cycles
+        navigation targets; X clears navigation and combat targets. Travel automatically adjusts
+        speed for planetary approach. Gear selects a nearby free berth or suitable landing zone;
+        manual movement cancels the approach. Both flight modes stay stabilized. Travel powers down
+        weapons and shields. Combat uses shared energy for weapons, shields and boost. Maps pause
+        offline flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />
     </div>

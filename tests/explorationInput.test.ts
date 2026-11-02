@@ -105,6 +105,22 @@ describe('exploration input integration', () => {
     expect(session.exploration.navigation.targetId).toBe(selected);
   });
 
+  it('uses G for automatic docking in Combat, cancels on a second press, and retires old procedure keys', () => {
+    for (const code of ['KeyR', 'KeyV', 'KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyJ', 'KeyH']) key(code);
+    expect(session.stationReadout.phase).toBe('undocked');
+    expect(session.controller.landingGear).toBe(false);
+    key('KeyG');
+    expect(session.stationReadout.phase).toBe('requested');
+    key('KeyG');
+    expect(session.stationReadout.phase).toBe('undocked');
+    key('KeyG');
+    advance(0.1);
+    expect(session.controller.flightLocked).toBe(true);
+    key('KeyL');
+    expect(session.combat.simulation.stations?.state('player').phase).toBe('undocked');
+    expect(session.controller.flightLocked).toBe(false);
+  });
+
   it.each([
     ['KeyM', 'galaxy'],
     ['KeyL', 'local'],

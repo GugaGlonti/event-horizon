@@ -18,16 +18,12 @@ const controls = [
   ['MOUSE / SPACE', 'Fire selected weapon'],
   ['1 / 2 / 3 / 4', 'Gun / missiles / railgun / flak'],
   ['A / D', 'Strafe left / right'],
-  ['R / V', 'Up / down; release to coast near planets'],
   ['B / N', 'Start patrol / cycle hostile'],
-  ['G / H', 'Nearest hostile ahead / clear'],
+  ['G', 'Auto land / dock / take off / undock; press again to cancel approach'],
   ['TAB', 'Suggested target, docking, landing or takeoff'],
   ['C / F', 'Camera / Travel or Combat (both stabilized)'],
   ['M / L / Y', 'Galaxy / local / planetary chart'],
-  ['T / X', 'Cycle / clear contact'],
-  ['K / U', 'Landing gear / takeoff or undock'],
-  ['P / I', 'Request or capture docking / cancel'],
-  ['J', 'Land assist at selected zone / cancel'],
+  ['T / X', 'Cycle navigation / clear navigation and combat target'],
   ['ESC', 'Pause / release mouse'],
 ] as const;
 
@@ -109,7 +105,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </h2>
             <p className="mt-3 max-w-lg text-[12px] leading-5 normal-case text-phosphor-dim">
               {phase === 'ready'
-                ? `Welcome to ${system?.name ?? 'Solara'}. F switches between stabilized Combat and fast Travel. Tab suggests targets, docking and landing. Weapons and shields are off in Travel. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
+                ? `Welcome to ${system?.name ?? 'Solara'}. F switches between stabilized Combat and fast Travel. Tab suggests targets. G automatically lands, docks, takes off or undocks. Weapons and shields are off in Travel. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
                 : `Controls suspended in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
             </p>
             <MultiplayerPanel session={session} />

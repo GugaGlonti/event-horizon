@@ -32,8 +32,6 @@ const FLIGHT_KEYS = new Set([
   'KeyF',
   'KeyA',
   'KeyD',
-  'KeyR',
-  'KeyV',
   'Space',
   'ShiftLeft',
   'ShiftRight',
@@ -243,7 +241,7 @@ export class FlightInputManager {
     this.input.boost = keys.has('ShiftLeft') || keys.has('ShiftRight');
     this.input.brake = keys.has('KeyS');
     this.input.strafe = Number(keys.has('KeyD')) - Number(keys.has('KeyA'));
-    this.input.lift = Number(keys.has('KeyR')) - Number(keys.has('KeyV'));
+    this.input.lift = 0;
     this.input.reverse = keys.has('KeyS');
     const decay = Math.exp(-this.returnRate * Math.max(0, Math.min(dt, 0.1)));
     this.stickX *= decay;

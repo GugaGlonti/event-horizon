@@ -143,7 +143,7 @@ export function CombatHud({ session }: { session: FlightSession }) {
               {readout.status}
             </p>
             <p className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
-              MOUSE / SPACE: FIRE · G: ACQUIRE · N: NEXT · H: CLEAR
+              MOUSE / SPACE: FIRE · TAB: ACQUIRE · N: NEXT · X: CLEAR
             </p>
             {readout.target && (
               <section

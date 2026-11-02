@@ -133,11 +133,14 @@ describe('flight input lifecycle', () => {
     });
   });
 
-  it.each(['KeyY', 'KeyZ'])('leaves %s unbound instead of engaging reverse', (code) => {
-    manager.startKeyboard();
-    expect(key('keydown', code).defaultPrevented).toBe(false);
-    expect(manager.sample(0.01).reverse).toBe(false);
-  });
+  it.each(['KeyY', 'KeyZ', 'KeyR', 'KeyV'])(
+    'leaves %s unbound instead of engaging reverse',
+    (code) => {
+      manager.startKeyboard();
+      expect(key('keydown', code).defaultPrevented).toBe(false);
+      expect(manager.sample(0.01).reverse).toBe(false);
+    },
+  );
 
   it('reads primary fire only while actively piloting and prevents active-flight scrolling', () => {
     expect(key('keydown', 'Space').defaultPrevented).toBe(false);
@@ -185,10 +188,10 @@ describe('flight input lifecycle', () => {
     expect(manager.firing).toBe(false);
   });
 
-  it('maps six-axis translation and clears it with fire on focus loss', () => {
+  it('maps horizontal translation and clears it with fire on focus loss', () => {
     manager.startKeyboard();
     for (const code of ['KeyD', 'KeyR', 'KeyS', 'Space']) key('keydown', code);
-    expect(manager.sample(0.01)).toMatchObject({ strafe: 1, lift: 1, reverse: true });
+    expect(manager.sample(0.01)).toMatchObject({ strafe: 1, lift: 0, reverse: true });
     expect(manager.firing).toBe(true);
     windowTarget.dispatchEvent(new Event('blur'));
     expect(manager.sample(0.01)).toMatchObject({ strafe: 0, lift: 0, reverse: false });

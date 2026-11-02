@@ -20,7 +20,11 @@ import {
 } from '@/features/flight/audio/EngineSoundModel';
 import { loadEngineAssets } from '@/features/flight/audio/engineAssets';
 import { FLIGHT_CONFIG, GAME_CONFIG } from '@/features/flight/config';
-import { suggestContextAction } from '@/features/flight/contextAction';
+import {
+  type ContextAction,
+  suggestContextAction,
+  suggestGearAction,
+} from '@/features/flight/contextAction';
 import { HyperspaceFlight, JUMP_MOTION } from '@/features/flight/HyperspaceFlight';
 import { MultiplayerSession } from '@/features/multiplayer/MultiplayerSession';
 import { useCombatStore } from '@/stores/combatStore';
@@ -54,6 +58,7 @@ export class FlightSession {
     });
     const departure = useExplorationStore.getState().departure;
     useFlightStore.setState({
+      gearAction: suggestGearAction(this.gearContext()).label,
       contextAction: departure
         ? departure.ready
           ? 'Engage hyperdrive'
@@ -174,7 +179,8 @@ export class FlightSession {
     this.exploration.canDepart = () =>
       this.controller.flightLocked ||
       this.controller.surface.phase !== 'flying' ||
-      this.controller.landingAssist
+      this.controller.landingAssist ||
+      (this.combat.simulation.stations?.state('player').phase ?? 'undocked') !== 'undocked'
         ? 'Take off or undock before engaging hyperdrive.'
         : null;
     this.multiplayer.network.onTravelExpired = () =>
@@ -208,6 +214,7 @@ export class FlightSession {
     };
     this.arrive(this.exploration.world);
     this.combat.reset(this.exploration.world);
+    this.publishPlanetary();
     this.exploration.syncPose(this.position, this.orientation);
   }
 
@@ -302,24 +309,7 @@ export class FlightSession {
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
-    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyJ'].includes(event.code)) {
-      if (
-        useFlightStore.getState().phase !== 'flying' ||
-        this.exploration.jump.busy ||
-        useExplorationStore.getState().overlay
-      )
-        return;
-      event.preventDefault();
-      if (event.code === 'KeyK')
-        this.shipAction({ kind: 'landing-gear', enabled: !this.controller.landingGear });
-      if (event.code === 'KeyU')
-        this.shipAction({ kind: this.stationReadout.phase === 'docked' ? 'undock' : 'takeoff' });
-      if (event.code === 'KeyI') this.shipAction({ kind: 'cancel-docking' });
-      if (event.code === 'KeyP') this.requestDocking();
-      if (event.code === 'KeyJ') this.toggleLandingAssist();
-      return;
-    }
-    if (['KeyB', 'KeyN', 'KeyG', 'KeyH', 'Tab'].includes(event.code)) {
+    if (['KeyB', 'KeyN', 'KeyG', 'Tab'].includes(event.code)) {
       if (
         event.code === 'Tab' &&
         (event.shiftKey || ['BUTTON', 'A', 'SUMMARY'].includes(tag ?? ''))
@@ -337,12 +327,11 @@ export class FlightSession {
         this.contextAction();
         return;
       }
-      if (event.code === 'KeyB') this.startEncounter();
+      if (event.code === 'KeyG') this.gearAction();
+      else if (event.code === 'KeyB') this.startEncounter();
       else {
         if (this.controller.flightMode !== 'combat') return;
-        if (event.code === 'KeyG') this.combat.simulation.targetAhead();
-        else if (event.code === 'KeyH') this.combat.simulation.clearTarget();
-        else this.combat.simulation.cycleTarget();
+        this.combat.simulation.cycleTarget();
         this.combat.publish();
       }
       return;
@@ -383,7 +372,11 @@ export class FlightSession {
       else this.exploration.openMap(view);
     } else if (!overlay) {
       if (event.code === keys.nextTarget) this.exploration.cycleTarget();
-      if (event.code === keys.clearTarget) this.exploration.selectTarget(null);
+      if (event.code === keys.clearTarget) {
+        this.exploration.selectTarget(null);
+        this.combat.simulation.clearTarget();
+        this.combat.publish();
+      }
     }
   };
   private suspendJourney = () => {
@@ -416,10 +409,13 @@ export class FlightSession {
     }
   };
   private cancelLandingAssistance() {
+    const docking = this.combat.simulation.stations?.state('player').phase;
+    if (docking && !['undocked', 'docked', 'undocking'].includes(docking))
+      this.shipAction({ kind: 'cancel-docking' });
     if (this.controller.landingAssist) {
       if (this.multiplayer?.enabled)
         this.multiplayer.network.action({ kind: 'landing-assist', zoneId: null });
-      this.controller.landingAssist = null;
+      this.controller.requestLandingAssist(null);
       this.publishPlanetary();
     }
   }
@@ -464,6 +460,7 @@ export class FlightSession {
     this.controller.setFlightMode(useFlightStore.getState().flightMode);
     this.arrive(this.exploration.world);
     this.combat.reset(this.exploration.world);
+    this.publishPlanetary();
     this.exploration.syncPose(this.position, this.orientation);
     useFlightStore.setState({ notice: null, telemetry: this.controller.getTelemetry() });
   };
@@ -508,31 +505,36 @@ export class FlightSession {
     }
     this.publishPlanetary();
   };
-  requestDocking = () => {
-    const docking = this.stationReadout;
-    if (['approaching', 'aligning'].includes(docking.phase)) this.shipAction({ kind: 'capture' });
-    else if (docking.stationId) this.shipAction({ kind: 'dock', stationId: docking.stationId });
-  };
-  private contextSuggestion() {
+  private gearContext() {
     const selected = this.exploration.navigation.targetId;
     const zones = this.exploration.world.definition.bodies.flatMap(
       (body) => body.landingZones ?? [],
     );
-    const zone =
-      zones.find((candidate) => candidate.id === selected) ??
-      zones.find((candidate) => candidate.id === this.planetaryReadout.zoneId);
-    const landingZone =
-      zone &&
-      !this.controller.landingAssist &&
-      this.controller.landingAssistReason(zone.id) === null
-        ? zone
-        : null;
-    return suggestContextAction({
-      mode: this.controller.flightMode,
+    const preferred =
+      zones.find((zone) => zone.id === selected) ??
+      zones.find((zone) => zone.id === this.planetaryReadout.zoneId);
+    const nearest = zones.find((zone) => zone.id === this.planetaryReadout.zoneId);
+    const zone = [preferred, nearest].find(
+      (candidate) => candidate && this.controller.landingAssistReason(candidate.id) === null,
+    );
+    let docking = this.stationReadout;
+    if (
+      docking.phase === 'undocked' &&
+      !docking.ports.some((port) => !port.occupant && port.approachDistance <= 2500)
+    )
+      docking = stationTelemetry(this.combat.simulation, 'player', null);
+    return {
       landed: this.controller.surface.phase === 'landed',
+      takingOff: this.controller.surface.phase === 'taking-off',
       landingAssist: this.controller.landingAssist,
-      docking: this.stationReadout,
-      landingZone,
+      docking,
+      landingZone: zone ?? null,
+    };
+  }
+  private contextSuggestion() {
+    return suggestContextAction({
+      ...this.gearContext(),
+      mode: this.controller.flightMode,
       contact: this.exploration.navigation.suggest(
         this.exploration.world,
         this.position,
@@ -541,6 +543,29 @@ export class FlightSession {
       hasCombatTarget: this.combat.simulation.targetId !== null,
     });
   }
+  private confirmShipSuggestion(suggestion: ContextAction) {
+    if (suggestion.kind === 'ship') {
+      if (suggestion.action.kind === 'dock')
+        this.exploration.selectTarget(suggestion.action.stationId);
+      if (suggestion.action.kind === 'landing-assist' && suggestion.action.zoneId)
+        this.exploration.selectTarget(suggestion.action.zoneId);
+      this.manager?.clearFire();
+      this.combat.cancelWeaponCharge();
+      this.shipAction(suggestion.action);
+    } else if (suggestion.kind === 'guidance')
+      useFlightStore.getState().setNotice(suggestion.notice);
+  }
+  gearAction = () => {
+    if (
+      useFlightStore.getState().phase !== 'flying' ||
+      this.exploration.jump.busy ||
+      useExplorationStore.getState().overlay ||
+      this.combat.simulation.player.health.destroyed
+    )
+      return;
+    this.confirmShipSuggestion(suggestGearAction(this.gearContext()));
+    this.publishPlanetary();
+  };
   contextAction = () => {
     if (
       useFlightStore.getState().phase !== 'flying' ||
@@ -559,13 +584,8 @@ export class FlightSession {
       return;
     }
     const suggestion = this.contextSuggestion();
-    if (suggestion.kind === 'ship') {
-      if (suggestion.action.kind === 'dock')
-        this.exploration.selectTarget(suggestion.action.stationId);
-      if (suggestion.action.kind === 'landing-assist' && suggestion.action.zoneId)
-        this.exploration.selectTarget(suggestion.action.zoneId);
-      this.shipAction(suggestion.action);
-    } else if (suggestion.kind === 'target') this.exploration.selectTarget(suggestion.targetId);
+    if (suggestion.kind === 'ship') this.confirmShipSuggestion(suggestion);
+    else if (suggestion.kind === 'target') this.exploration.selectTarget(suggestion.targetId);
     else if (suggestion.kind === 'combat-target') {
       if (this.combat.simulation.targetId) this.combat.simulation.cycleTarget();
       else {
@@ -587,16 +607,6 @@ export class FlightSession {
     if (mode === 'travel') this.combat.simulation.clearTarget();
     this.combat.publish();
     this.publishPlanetary();
-  };
-  toggleLandingAssist = () => {
-    if (!this.controller.landingAssist && !this.exploration.navigation.targetId) {
-      useFlightStore.getState().setNotice('Select a landing zone first.');
-      return;
-    }
-    this.shipAction({
-      kind: 'landing-assist',
-      zoneId: this.controller.landingAssist ? null : this.exploration.navigation.targetId,
-    });
   };
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
