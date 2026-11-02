@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
 import { generateSettlements } from '@/engine/planetary/cities';
 import { surfaceDirection } from '@/engine/planetary/coordinates';
-import { naturalTerrainHeight } from '@/engine/planetary/terrain';
+import { describeSurface, surfaceColor } from '@/engine/planetary/surfaceDescription';
+import {
+  maximumTerrainHeight,
+  naturalTerrainHeight,
+  terrainHeight,
+} from '@/engine/planetary/terrain';
 import { SYSTEMS } from '@/engine/world/systems';
 import anchors from './fixtures/planetaryAnchors.json';
 
@@ -57,5 +62,43 @@ describe('surface revision and preserved chart', () => {
           naturalTerrainHeight(body, surfaceDirection(city.latitude, city.longitude)) > 360,
       ),
     ).toBe(true);
+  });
+});
+
+describe('coherent physical surfaces', () => {
+  it('creates coast, forest and a pale ridge in the Pelagos reference region', () => {
+    const ocean = describeSurface(pelagos, surfaceDirection(-0.035, 2.27));
+    const forest = describeSurface(pelagos, surfaceDirection(0.015, 2.26));
+    const ridge = describeSurface(pelagos, surfaceDirection(0.025, 2.22));
+    expect(ocean.biome).toBe('ocean');
+    expect(forest.forest).toBeGreaterThan(0.4);
+    expect(ridge.elevation).toBeGreaterThan(forest.elevation + 600);
+    expect(ridge.cover[3]).toBeGreaterThan(0.2);
+  });
+  it('honors the bounded terrain detail setting', () => {
+    const direction = surfaceDirection(0.3, -1);
+    const terrain = required(pelagos.terrain);
+    expect(
+      naturalTerrainHeight({ ...pelagos, terrain: { ...terrain, octaves: 1 } }, direction),
+    ).not.toBe(naturalTerrainHeight(pelagos, direction));
+  });
+  it('keeps all archetypes deterministic, bounded and normalized including poles and cube edges', () => {
+    const seen = new Set<string>();
+    for (const body of SYSTEMS.flatMap((system) => system.bodies).filter((body) => body.terrain)) {
+      for (let i = 0; i < 96; i++) {
+        const up = surfaceDirection(Math.asin((i + 0.5) / 48 - 1), i * 2.39996323);
+        const height = terrainHeight(body, up),
+          sample = describeSurface(body, up);
+        expect(height).toBeGreaterThanOrEqual(0);
+        expect(height).toBeLessThanOrEqual(maximumTerrainHeight(body) + 1e-5);
+        expect(sample).toEqual(describeSurface(structuredClone(body), up));
+        expect(sample.cover.reduce((a, b) => a + b)).toBeCloseTo(1, 10);
+        expect(sample.cover.every((value) => value >= 0 && value <= 1)).toBe(true);
+        expect(surfaceColor(body, sample).every(Number.isFinite)).toBe(true);
+        seen.add(sample.biome);
+      }
+    }
+    for (const biome of ['ocean', 'forest', 'dunes', 'ice', 'rock', 'basalt'])
+      expect(seen.has(biome)).toBe(true);
   });
 });

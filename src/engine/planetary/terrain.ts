@@ -2,105 +2,148 @@ import { Vector3 } from '@/engine/math/linear';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import { surfaceDirection } from './coordinates';
 
-const smooth = (t: number) => t * t * (3 - 2 * t);
-function hash(x: number, y: number, z: number, seed: number) {
-  let value = Math.imul(x ^ seed, 374761393) ^ Math.imul(y, 668265263) ^ Math.imul(z, 1442695041);
-  value = Math.imul(value ^ (value >>> 13), 1274126177);
-  return ((value ^ (value >>> 16)) >>> 0) / 4294967295;
-}
-function noise(x: number, y: number, z: number, seed: number) {
-  const ix = Math.floor(x),
-    iy = Math.floor(y),
-    iz = Math.floor(z);
-  const tx = smooth(x - ix),
-    ty = smooth(y - iy),
-    tz = smooth(z - iz);
-  let sum = 0;
-  for (let a = 0; a < 2; a++)
-    for (let b = 0; b < 2; b++)
-      for (let c = 0; c < 2; c++)
-        sum +=
-          hash(ix + a, iy + b, iz + c, seed) *
-          (a ? tx : 1 - tx) *
-          (b ? ty : 1 - ty) *
-          (c ? tz : 1 - tz);
-  return sum;
-}
-/** Same bounded continuous 3D field on every cube face and on the authority. */
+import { foundationRadius } from './foundations';
+import { clamp01, surfaceNoise as noise, range, smooth } from './surfaceNoise';
+
+/** Bounded spherical field: continental shelves, warped ridge belts and regional detail. */
 export function naturalTerrainHeight(body: CelestialDefinition, direction: Readonly<Vector3>) {
   const terrain = body.terrain;
   if (!terrain) return 0;
-  let amplitude = 1,
-    frequency = terrain.frequency,
-    sum = 0,
-    weight = 0;
-  for (let octave = 0; octave < terrain.octaves; octave++) {
-    const value = noise(
-      direction.x * frequency,
-      direction.y * frequency,
-      direction.z * frequency,
-      terrain.seed + octave * 1013,
-    );
-    sum += (value * 2 - 1) * amplitude;
-    weight += amplitude;
-    amplitude *= 0.48;
-    frequency *= 2;
+  const { x, y, z } = direction,
+    seed = terrain.seed,
+    relief = terrain.relief;
+  const continent = noise(x * 2.4, y * 2.4, z * 2.4, seed + 901);
+  const warp = terrain.octaves >= 2 ? noise(x * 5, y * 5, z * 5, seed + 37) - 0.5 : 0;
+  const regional =
+    terrain.octaves >= 3 ? noise(x * 13 + warp, y * 13, z * 13 - warp, seed + 71) : continent;
+  const ridge =
+    terrain.octaves >= 4
+      ? 1 - Math.abs(noise(x * 24 + warp * 2, y * 19, z * 24, seed + 107) * 2 - 1)
+      : 1 - Math.abs(regional * 2 - 1);
+  const detail =
+    terrain.octaves >= 5
+      ? noise(
+          x * terrain.frequency * 4,
+          y * terrain.frequency * 4,
+          z * terrain.frequency * 4,
+          seed + 211,
+        ) - 0.5
+      : 0;
+  const fine =
+    terrain.octaves >= 6
+      ? noise(
+          x * terrain.frequency * 12,
+          y * terrain.frequency * 12,
+          z * terrain.frequency * 12,
+          seed + 503,
+        ) - 0.5
+      : 0;
+  const belt = range(0.48, 0.76, regional);
+  let value = 0.1 + continent * 0.42 + belt * ridge ** 4 * 0.32 + detail * 0.07 + fine * 0.018;
+  for (let octave = 6; octave < terrain.octaves; octave++) {
+    const frequency = terrain.frequency * 12 * 2 ** (octave - 5);
+    value +=
+      (noise(x * frequency, y * frequency, z * frequency, seed + octave * 1013) - 0.5) *
+      0.008 *
+      0.5 ** (octave - 6);
   }
-  const field = sum / weight;
-  let height = terrain.relief * (0.42 + field * 0.58);
   switch (body.archetype) {
     case 'temperate':
-      height =
-        terrain.relief *
-        (0.26 +
-          (noise(direction.x * 2, direction.y * 2, direction.z * 2, terrain.seed + 901) - 0.5) *
-            0.9 +
-          field * 0.32);
+      value -= 0.12;
       break;
     case 'oceanic':
-      height -= terrain.relief * 0.28;
+      value -= 0.23;
       break;
     case 'desert':
-      height += terrain.relief * 0.08 * Math.sin(direction.x * 190 + field * 14);
-      height -= terrain.relief * 0.25 * Math.exp(-Math.abs(field + 0.08) * 65);
+      value += Math.sin(x * 210 + z * 90 + warp * 12) * 0.025;
+      value -= Math.exp(-Math.abs(regional - 0.48) * 75) * 0.14;
       break;
     case 'frozen':
-      height -= terrain.relief * 0.17 * Math.exp(-Math.abs(field) * 70);
+      value += 0.12 - Math.exp(-Math.abs(regional - 0.5) * 100) * 0.14;
       break;
     case 'volcanic':
-      height += terrain.relief * 0.24 * (1 - Math.abs(field * 2));
+      value += ridge ** 6 * 0.2;
       break;
-    case 'barren':
-      height -= terrain.relief * 0.16 * Math.exp(-Math.abs(field - 0.1) * 40);
+    case 'barren': {
+      const crater = Math.abs(regional - 0.46);
+      value +=
+        Math.exp(-((crater - 0.045) ** 2) * 4000) * 0.13 - Math.exp(-crater * crater * 1800) * 0.13;
       break;
+    }
+  }
+  let height = relief * value;
+  // Authored reference region joins coast, lowlands and the existing Western Ridge.
+  if (body.id === 'pelagos') {
+    const latitude = Math.asin(Math.max(-1, Math.min(1, y))),
+      longitude = Math.atan2(z, x);
+    const east = (longitude - 2.25) * body.radius,
+      north = (latitude - 0.02) * body.radius;
+    const distance = Math.hypot(east, north);
+    if (distance < 32000) {
+      const ridgeEast = east + 5600 + north * 0.18;
+      const mountain = Math.exp(-((ridgeEast / 1500) ** 2)) * Math.exp(-((north / 11000) ** 4));
+      const reference =
+        (body.ocean?.level ?? 300) + 120 + north * 0.012 + (regional - 0.5) * 90 + mountain * 850;
+      height += (reference - height) * (1 - range(22000, 32000, distance));
+    }
   }
   for (const landmark of body.pointsOfInterest ?? []) {
-    if (!landmark.landform) continue;
-    const distance =
-      (surfaceDirection(landmark.latitude, landmark.longitude).distanceTo(direction) *
-        body.radius) /
-      6500;
-    if (distance > 2) continue;
-    const influence = Math.exp(-distance * distance * 3);
-    height +=
-      terrain.relief *
-      influence *
-      (['canyon', 'crater', 'fracture', 'caldera'].includes(landmark.landform) ? -0.35 : 0.32);
-    if (landmark.landform === 'caldera')
-      height += terrain.relief * 0.3 * Math.exp(-((distance - 0.6) ** 2) * 30);
+    if (!landmark.landform || (body.id === 'pelagos' && landmark.id === 'pelagos-ridge')) continue;
+    const center = surfaceDirection(landmark.latitude, landmark.longitude);
+    const distance2 = Math.max(0, 2 - 2 * center.dot(direction)) * body.radius ** 2;
+    if (distance2 > 18000 ** 2) continue;
+    const east =
+      (-Math.sin(landmark.longitude) * x + Math.cos(landmark.longitude) * z) * body.radius;
+    const north =
+      (y * Math.cos(landmark.latitude) -
+        (x * Math.cos(landmark.longitude) + z * Math.sin(landmark.longitude)) *
+          Math.sin(landmark.latitude)) *
+      body.radius;
+    const elongated = Math.exp(-(((east + north * 0.25) / 1800) ** 2) - (north / 10000) ** 4);
+    const distance = Math.sqrt(distance2) / 6500;
+    switch (landmark.landform) {
+      case 'mountain':
+        height += relief * elongated * 0.52;
+        break;
+      case 'canyon':
+      case 'fracture':
+        height -= relief * elongated * 0.35;
+        break;
+      case 'crater':
+      case 'caldera':
+        height +=
+          relief *
+          (Math.exp(-((distance - 0.8) ** 2) * 35) * 0.3 -
+            Math.exp(-distance * distance * 3) * 0.25);
+        break;
+      case 'archipelago':
+        height += relief * Math.exp(-distance * distance * 2) * ridge ** 3 * 0.35;
+        break;
+    }
   }
-  return Math.max(0, Math.min(terrain.relief, height));
+  return relief * clamp01(height / relief);
 }
 /** Authority and terrain workers share the same engineered foundations and shorelines. */
 export function terrainHeight(body: CelestialDefinition, direction: Readonly<Vector3>) {
   let height = naturalTerrainHeight(body, direction);
   for (const city of body.settlements ?? []) {
-    const center = surfaceDirection(city.latitude, city.longitude);
-    const cosine = Math.max(0.01, center.dot(direction));
-    const distance = center.distanceTo(direction) * body.radius;
+    const cosineLatitude = Math.cos(city.latitude),
+      cosineLongitude = Math.cos(city.longitude),
+      sineLongitude = Math.sin(city.longitude);
+    const cosine = Math.max(
+      0.01,
+      direction.x * cosineLatitude * cosineLongitude +
+        direction.y * Math.sin(city.latitude) +
+        direction.z * cosineLatitude * sineLongitude,
+    );
+    const distance = Math.sqrt(Math.max(0, 2 - 2 * cosine)) * body.radius;
     if (distance > city.radius * 1.3) continue;
-    const blend = smooth(Math.max(0, Math.min(1, (distance - city.radius) / (city.radius * 0.3))));
-    // A tangent-plane foundation keeps buildings and shared collision boxes on the surface.
+    const east = -sineLongitude * direction.x + cosineLongitude * direction.z;
+    const south =
+      Math.sin(city.latitude) * (cosineLongitude * direction.x + sineLongitude * direction.z) -
+      cosineLatitude * direction.y;
+    const radius = foundationRadius(city, Math.atan2(south, east));
+    const blend = smooth(clamp01((distance - radius) / (radius * 0.28)));
     const foundation = (body.radius + city.elevation) / cosine - body.radius;
     height = foundation + (height - foundation) * blend;
   }

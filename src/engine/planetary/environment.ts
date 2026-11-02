@@ -3,21 +3,10 @@ import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import { bodyRotation, surfaceDirection } from './coordinates';
 import type { Biome, WeatherKind } from './environmentTypes';
-import { naturalTerrainHeight } from './terrain';
+import { describeSurface } from './surfaceDescription';
 
 export function surfaceBiome(body: CelestialDefinition, local: Readonly<Vector3>): Biome {
-  const height = naturalTerrainHeight(body, local);
-  if (body.ocean && height <= body.ocean.level) return 'ocean';
-  if (body.ocean && height < body.ocean.level + 45) return 'coast';
-  if (body.archetype === 'frozen') return 'ice';
-  if (body.archetype === 'desert')
-    return height > (body.terrain?.relief ?? 1) * 0.65 ? 'rock' : 'dunes';
-  if (body.archetype === 'volcanic')
-    return height < (body.terrain?.relief ?? 1) * 0.42 ? 'lava' : 'basalt';
-  if (body.archetype === 'barren') return 'rock';
-  if (Math.abs(local.y) > 0.86) return 'polar';
-  if (height > (body.terrain?.relief ?? 1) * 0.65) return 'mountain';
-  return (body.climate?.moisture ?? 0) > 0.45 && Math.abs(local.y) < 0.7 ? 'forest' : 'plains';
+  return describeSurface(body, local).biome;
 }
 
 /** Smooth deterministic weather cells. No wall clock, random state or per-client state. */

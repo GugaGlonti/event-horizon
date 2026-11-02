@@ -22,7 +22,7 @@ import {
   weatherAt,
 } from '@/engine/planetary/environment';
 import { PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
-import { naturalTerrainHeight, surfaceHeight, terrainHeight } from '@/engine/planetary/terrain';
+import { surfaceHeight, terrainHeight } from '@/engine/planetary/terrain';
 import { FLIGHT_CONFIG } from '@/engine/simulation/config';
 import { FlightController } from '@/engine/simulation/FlightController';
 import { createFlightInput } from '@/engine/simulation/flightTypes';
@@ -140,7 +140,7 @@ describe('physical environment consistency', () => {
         seen.add(biome);
         expect(surfaceBiome(structuredClone(body), up)).toBe(biome);
         if (biome === 'ocean')
-          expect(naturalTerrainHeight(body, up)).toBeLessThanOrEqual(required(body.ocean).level);
+          expect(terrainHeight(body, up)).toBeLessThanOrEqual(required(body.ocean).level);
       }
     for (const biome of ['ocean', 'forest', 'ice', 'dunes', 'basalt', 'rock'])
       expect(seen.has(biome)).toBe(true);
