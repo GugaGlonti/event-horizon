@@ -121,14 +121,14 @@ export class HyperdriveAudio {
     if (!this.context || !this.master || !this.hum || !this.humGain || !this.rush || !this.filter)
       return;
     const time = this.context.currentTime;
-    this.master.gain.setTargetAtTime(suspended ? 0 : 0.75, time, 0.04);
-    if (suspended) return;
+    const silent = suspended || jump.phase === 'ALIGNMENT';
+    this.master.gain.setTargetAtTime(silent ? 0 : 0.75, time, 0.04);
+    if (silent) return;
     this.recordings.update(jump);
     const synthesized = this.recordings.ready ? 0.18 : 1;
     const charging =
-      jump.phase === 'ALIGNMENT' ||
-      (jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart);
-    const chargeProgress = jump.phase === 'ALIGNMENT' ? jump.progress : 1;
+      jump.phase === 'ACCELERATING' && jump.progress < HYPERSPACE_ENTRY.ignitionStart;
+    const chargeProgress = Math.min(1, jump.progress / HYPERSPACE_ENTRY.ignitionStart);
     const exiting = jump.phase === 'EXITING';
     const release = exiting
       ? 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, jump.progress)

@@ -107,20 +107,16 @@ export class HyperdriveRecordings {
   update(jump: HyperspaceController) {
     if (!this.context || !this.spool || !this.transit) return;
     const time = this.context.currentTime;
-    const charging = jump.phase === 'ALIGNMENT';
     const accelerating = jump.phase === 'ACCELERATING';
-    const charge = charging ? jump.progress : 1;
+    const charge = accelerating ? Math.min(1, jump.progress / HYPERSPACE_ENTRY.ignitionStart) : 1;
     const ignition = accelerating
       ? smoothRamp(HYPERSPACE_ENTRY.ignitionStart, HYPERSPACE_ENTRY.tunnelStart, jump.progress)
-      : charging
-        ? 0
-        : 1;
+      : 1;
     const release =
       jump.phase === 'EXITING'
         ? 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, jump.progress)
         : 1;
-    const active =
-      charging || accelerating || jump.phase === 'HYPERSPACE' || jump.phase === 'EXITING';
+    const active = accelerating || jump.phase === 'HYPERSPACE' || jump.phase === 'EXITING';
     const spool = active ? (0.2 + charge * 0.66) * (1 - ignition) : 0;
     const transit = active ? (0.025 + charge * 0.045 + ignition * 0.68) * release : 0;
     this.spool.gain.gain.setTargetAtTime(spool, time, 0.045);

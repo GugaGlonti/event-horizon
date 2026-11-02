@@ -185,7 +185,7 @@ describe('recorded hyperdrive layers', () => {
     }
   });
 
-  it('carries the charge into ignition, holds transit under the mask, then releases on reveal', async () => {
+  it('stays silent during alignment, spools during acceleration and releases after arrival reveal', async () => {
     const recordings = new HyperdriveRecordings(async () => assetBytes());
     const context = new AudioContext();
     const stub = AudioContextStub.instances[0];
@@ -196,16 +196,28 @@ describe('recorded hyperdrive layers', () => {
     jump.phase = 'ALIGNMENT';
     jump.elapsed = HYPERSPACE_TIMING.ALIGNMENT;
     recordings.update(jump);
-    const chargeRate = stub.sources[0]?.playbackRate.setTargetAtTime.mock.lastCall?.[0];
+    expect(stub.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.045);
+    expect(stub.gains[1]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.06);
     jump.phase = 'ACCELERATING';
-    jump.elapsed = 0;
-    recordings.update(jump);
-    expect(stub.sources[0]?.playbackRate.setTargetAtTime.mock.lastCall?.[0]).toBe(chargeRate);
+    let previousRate = 0;
+    let previousGain = 0;
+    for (const progress of [0, 0.25, 0.5, 0.75, 1]) {
+      jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart * progress;
+      recordings.update(jump);
+      const rate = stub.sources[0]?.playbackRate.setTargetAtTime.mock.lastCall?.[0];
+      const gain = stub.gains[0]?.gain.setTargetAtTime.mock.lastCall?.[0];
+      expect(rate).toBeGreaterThan(previousRate);
+      expect(gain).toBeGreaterThan(previousGain);
+      previousRate = rate;
+      previousGain = gain;
+    }
     jump.phase = 'HYPERSPACE';
+    jump.elapsed = 0;
     recordings.update(jump);
     const transitGain = stub.gains[1]?.gain.setTargetAtTime.mock.lastCall?.[0];
     expect(transitGain).toBeGreaterThan(0.5);
     jump.phase = 'EXITING';
+    jump.elapsed = 0;
     recordings.update(jump);
     expect(stub.gains[1]?.gain.setTargetAtTime.mock.lastCall?.[0]).toBe(transitGain);
     jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.settle;
@@ -217,6 +229,47 @@ describe('recorded hyperdrive layers', () => {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('hyperdrive audio lifecycle', () => {
+  it.each([false, true])(
+    'mutes the entire alignment and begins buildup with acceleration (recordings: %s)',
+    async (recorded) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async () => ({
+          ok: recorded,
+          arrayBuffer: async () => new ArrayBuffer(16),
+        })),
+      );
+      const audio = new HyperdriveAudio();
+      audio.start();
+      const context = AudioContextStub.instances[0];
+      if (!context) throw new Error('Audio context did not start.');
+      if (recorded) await vi.waitFor(() => expect(context.sources).toHaveLength(6));
+      const voices = context.sources.length;
+      const jump = new HyperspaceController();
+      expect(jump.request('solara', 'vesper', ['solara', 'vesper'])).toBe(true);
+      expect(jump.phase).toBe('ALIGNMENT');
+      expect(context.gains[0]?.gain.value).toBe(0);
+      for (const progress of [0, 0.5, 1]) {
+        jump.elapsed = HYPERSPACE_TIMING.ALIGNMENT * progress;
+        audio.update(jump, false);
+        expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);
+        expect(context.sources).toHaveLength(voices);
+      }
+      jump.phase = 'ACCELERATING';
+      jump.elapsed = 0;
+      audio.update(jump, false);
+      expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0.75, 0, 0.04);
+      const initialPitch = context.sources[0]?.frequency.setTargetAtTime.mock.lastCall?.[0];
+      jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.ignitionStart * 0.9;
+      audio.update(jump, false);
+      expect(context.sources[0]?.frequency.setTargetAtTime.mock.lastCall?.[0]).toBeGreaterThan(
+        initialPitch,
+      );
+      expect(context.sources).toHaveLength(voices);
+      audio.dispose();
+    },
+  );
+
   it('plays recorded impacts once at visual thresholds and mutes them while a journey is held', async () => {
     vi.stubGlobal(
       'fetch',
