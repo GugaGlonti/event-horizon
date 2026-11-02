@@ -612,7 +612,7 @@ export class FlightController {
   private environmentForces(sample: SurfaceSample, dt: number) {
     const compensation = this.assistance ? this.planetaryConfig.gravityCompensation : 0;
     this.velocity.addScaledVector(sample.acceleration, (1 - compensation) * dt);
-    this.lateral.copy(this.velocity).sub(sample.velocity);
+    this.lateral.copy(this.velocity).sub(sample.velocity).sub(sample.wind);
     this.velocity.addScaledVector(
       this.lateral,
       Math.expm1(-sample.density * this.planetaryConfig.drag * dt),
@@ -683,6 +683,7 @@ export class FlightController {
         const up = new Vector3(0, 1, 0).applyQuaternion(this.orientation);
         const safe =
           sample.body?.landable &&
+          !sample.liquid &&
           this.landingClearance &&
           this.landingGear &&
           Math.abs(vertical) <= this.planetaryConfig.landingVerticalSpeed &&

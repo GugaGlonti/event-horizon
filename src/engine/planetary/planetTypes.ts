@@ -25,6 +25,7 @@ export interface LandingZoneDefinition {
 export interface SurfacePointDefinition {
   readonly id: string;
   readonly name: string;
+  readonly landform?: 'canyon' | 'mountain' | 'caldera' | 'crater' | 'archipelago' | 'fracture';
   readonly latitude: number;
   readonly longitude: number;
 }

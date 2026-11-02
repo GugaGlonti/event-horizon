@@ -1,4 +1,11 @@
 import type {
+  Civilization,
+  ClimateDefinition,
+  PlanetArchetype,
+  RestrictedZoneDefinition,
+  SettlementDefinition,
+} from '@/engine/planetary/environmentTypes';
+import type {
   GravityDefinition,
   LandingZoneDefinition,
   SurfacePointDefinition,
@@ -18,6 +25,13 @@ export interface CelestialDefinition {
   readonly description: string;
   readonly kind: BodyKind;
   readonly radius: number;
+  readonly archetype?: PlanetArchetype;
+  readonly civilization?: Civilization;
+  readonly climate?: ClimateDefinition;
+  readonly ocean?: { readonly level: number; readonly color: string };
+  readonly settlements?: readonly SettlementDefinition[];
+  readonly restrictedZones?: readonly RestrictedZoneDefinition[];
+  readonly hazards?: readonly string[];
   readonly gravity?: GravityDefinition;
   readonly terrain?: TerrainDefinition;
   readonly landable?: boolean;
@@ -66,6 +80,7 @@ export interface StarSystemDefinition {
   readonly id: string;
   readonly name: string;
   readonly description: string;
+  readonly civilization?: Civilization;
   readonly chartPosition: readonly [number, number];
   /** Shared galactic axes: +Y up, -Z chart north. Used for jump headings, not local metres. */
   readonly galacticPosition: Position3;

@@ -4,7 +4,15 @@ import { traceStation } from '@/engine/stations/stationGeometry';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import type { CelestialDefinition } from '@/engine/world/worldTypes';
 import { bodyRotation, surfaceDirection } from './coordinates';
-import { atmosphericDensity, gravityAcceleration, terrainHeight, terrainNormal } from './terrain';
+import { weatherAt } from './environment';
+import {
+  atmosphericDensity,
+  gravityAcceleration,
+  maximumTerrainHeight,
+  surfaceHeight,
+  terrainHeight,
+  terrainNormal,
+} from './terrain';
 
 export class SurfaceSample {
   body: CelestialDefinition | null = null;
@@ -14,6 +22,8 @@ export class SurfaceSample {
   readonly center = new Vector3();
   readonly velocity = new Vector3();
   readonly acceleration = new Vector3();
+  readonly wind = new Vector3();
+  liquid = false;
   readonly rotation = new Quaternion();
   altitude = Infinity;
   density = 0;
@@ -40,6 +50,8 @@ export class PlanetaryEnvironment {
     out.body = null;
     out.altitude = Infinity;
     out.density = out.gravity = 0;
+    out.wind.set(0, 0, 0);
+    out.liquid = false;
     out.acceleration.set(0, 0, 0);
     out.zoneId = null;
     out.zoneDistance = Infinity;
@@ -71,10 +83,22 @@ export class PlanetaryEnvironment {
     out.up.subVectors(position, out.center).normalize();
     bodyRotation(body, this.world.time, out.rotation);
     out.local.copy(out.up).applyQuaternion(new Quaternion().copy(out.rotation).invert());
-    out.altitude = position.distanceTo(out.center) - body.radius - terrainHeight(body, out.local);
+    out.altitude = position.distanceTo(out.center) - body.radius - surfaceHeight(body, out.local);
     out.gravity = out.acceleration.length();
     out.density = atmosphericDensity(body, out.altitude);
-    if (body.terrain && out.altitude < 2000)
+    out.liquid = Boolean(body.ocean && terrainHeight(body, out.local) <= body.ocean.level);
+    if (out.density > 0) {
+      const weather = weatherAt(body, this.world.time, out.local);
+      const east = new Vector3().crossVectors(new Vector3(0, 1, 0), out.local).normalize();
+      const north = new Vector3().crossVectors(out.local, east).normalize();
+      out.wind
+        .copy(east)
+        .multiplyScalar(weather.windEast)
+        .addScaledVector(north, weather.windNorth)
+        .applyQuaternion(out.rotation)
+        .multiplyScalar(Math.min(1, out.density));
+    }
+    if (body.terrain && !out.liquid && out.altitude < 2000)
       terrainNormal(body, out.local, out.normal).applyQuaternion(out.rotation);
     else out.normal.copy(out.up);
     // Analytical axial velocity. Parent translation does not inherit axial spin.
@@ -126,7 +150,7 @@ export class PlanetaryEnvironment {
         direction.x,
         direction.y,
         direction.z,
-        body.radius + body.terrain.relief + radius,
+        body.radius + maximumTerrainHeight(body) + radius,
       );
       if (broad === null) continue;
       bodyRotation(body, this.world.time, inverse).invert();
@@ -138,7 +162,7 @@ export class PlanetaryEnvironment {
         point.copy(start).addScaledVector(direction, t).sub(center);
         const distance = point.length();
         point.divideScalar(distance || 1).applyQuaternion(inverse);
-        const clearance = distance - body.radius - terrainHeight(body, point) - radius;
+        const clearance = distance - body.radius - surfaceHeight(body, point) - radius;
         if (clearance <= 0.002) {
           earliest = t;
           break;

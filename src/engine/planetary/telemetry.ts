@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from '@/engine/math/linear';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import { descentEta, surfaceDescentSpeed } from './approach';
 import { tangentFrame } from './coordinates';
+import { restrictedAirspace, weatherAt } from './environment';
 import { SurfaceSample } from './PlanetaryEnvironment';
 
 export function planetaryTelemetry(controller: FlightController, targetId: string | null = null) {
@@ -28,6 +29,7 @@ export function planetaryTelemetry(controller: FlightController, targetId: strin
   const alignment = new Vector3(0, 1, 0).applyQuaternion(orientation).dot(sample.normal);
   const safe = Boolean(
     sample.body?.landable &&
+      !sample.liquid &&
       controller.landingGear &&
       Math.abs(vertical) <= controller.planetaryConfig.landingVerticalSpeed &&
       ground <= controller.planetaryConfig.landingGroundSpeed &&
@@ -35,6 +37,12 @@ export function planetaryTelemetry(controller: FlightController, targetId: strin
       sample.normal.dot(sample.up) >= 0.985,
   );
   return {
+    weather: sample.body
+      ? weatherAt(sample.body, controller.environment?.world.time ?? 0, sample.local)
+      : null,
+    restricted: sample.body
+      ? (restrictedAirspace(sample.body, sample.local, sample.altitude)?.name ?? null)
+      : null,
     bodyId: sample.body?.id ?? null,
     bodyName: sample.body?.name ?? '',
     altitude: sample.altitude,
@@ -71,17 +79,19 @@ export function planetaryTelemetry(controller: FlightController, targetId: strin
     safe,
     guidance: !sample.body?.landable
       ? 'Surface unavailable'
-      : !controller.landingGear
-        ? 'Deploy gear / K'
-        : ground > controller.planetaryConfig.landingGroundSpeed
-          ? 'Reduce ground speed'
-          : Math.abs(vertical) > controller.planetaryConfig.landingVerticalSpeed
-            ? 'Reduce descent rate'
-            : alignment < 0.96
-              ? 'Level with horizon'
-              : sample.normal.dot(sample.up) < 0.985
-                ? 'Terrain too steep'
-                : 'Landing envelope safe',
+      : sample.liquid
+        ? 'Ocean surface / select dry land or a spaceport'
+        : !controller.landingGear
+          ? 'Deploy gear / K'
+          : ground > controller.planetaryConfig.landingGroundSpeed
+            ? 'Reduce ground speed'
+            : Math.abs(vertical) > controller.planetaryConfig.landingVerticalSpeed
+              ? 'Reduce descent rate'
+              : alignment < 0.96
+                ? 'Level with horizon'
+                : sample.normal.dot(sample.up) < 0.985
+                  ? 'Terrain too steep'
+                  : 'Landing envelope safe',
   };
 }
 export type PlanetaryReadout = ReturnType<typeof planetaryTelemetry>;
