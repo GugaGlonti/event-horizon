@@ -3,7 +3,7 @@ import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightState, NetworkInput } from './protocol';
 
 export function predict(controller: FlightController, input: NetworkInput, tickRate: number) {
-  if (input.paused) controller.landingAssist = null;
+  if (input.paused) controller.requestLandingAssist(null);
   controller.setFlightMode(input.flightMode);
   const substeps = Math.max(1, Math.round(120 / tickRate));
   for (let i = 0; i < substeps; i++) controller.step(input.flight, 1 / tickRate / substeps);

@@ -241,6 +241,7 @@ export class FlightController {
     position: Readonly<Vector3>,
     orientation: Readonly<Quaternion>,
     velocity?: Readonly<Vector3>,
+    enginePower = 0,
   ) {
     this.flightLocked = true;
     this.travelMode = 'normal';
@@ -250,7 +251,7 @@ export class FlightController {
     if (velocity) this.velocity.copy(velocity);
     else this.velocity.set(0, 0, 0);
     this.angularVelocity.set(0, 0, 0);
-    this.throttle = 0;
+    this.throttle = Number.isFinite(enginePower) ? Math.max(0, Math.min(1, enginePower)) : 0;
     this.boosting = false;
   }
 
@@ -297,6 +298,8 @@ export class FlightController {
 
   requestLandingAssist(zoneId: string | null) {
     if (zoneId === null) {
+      if (this.landingAssist && ['flying', 'approaching'].includes(this.surface.phase))
+        this.landingGear = false;
       this.landingAssist = null;
       return null;
     }
@@ -405,7 +408,7 @@ export class FlightController {
           Math.abs(input.strafe) +
           Math.abs(input.lift) >
           0.001;
-      if (override || this.landingAssistReason(this.landingAssist)) this.landingAssist = null;
+      if (override || this.landingAssistReason(this.landingAssist)) this.requestLandingAssist(null);
       else {
         this.motionStart.copy(this.position);
         this.assistedLanding(sample, dt);

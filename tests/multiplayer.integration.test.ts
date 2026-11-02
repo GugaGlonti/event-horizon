@@ -15,6 +15,25 @@ import { createGameServer } from '../server/createServer';
 
 let game: Awaited<ReturnType<typeof createGameServer>>;
 const clients: Room<unknown>[] = [];
+const activeTimers = new Set<ReturnType<typeof setInterval>>();
+function activePilot(client: Room<unknown>) {
+  let sequence = 0;
+  const send = (input: Partial<ReturnType<typeof neutralInput>> = {}) => {
+    const seq = ++sequence;
+    client.send('input', { ...neutralInput(seq), paused: false, ...input, seq });
+    return seq;
+  };
+  send();
+  const timer = setInterval(send, 50);
+  activeTimers.add(timer);
+  return {
+    send,
+    stop: () => {
+      clearInterval(timer);
+      activeTimers.delete(timer);
+    },
+  };
+}
 function until<T>(
   room: Room<unknown>,
   type: string,
@@ -54,6 +73,7 @@ beforeAll(async () => {
   game = await createGameServer({ ...serverConfig({}), grace: 2, capacity: 2 }, 0);
 });
 afterAll(async () => {
+  for (const timer of activeTimers) clearInterval(timer);
   await Promise.all(clients.map((c) => c.leave().catch(() => {})));
   await game.close();
 });
@@ -313,6 +333,9 @@ describe('real authoritative room protocol', () => {
     const berth = portPose(room.world.system, station, port);
     place(pilotA, berth.approach, berth.orientation);
     place(pilotB, berth.approach.clone().add(new Vector3(80, 0, 0)), berth.orientation);
+    const activeA = activePilot(a),
+      activeB = activePilot(b);
+    await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack >= 1);
     a.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
     await until<WorldSnapshot>(b, 'snapshot', (s) =>
       s.ports.some((p) => p.portId === port.id && p.occupant === pilotA.id),
@@ -332,13 +355,11 @@ describe('real authoritative room protocol', () => {
       s.ships.some((ship) => ship.id === pilotA.id && ship.hull === 100),
     );
     expect(pilotA.ship.controller.flightLocked).toBe(true);
-    a.send('input', {
-      ...neutralInput(1),
-      paused: false,
+    const sequence = activeA.send({
       fire: true,
       flight: { ...neutralInput().flight, throttle: 1, boost: true },
     });
-    await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack === 1);
+    await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack >= sequence);
     expect(
       room.world.simulation.projectiles.filter((shot) => shot.owner === pilotA.id),
     ).toHaveLength(0);
@@ -349,10 +370,17 @@ describe('real authoritative room protocol', () => {
       (s) => s.ports.some((p) => p.portId === port.id && p.occupant === null),
       6000,
     );
+    place(pilotA, berth.approach.clone().add(new Vector3(0, 100, 0)), berth.orientation);
     b.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
     await until<WorldSnapshot>(a, 'snapshot', (s) =>
       s.ports.some((p) => p.portId === port.id && p.occupant === pilotB.id),
     );
+    activeB.send({ paused: true });
+    activeB.stop();
+    await until<WorldSnapshot>(a, 'snapshot', (s) =>
+      s.ports.some((p) => p.portId === port.id && p.occupant === null),
+    );
+    activeA.stop();
     await a.leave();
     await b.leave();
   }, 22000);
@@ -582,6 +610,9 @@ it('replicates exclusive capital pads, capture, repair and departure to two real
     pose.orientation,
     pose.velocity,
   );
+  const activeA = activePilot(a),
+    activeB = activePilot(b);
+  await until<WorldSnapshot>(a, 'snapshot', (s) => s.ack >= 1);
   a.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
   await until<WorldSnapshot>(b, 'snapshot', (s) =>
     s.ports.some(
@@ -618,6 +649,8 @@ it('replicates exclusive capital pads, capture, repair and departure to two real
     6000,
   );
   expect(pilot.ship.controller.flightLocked).toBe(false);
+  activeA.stop();
+  activeB.stop();
   await a.leave();
   await b.leave();
 }, 14000);

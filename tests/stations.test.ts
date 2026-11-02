@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { neutralInput } from '@/engine/network/InputQueue';
 import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
+import { createFlightInput } from '@/engine/simulation/flightTypes';
 import { portPose, stationPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SYSTEMS } from '@/engine/world/systems';
 
@@ -41,8 +43,56 @@ describe('authoritative station operations', () => {
     expect(f.operations.request('b', f.station.id, f.port.id)).toMatch(/occupied/);
     f.operations.step(91);
     expect(f.operations.occupancy.size).toBe(0);
+    f.move('a', f.pose.approach.clone().add(new Vector3(0, 100, 0)));
     expect(f.operations.request('b', f.station.id, f.port.id)).toBeNull();
   });
+  it('automatically flies the approach, aligns and captures with bounded continuous motion', () => {
+    const f = fixture();
+    f.move('a', f.pose.approach.clone().add(new Vector3(0, 0, 400)));
+    expect(f.operations.request('a', f.station.id, f.port.id)).toBeNull();
+    const command = { flight: createFlightInput(), fire: true };
+    for (let tick = 0; tick < 120 * 50 && f.operations.state('a').phase !== 'docked'; tick++) {
+      const previous = f.a.ship.position.clone();
+      f.world.simulation.step(command, 1 / 120, new Map([['a', command]]));
+      expect(f.a.ship.position.distanceTo(previous)).toBeLessThan(0.6);
+      expect(f.a.ship.command.fire).toBe(false);
+    }
+    expect(f.operations.state('a').phase).toBe('docked');
+    expect(f.a.ship.controller.landingGear).toBe(true);
+    expect(f.a.ship.position.distanceTo(f.pose.position)).toBeLessThan(0.01);
+    expect(f.operations.occupancy.get(`${f.station.id}/${f.port.id}`)).toBe('a');
+  });
+
+  it('releases an automatic approach on manual movement or paused network input', () => {
+    const f = fixture();
+    f.operations.request('a', f.station.id, f.port.id);
+    f.operations.step(1 / 120);
+    f.operations.cancelOnInput('a', { ...createFlightInput(), yaw: 1 });
+    expect(f.operations.state('a').phase).toBe('undocked');
+    expect(f.a.ship.controller.flightLocked).toBe(false);
+    expect(f.a.ship.controller.landingGear).toBe(false);
+    f.operations.request('a', f.station.id, f.port.id);
+    f.a.inputs.accept({ ...neutralInput(1), paused: true });
+    f.world.step();
+    expect(f.operations.occupancy.size).toBe(0);
+  });
+
+  it('rejects unsafe approach paths and cancels before a new obstacle is crossed', () => {
+    const f = fixture();
+    const start = f.pose.approach.clone().add(new Vector3(0, 0, 200));
+    f.move('a', start);
+    f.move('b', start.clone().lerp(f.pose.approach, 0.5));
+    expect(f.operations.request('a', f.station.id, f.port.id)).toMatch(/obstructed/);
+    f.move('b', start.clone().add(new Vector3(80, 0, 0)));
+    expect(f.operations.request('a', f.station.id, f.port.id)).toBeNull();
+    f.operations.step(1 / 120);
+    f.move('b', f.a.ship.position.clone().add(new Vector3(0, 0, -10)));
+    const before = f.a.ship.position.clone();
+    f.operations.step(1 / 120);
+    expect(f.operations.state('a').phase).toBe('undocked');
+    expect(f.a.ship.position.distanceTo(before)).toBe(0);
+  });
+
   it('validates distance, relative speed and orientation before final capture', () => {
     const f = fixture();
     f.operations.request('a', f.station.id, f.port.id);
@@ -59,6 +109,7 @@ describe('authoritative station operations', () => {
     expect(f.operations.assist('a')).toBeNull();
     for (let i = 0; i < 241; i++) f.operations.step(1 / 120);
     expect(f.operations.state('a').phase).toBe('docked');
+    expect(f.a.ship.controller.landingGear).toBe(true);
     expect(f.a.ship.position.distanceTo(f.pose.position)).toBeLessThan(0.001);
     expect(f.a.ship.controller.flightLocked).toBe(true);
   });
@@ -87,7 +138,9 @@ describe('authoritative station operations', () => {
     expect(f.operations.state('a').phase).toBe('undocked');
     expect(f.operations.occupancy.size).toBe(0);
     expect(f.a.ship.controller.flightLocked).toBe(false);
+    expect(f.a.ship.controller.landingGear).toBe(false);
     expect(f.a.ship.position.distanceTo(f.pose.position)).toBeGreaterThan(100);
+    f.move('a', f.pose.approach.clone().add(new Vector3(0, 100, 0)));
     expect(f.operations.request('b', f.station.id, f.port.id)).toBeNull();
   });
   it('cleans reservations on removal, destruction and disconnect cleanup', () => {
@@ -118,6 +171,33 @@ describe('authoritative station operations', () => {
 
 import { StationSimulation } from '@/engine/stations/StationSimulation';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
+
+it('completes automatic docking to an analytically moving station', () => {
+  const f = fixture();
+  const moving = { ...f.station, orbit: { radius: 300, period: 1200, phase: 0, inclination: 0 } };
+  const system = new SystemRuntime({
+    ...f.world.system.definition,
+    stations: [
+      ...(f.world.system.definition.stations ?? []).filter((station) => station.id !== moving.id),
+      moving,
+    ],
+  });
+  const operations = new StationSimulation(system, f.world.simulation.ships);
+  let pose = portPose(system, moving, f.port);
+  f.move('a', pose.approach);
+  f.move('b', pose.approach.clone().add(new Vector3(500, 0, 0)));
+  f.a.ship.controller.resolveMotion(f.a.ship.position, pose.velocity);
+  f.a.ship.sync();
+  expect(operations.request('a', moving.id, f.port.id)).toBeNull();
+  for (let tick = 0; tick < 120 * 60 && operations.state('a').phase !== 'docked'; tick++) {
+    system.update(system.time + 1 / 120);
+    operations.step(1 / 120);
+  }
+  pose = portPose(system, moving, f.port);
+  expect(operations.state('a').phase).toBe('docked');
+  expect(f.a.ship.position.distanceTo(pose.position)).toBeLessThan(0.01);
+  expect(f.a.ship.velocity.distanceTo(pose.velocity)).toBeLessThan(0.01);
+});
 
 it('measures approach speed in the moving station frame', () => {
   const f = fixture();

@@ -219,6 +219,7 @@ describe('optional landing assistance', () => {
     expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
     f.controller.step({ ...createFlightInput(), yaw: 1 }, 1 / 120);
     expect(f.controller.landingAssist).toBeNull();
+    expect(f.controller.landingGear).toBe(false);
     expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
     f.controller.landingClearance = false;
     f.controller.step(createFlightInput(), 1 / 120);
@@ -237,6 +238,7 @@ describe('optional landing assistance', () => {
     expect(a.controller.snapshot()).toEqual(b.controller.snapshot());
     predict(b.controller, { ...command, paused: true }, 30);
     expect(b.controller.landingAssist).toBeNull();
+    expect(b.controller.landingGear).toBe(false);
     const world = new MultiplayerWorld('solara');
     world.addPlayer('p', 'Pilot');
     expect(snapshotSchema.safeParse(world.snapshot('p', 6000)).success).toBe(true);

@@ -293,7 +293,10 @@ export class MultiplayerWorld {
       const command = active
         ? input
         : { ...neutralInput(), flightMode: ship.controller.flightMode };
-      if (command.paused) ship.controller.landingAssist = null;
+      if (command.paused || !active) {
+        ship.controller.requestLandingAssist(null);
+        this.simulation.stations?.cancel(ship.id);
+      }
       if (!input.paused && pilot.connected && !ship.health.destroyed) hasActive = true;
       ship.controller.setFlightMode(command.flightMode);
       ship.targetId = command.flightMode === 'combat' ? command.targetId : null;

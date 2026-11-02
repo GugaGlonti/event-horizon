@@ -1,5 +1,7 @@
 import type { CombatShip } from '@/engine/combat/combatTypes';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import type { FlightInput } from '@/engine/simulation/flightTypes';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { portPose, traceStation } from './stationGeometry';
 import { createDockingState, type DockingState } from './stationTypes';
@@ -10,9 +12,11 @@ export class StationSimulation {
   readonly occupancy = new Map<string, string>();
   readonly world: SystemRuntime;
   readonly ships: ReadonlyMap<string, CombatShip>;
+  private readonly environment: PlanetaryEnvironment;
   constructor(world: SystemRuntime, ships: ReadonlyMap<string, CombatShip>) {
     this.world = world;
     this.ships = ships;
+    this.environment = new PlanetaryEnvironment(world);
   }
   state(id: string) {
     return this.states.get(id) ?? createDockingState();
@@ -31,13 +35,25 @@ export class StationSimulation {
       return 'Ship is unavailable for docking.';
     if (this.state(id).phase !== 'undocked') return 'Cancel the existing clearance first.';
     if (!station) return 'Unknown station.';
-    const port = station.ports.find(
+    const available = station.ports.filter(
       (p) => (!portId || p.id === portId) && !this.occupancy.has(`${station.id}/${p.id}`),
     );
-    if (!port) return 'Docking port occupied.';
+    if (!available.length) return 'Docking port occupied.';
+    const nearby = available.filter(
+      (p) => ship.position.distanceTo(portPose(this.world, station, p).approach) <= 2500,
+    );
+    if (!nearby.length) return 'Approach within 2.5 km to request docking.';
+    const port = nearby
+      .sort(
+        (a, b) =>
+          ship.position.distanceToSquared(portPose(this.world, station, a).approach) -
+          ship.position.distanceToSquared(portPose(this.world, station, b).approach),
+      )
+      .find((p) => this.clearance(id, ship.position, portPose(this.world, station, p).approach));
+    if (!port) return 'Docking approach obstructed. Fly toward the approach marker and retry G.';
     const pose = portPose(this.world, station, port);
-    if (ship.position.distanceTo(pose.approach) > 2500)
-      return 'Approach within 2.5 km to request docking.';
+    if (ship.velocity.clone().sub(pose.velocity).length() > 150)
+      return 'Slow below 150 m/s before engaging automatic docking.';
     if (
       [...this.ships.values()].some(
         (other) =>
@@ -55,7 +71,8 @@ export class StationSimulation {
       portId: port.id,
     });
     ship.controller.travelMode = 'normal';
-    ship.controller.landingAssist = null;
+    ship.controller.requestLandingAssist(null);
+    ship.controller.landingGear = true;
     return null;
   }
   cancel(id: string) {
@@ -65,8 +82,27 @@ export class StationSimulation {
     if (state?.stationId && state.portId)
       this.occupancy.delete(`${state.stationId}/${state.portId}`);
     this.states.delete(id);
-    if (ship) ship.controller.flightLocked = false;
+    if (ship) {
+      ship.controller.flightLocked = false;
+      if (state) ship.controller.landingGear = false;
+    }
     return true;
+  }
+  /** Movement overrides the approach; secured berths and the undocking corridor retain their lease. */
+  cancelOnInput(id: string, input: Readonly<FlightInput>) {
+    if (
+      this.states.has(id) &&
+      (input.throttle ||
+        input.brake ||
+        input.reverse ||
+        input.boost ||
+        input.pitch ||
+        input.yaw ||
+        input.roll ||
+        input.strafe ||
+        input.lift)
+    )
+      this.cancel(id);
   }
   remove(id: string) {
     const state = this.states.get(id);
@@ -74,11 +110,15 @@ export class StationSimulation {
       this.occupancy.delete(`${state.stationId}/${state.portId}`);
     this.states.delete(id);
     const ship = this.ships.get(id);
-    if (ship) ship.controller.flightLocked = false;
+    if (ship) {
+      ship.controller.flightLocked = false;
+      if (state) ship.controller.landingGear = false;
+    }
   }
   private clearance(id: string, from: Readonly<Vector3>, to: Readonly<Vector3>) {
     return (
       !traceStation(this.world, from, to, (this.ships.get(id)?.radius ?? 5) + 0.25) &&
+      this.environment.trace(from, to, (this.ships.get(id)?.radius ?? 5) + 0.25) === null &&
       ![...this.ships.values()].some((other) => {
         if (other.id === id || other.health.destroyed) return false;
         const delta = new Vector3().subVectors(to, from),
@@ -171,9 +211,39 @@ export class StationSimulation {
           this.remove(id);
           continue;
         }
-        state.phase = ship.position.distanceTo(pose.position) < 150 ? 'aligning' : 'approaching';
-        // Manual docking captures automatically only inside the same strict final envelope.
-        if (ship.position.distanceTo(pose.position) < 8) this.assist(id);
+        if (state.phase === 'requested') state.phase = 'approaching';
+        const relative = ship.velocity.clone().sub(pose.velocity);
+        if (
+          state.phase === 'approaching' &&
+          ship.position.distanceTo(pose.approach) < 8 &&
+          relative.length() < 3
+        )
+          state.phase = 'aligning';
+        const target = state.phase === 'aligning' ? pose.position : pose.approach;
+        const delta = target.clone().sub(ship.position);
+        const distance = delta.length();
+        const speed = Math.min(state.phase === 'aligning' ? 20 : 65, distance * 0.6);
+        const desired = delta.multiplyScalar(distance > 0 ? speed / distance : 0);
+        const change = desired.sub(relative);
+        const acceleration = 30 * dt;
+        if (change.length() > acceleration) change.normalize().multiplyScalar(acceleration);
+        relative.add(change);
+        const velocity = relative.clone().add(pose.velocity);
+        const point = ship.position.clone().addScaledVector(velocity, dt);
+        if (!this.clearance(id, ship.position, point)) {
+          this.cancel(id);
+          continue;
+        }
+        ship.controller.lockPose(
+          point,
+          ship.orientation.clone().slerp(pose.orientation, 1 - Math.exp(-2 * dt)),
+          velocity,
+          relative.length() / 65,
+        );
+        ship.command.fire = false;
+        ship.railgunCharge = 0;
+        ship.sync();
+        if (state.phase === 'aligning' && distance < 4) this.assist(id);
       } else if (state.phase === 'docking') {
         const t = Math.min(1, state.timer / 2),
           smooth = t * t * (3 - 2 * t);

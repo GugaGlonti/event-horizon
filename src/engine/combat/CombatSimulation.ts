@@ -539,6 +539,12 @@ export class CombatSimulation {
       }
     }
     this.bodies.length = 0;
+    for (const ship of this.ships.values()) {
+      const input =
+        commands?.get(ship.id)?.flight ??
+        (ship === this.player ? command.flight : ship.command.flight);
+      this.stations?.cancelOnInput(ship.id, input);
+    }
     this.stations?.step(dt);
     for (const ship of this.ships.values()) {
       ship.sync();
