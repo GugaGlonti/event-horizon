@@ -66,11 +66,12 @@ and total about 1.6 MB, including 1024px textures. Their silhouettes fit the exi
 flight handling, weapons and damage rules are unchanged. The cockpit remains the original procedural
 flight deck. See [CREDITS.md](CREDITS.md) for the CC0 release, source mirror and asset preparation recipe.
 
-White-hot engine cores have soft cyan player / amber enemy halos. Steady nose, wing and dorsal
-running lights, colored light spill and a restrained hull rim keep ships visible against dark space,
-including approaching enemies. Engine plumes, ion particles and a tapered exhaust trail grow from zero throttle through full power and boost. Effects
-pause with flight; reduced motion retains steady lights and plumes while suppressing particles.
-Lights remain occluded by solid objects, and their small distant glow stays readable at combat ranges.
+Blue engine fire has pale hot cores, tapered cobalt tongues and a wispy blue exhaust trail. Steady
+nose, wing and dorsal running lights, colored light spill and a restrained hull rim keep ships visible against dark space,
+including approaching enemies; running lamps retain cyan player / amber enemy colors. Flame length,
+brightness, ion particles and the wake grow with throttle and boost. Effects pause with flight;
+reduced motion retains steady lights and flame shapes while suppressing flame animation, particles
+and the wake. Lights remain occluded by solid objects, and their small distant glow stays readable at combat ranges.
 
 The interface is a 1980s flight terminal: green phosphor displays, amber seven-segment speed
 and heading readouts, segmented engine gauges, a bearing scope, and a wireframe Kestrel schematic.

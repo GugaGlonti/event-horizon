@@ -502,9 +502,9 @@ view-dependent rim, retaining the original texture and environmental lighting. T
 scene lights, shadow maps, external textures or post-processing. Player lighting is cyan; hostile
 lighting is amber, including the nose/wing lamps visible during head-on approaches.
 
-`ShipEffects` owns one declarative instanced-quad batch/material per craft: physical white-hot nozzle
-discs, soft camera-facing halos, four static plume layers and twelve analytic particles per engine,
-plus running-lamp glows. The largest hull is capped at 116 quads / 72 moving particles. Particle
+`ShipEffects` owns one declarative instanced-quad batch/material per craft: blue nozzle
+discs, soft camera-facing halos, four flame ribbons, eighteen analytic particles and eight wake
+ribbons per engine, plus running-lamp glows. The largest hull is capped at 200 quads / 108 particles. Particle
 seeds/attributes are built once; mounted shader uniforms consume engine power, CSS viewport height
 and explicit world time through refs. FlightWorld updates the clock at priority -2, slots synchronize
 at -1, hostile poses/power update at -0.5, and sprite uniforms follow at 0. No per-frame allocations,
@@ -516,7 +516,7 @@ boost tail approaches the chase camera. A small minimum screen footprint makes d
 lights readable, capped at an 8m optical radius and faded beyond combat ranges. All sprites depth-test
 against hulls/solid worlds and render at the existing exhaust order 30. Hidden/destroyed ships hide
 the complete batch. Effects freeze with the paused celestial clock; reduced motion suppresses moving
-particles while retaining steady lamps, halos and static plumes. Fiber disposes batch geometry and
+particles and the wake while freezing flame flow and retaining steady lamps/halos. Fiber disposes batch geometry and
 materials; shared hull resources retain their existing library ownership.
 
 The tunnel samples three scales of 3D value noise on three bounded, far-to-near depth shells.
@@ -673,7 +673,21 @@ gap. Reset still snaps; turn damping, camera sweeps, hyperspace impulses and vie
 retain their existing ownership.
 
 Engine visuals consume actual throttle (0..1) and a distinct boost range. One fixed instanced quad
-batch per ship contains measured nozzles, lamps, four plume layers, eighteen ions and eight tapered
-trail slices per engine. The trail is an attached exhaust wake, not retained world-space history.
+batch per ship contains measured nozzles, lamps, four tapered blue flame ribbons, eighteen ions and
+eight overlapping wake ribbons per engine. Axial ribbons face the view around the engine axis;
+procedural, advecting tongues and narrow hot cores give the fire shape without animated textures.
+The trail is an attached exhaust wake, not retained world-space history.
 Particles and trail are suppressed by reduced motion. Mounted material refs receive scalar uniforms;
 no per-frame geometry/resources or additional draw calls are introduced.
+
+Blue-fire shader verification (2026-11-02): `npm run check` passed all 595 tests, lint, strict
+typecheck and the production build. Chrome checks covered idle/full throttle and boost against
+planet/space backgrounds, both cameras, pause and narrow layouts. A warm 60-second boost-heavy
+Travel run at 1920×1080 CSS / render DPR 1 on an Apple M2 Pro (19 GPU cores) recorded 6,970 frames:
+median 8.3 ms, p95 13.5 ms and p99 17.0 ms, peaking at 29 draws / 29,864 triangles. This clear-space
+sample included a camera switch and brief gaps between held boost intervals. It is not the DPR 1.5
+surface reference profile or a universal hardware guarantee. The local wake stays attached to the
+engine; it does not record a persistent contrail through turns. Reduced-motion behavior was checked
+in the shader path; browser OS motion preferences, native mouse capture and all-system flybys were
+not exercised. No browser warnings/errors were captured. No new assets, textures, draw calls or
+per-frame allocations were added.
