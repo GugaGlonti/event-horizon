@@ -447,3 +447,115 @@ describe('real authoritative room protocol', () => {
     await fresh.leave();
   });
 });
+
+it('transfers one stable guest through all seven expanded systems over real sockets', async () => {
+  let client = await join('Galaxy Survey');
+  let state = await until<WorldSnapshot>(client, 'snapshot');
+  const id = state.playerId;
+  for (const destination of [
+    'meridian',
+    'kharon',
+    'nivalis',
+    'pelagia',
+    'ignis',
+    'elysion',
+    'umbra-system',
+  ]) {
+    const source = [...game.rooms].find((room) => room.roomId === client.roomId);
+    const pilot = source?.world.pilots.get(id);
+    if (!source || !pilot) throw new Error('Missing transfer fixture');
+    // Test-only clearance/cooldown fixture; clients still send only validated intentions.
+    pilot.travelCooldown = 0;
+    pilot.ship.controller.relocate(new Vector3(0, 2400000, 0), new Quaternion());
+    pilot.ship.health.hull = 65;
+    pilot.ship.sync();
+    const transfer = until<TravelPermit>(client, 'travel');
+    client.send('action', { kind: 'travel', destination });
+    const permit = await transfer;
+    const next = await join('Galaxy Survey', destination, permit.ticket);
+    state = await until<WorldSnapshot>(next, 'snapshot');
+    expect(state.playerId).toBe(id);
+    expect(state.systemId).toBe(destination);
+    expect(state.ships.find((ship) => ship.id === id)?.hull).toBe(65);
+    expect(state.roster).toEqual([id]);
+    next.send('action', { kind: 'ready' });
+    await until<WorldSnapshot>(next, 'snapshot', (s) =>
+      s.ships.some((ship) => ship.id === id && !ship.transferring),
+    );
+    expect(source.world.pilots.has(id)).toBe(false);
+    await client.leave();
+    client = next;
+  }
+  await client.leave();
+}, 15000);
+
+it('replicates exclusive capital pads, capture, repair and departure to two real clients', async () => {
+  const a = await join('Capital Alpha', 'meridian'),
+    b = await join('Capital Bravo', 'meridian');
+  const initial = await until<WorldSnapshot>(a, 'snapshot', (s) => s.players === 2);
+  const partner = await until<WorldSnapshot>(b, 'snapshot');
+  const room = [...game.rooms].find((r) => r.roomId === a.roomId);
+  const pilot = room?.world.pilots.get(initial.playerId),
+    other = room?.world.pilots.get(partner.playerId);
+  const station = room?.world.system.definition.stations?.find((s) => s.type === 'surface'),
+    port = station?.ports[0];
+  if (!room || !pilot || !other || !station || !port) throw new Error('Missing capital fixtures');
+  const place = (
+    ship: typeof pilot.ship,
+    point: Vector3,
+    orientation: Quaternion,
+    velocity: Vector3,
+  ) => {
+    ship.controller.relocate(point, orientation);
+    ship.controller.resolveMotion(point, velocity);
+    ship.sync();
+    ship.previous.copy(point);
+    ship.previousOrientation.copy(orientation);
+  };
+  let pose = portPose(room.world.system, station, port);
+  place(pilot.ship, pose.approach, pose.orientation, pose.velocity);
+  place(
+    other.ship,
+    pose.approach.clone().add(new Vector3(100, 0, 0).applyQuaternion(pose.orientation)),
+    pose.orientation,
+    pose.velocity,
+  );
+  a.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
+  await until<WorldSnapshot>(b, 'snapshot', (s) =>
+    s.ports.some(
+      (p) => p.stationId === station.id && p.portId === port.id && p.occupant === pilot.id,
+    ),
+  );
+  const denied = until<{ message: string }>(b, 'error');
+  b.send('action', { kind: 'dock', stationId: station.id, portId: port.id });
+  expect((await denied).message).toMatch(/occupied/);
+  pose = portPose(room.world.system, station, port);
+  place(
+    pilot.ship,
+    pose.position.clone().add(new Vector3(0, 0, 20).applyQuaternion(pose.orientation)),
+    pose.orientation,
+    pose.velocity,
+  );
+  a.send('action', { kind: 'capture' });
+  await until<WorldSnapshot>(b, 'snapshot', (s) =>
+    s.ships.some((ship) => ship.id === pilot.id && ship.docking.phase === 'docked'),
+  );
+  pilot.ship.health.hull = 45;
+  a.send('action', { kind: 'service', service: 'repair' });
+  await until<WorldSnapshot>(a, 'snapshot', (s) =>
+    s.ships.some((ship) => ship.id === pilot.id && ship.hull === 100),
+  );
+  a.send('action', { kind: 'undock' });
+  await until<WorldSnapshot>(
+    b,
+    'snapshot',
+    (s) =>
+      s.ports.some(
+        (p) => p.stationId === station.id && p.portId === port.id && p.occupant === null,
+      ),
+    6000,
+  );
+  expect(pilot.ship.controller.flightLocked).toBe(false);
+  await a.leave();
+  await b.leave();
+}, 14000);
