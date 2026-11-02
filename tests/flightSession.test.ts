@@ -145,7 +145,7 @@ describe('flight presentation boundaries', () => {
     session.exploration.jump.phase = 'ACCELERATING';
     rig.update(camera, session, 'chase', 1 / 60, false);
     for (let frame = 0; frame < 20; frame += 1) {
-      session.position.z -= 100;
+      session.position.z -= 100000;
       session.origin.update(session.position);
       session.origin.toRender(session.position, session.renderPosition);
       rig.update(camera, session, 'chase', 1 / 60, false);

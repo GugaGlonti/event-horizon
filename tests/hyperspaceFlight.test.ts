@@ -2,6 +2,7 @@ import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
 import {
   HYPERSPACE_ENTRY,
+  HYPERSPACE_EXIT,
   HYPERSPACE_TIMING,
   HyperspaceController,
 } from '@/engine/navigation/HyperspaceController';
@@ -93,20 +94,94 @@ describe('continuous jump motion', () => {
     expect(position.distanceTo(arrival.position)).toBeLessThan(1e-8);
   });
 
-  it('moves foreground bodies decisively at ignition and settles before revealing the arrival', () => {
+  it('turns from a clear local launch to the galactic bearing under full tunnel coverage', () => {
+    const { motion, jump, position, orientation, destination } = setup();
+    const route = motion.direction.clone();
+    motion.begin(position, orientation, route, new Vector3(0, 1, 0));
+    jump.phase = 'HYPERSPACE';
+    jump.elapsed = 0;
+    motion.sample(jump, position, orientation);
+    const entry = position.clone();
+    jump.elapsed = HYPERSPACE_TIMING.HYPERSPACE;
+    motion.sample(jump, position, orientation);
+    expect(jump.coverage).toBe(1);
+    expect(position.distanceTo(entry)).toBeLessThan(1e-8);
+    expect(new Vector3(0, 0, -1).applyQuaternion(orientation).dot(route)).toBeCloseTo(1);
+    const before = orientation.clone();
+    motion.arrive(new SystemRuntime(destination));
+    jump.phase = 'EXITING';
+    jump.elapsed = 0;
+    motion.sample(jump, position, orientation);
+    expect(orientation.angleTo(before)).toBeLessThan(1e-7);
+    expect(motion.direction.distanceTo(route)).toBeLessThan(1e-8);
+  });
+
+  it('accelerates heavily before tunnel coverage and brakes while the arrival is visible', () => {
     const { motion, jump, position, orientation, destination } = setup();
     const launch = position.clone();
     jump.phase = 'ACCELERATING';
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.8;
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(launch)).toBeGreaterThan(1500);
+    expect(position.distanceTo(launch)).toBeGreaterThan(90000);
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.3;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.5;
     motion.sample(jump, position, orientation);
     const before = position.clone();
     jump.elapsed += 0.001;
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(before) / 0.001).toBeLessThan(360);
+    expect(jump.coverage).toBeLessThan(0.5);
+    expect(position.distanceTo(before) / 0.001).toBeCloseTo(JUMP_MOTION.arrivalSpeed, 2);
+  });
+
+  it('puts most departure motion in the late burst and decreases exit speed toward cruise', () => {
+    const { motion, jump, position, orientation, destination } = setup();
+    const launch = position.clone();
+    jump.phase = 'ACCELERATING';
+    jump.elapsed =
+      HYPERSPACE_TIMING.ACCELERATING *
+      (HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.5);
+    motion.sample(jump, position, orientation);
+    expect(position.distanceTo(launch)).toBeLessThan(JUMP_MOTION.departureDistance * 0.04);
+
+    motion.arrive(new SystemRuntime(destination));
+    jump.phase = 'EXITING';
+    let previousSpeed = Number.POSITIVE_INFINITY;
+    for (const progress of [HYPERSPACE_EXIT.revealEnd, 0.75, 0.8, 0.9, 0.999]) {
+      jump.elapsed = HYPERSPACE_TIMING.EXITING * progress;
+      motion.sample(jump, position, orientation);
+      const before = position.clone();
+      jump.elapsed += 0.00001;
+      motion.sample(jump, position, orientation);
+      const speed = position.distanceTo(before) / 0.00001;
+      expect(speed).toBeLessThan(previousSpeed);
+      expect(speed).toBeGreaterThanOrEqual(JUMP_MOTION.exitSpeed - 0.001);
+      previousSpeed = speed;
+    }
+    expect(previousSpeed).toBeCloseTo(JUMP_MOTION.exitSpeed, 2);
+  });
+
+  it('sweeps the arrival planet across the view while the tunnel is revealing real space', () => {
+    const source = SYSTEMS[1],
+      destination = SYSTEMS[0];
+    if (!source || !destination) throw new Error('Missing fixtures.');
+    const world = new SystemRuntime(destination);
+    const center = world.positions.get(destination.defaultTargetId);
+    if (!center) throw new Error('Missing arrival body.');
+    const motion = new HyperspaceFlight();
+    const position = new Vector3(),
+      orientation = new Quaternion();
+    motion.begin(position, orientation, travelDirection(source, destination));
+    motion.arrive(world);
+    const jump = new HyperspaceController();
+    jump.phase = 'EXITING';
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.5;
+    motion.sample(jump, position, orientation);
+    const before = new Vector3().subVectors(center, position).normalize();
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.8;
+    motion.sample(jump, position, orientation);
+    const after = new Vector3().subVectors(center, position).normalize();
+    expect(before.angleTo(after)).toBeGreaterThan(Math.PI / 12);
+    expect(jump.coverage).toBe(0);
   });
 });

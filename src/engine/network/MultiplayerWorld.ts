@@ -19,6 +19,7 @@ import {
 import {
   departureObstruction,
   departureWindow,
+  planDepartureDirection,
   routeArrival,
   travelDirection,
   travelDistance,
@@ -230,12 +231,14 @@ export class MultiplayerWorld {
       this.simulation.stations?.state(id).phase !== 'undocked'
     )
       return false;
-    return !departureObstruction(
-      this.system,
-      pilot.ship.position,
-      travelDirection(this.system.definition, target),
-      HYPERSPACE_MOTION.departureDistance,
-      departureWindow(this.system.definition, target),
+    return (
+      planDepartureDirection(
+        this.system,
+        pilot.ship.position,
+        travelDirection(this.system.definition, target),
+        HYPERSPACE_MOTION.departureDistance,
+        departureWindow(this.system.definition, target),
+      ) !== null
     );
   }
   startEncounter(practice: boolean) {

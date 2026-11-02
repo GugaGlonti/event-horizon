@@ -17,14 +17,12 @@ export const HYPERSPACE_TIMING = Object.freeze({
 });
 
 export const HYPERSPACE_MOTION = Object.freeze({
-  departureDistance: 5200,
-  arrivalSpeed: 3200,
+  departureDistance: 1_800_000,
+  departureExponent: 5,
+  arrivalSpeed: 800_000,
+  arrivalExponent: 6,
   exitSpeed: 100,
 });
-export const EXIT_COAST_DISTANCE =
-  HYPERSPACE_TIMING.EXITING *
-  (HYPERSPACE_MOTION.exitSpeed +
-    (HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) / 8);
 
 /** Galactic catalogue coordinates are light years; one more light year adds 0.12 seconds. */
 export function hyperspaceDuration(distance: number) {
@@ -40,6 +38,13 @@ export const HYPERSPACE_ENTRY = Object.freeze({
 });
 
 export const HYPERSPACE_EXIT = Object.freeze({ revealStart: 0.3, revealEnd: 0.7, settle: 0.72 });
+export const EXIT_COAST_DISTANCE =
+  HYPERSPACE_TIMING.EXITING *
+  (HYPERSPACE_MOTION.arrivalSpeed * HYPERSPACE_EXIT.revealEnd +
+    HYPERSPACE_MOTION.exitSpeed * (1 - HYPERSPACE_EXIT.revealEnd) +
+    ((HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) *
+      (1 - HYPERSPACE_EXIT.revealEnd)) /
+      HYPERSPACE_MOTION.arrivalExponent);
 const JOURNEY_PHASES = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
 
 /** Keep the physical surge short while stars have time to stretch before ignition. */
@@ -47,6 +52,32 @@ export function entrySurge(progress: number) {
   return Math.max(
     0,
     Math.min(1, (progress - HYPERSPACE_ENTRY.ignitionStart) / (1 - HYPERSPACE_ENTRY.ignitionStart)),
+  );
+}
+
+/** Strong ease-in: most real-space distance is covered by the final ignition burst. */
+export function hyperspaceDepartureDistance(progress: number) {
+  return (
+    HYPERSPACE_MOTION.departureDistance *
+    entrySurge(progress) ** HYPERSPACE_MOTION.departureExponent
+  );
+}
+
+/** Keep the incoming coast fast through reveal, then heavily ease out in visible real space. */
+export function hyperspaceArrivalDistance(progress: number) {
+  const p = Math.max(0, Math.min(1, progress));
+  const braking = Math.max(0, p - HYPERSPACE_EXIT.revealEnd);
+  const coast = braking / (1 - HYPERSPACE_EXIT.revealEnd);
+  return (
+    HYPERSPACE_MOTION.arrivalSpeed *
+      HYPERSPACE_TIMING.EXITING *
+      Math.min(p, HYPERSPACE_EXIT.revealEnd) +
+    HYPERSPACE_MOTION.exitSpeed * HYPERSPACE_TIMING.EXITING * braking +
+    ((HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) *
+      HYPERSPACE_TIMING.EXITING *
+      (1 - HYPERSPACE_EXIT.revealEnd) *
+      (1 - (1 - coast) ** HYPERSPACE_MOTION.arrivalExponent)) /
+      HYPERSPACE_MOTION.arrivalExponent
   );
 }
 

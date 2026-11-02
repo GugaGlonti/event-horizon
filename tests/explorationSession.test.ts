@@ -111,6 +111,25 @@ describe('exploration transactions', () => {
     expect(useExplorationStore.getState().departure).toBeNull();
   });
 
+  it('guides out of the atmosphere instead of around the whole long departure capsule', () => {
+    const { session } = create();
+    const center = session.world.positions.get('pelagos');
+    if (!center) throw new Error('Missing planet.');
+    const radial = new Vector3()
+      .fromArray(session.world.arrival().position)
+      .sub(center)
+      .normalize();
+    const position = new Vector3().copy(center).addScaledVector(radial, 195000);
+    session.syncPose(position, new Quaternion());
+    session.selectDestination('vesper');
+    expect(session.beginJump()).toBe(false);
+    const guidance = useExplorationStore.getState().departure;
+    expect(guidance?.distance).toBeLessThan(10000);
+    if (!guidance?.waypoint) throw new Error('Missing atmosphere escape.');
+    session.syncPose(new Vector3().fromArray(guidance.waypoint), new Quaternion());
+    expect(useExplorationStore.getState().departure?.ready).toBe(true);
+  });
+
   it('travels Solara → Vesper → Aether → Solara, commits once per journey and restores flight', async () => {
     const { session, events } = create();
     for (const destination of ['vesper', 'aether', 'solara']) {

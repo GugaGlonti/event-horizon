@@ -100,10 +100,10 @@ export class FlightSession {
         this.publishPlanetary();
       },
       onPause: this.pause,
-      onDepart: (direction) => {
+      onDepart: (direction, launchDirection) => {
         if (useFlightStore.getState().engineSound) this.engineAudio.unlock();
         this.combat.depart();
-        this.journey.begin(this.position, this.orientation, direction);
+        this.journey.begin(this.position, this.orientation, direction, launchDirection);
       },
       onCommit: (system) => {
         const snapshot = this.multiplayer?.network.latest;

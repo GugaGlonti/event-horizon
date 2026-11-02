@@ -1,10 +1,11 @@
 import { Quaternion, Vector3 } from 'three';
 import { describe, expect, it } from 'vitest';
-import { EXIT_COAST_DISTANCE } from '@/engine/navigation/HyperspaceController';
+import { EXIT_COAST_DISTANCE, HYPERSPACE_MOTION } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
   departureWindow,
   jumpBodyRadius,
+  planDepartureDirection,
   routeArrival,
   routeOrientation,
   travelDirection,
@@ -74,6 +75,51 @@ describe('galactic jump routes', () => {
         long.position.clone().addScaledVector(direction, -900000),
         direction,
         901000,
+      ),
+    ).toBeNull();
+  });
+
+  it('aligns a long departure beside a blocking planet without crossing its bounds', () => {
+    const source = SYSTEMS[0],
+      destination = SYSTEMS[1];
+    if (!source || !destination) throw new Error('Missing fixtures.');
+    const world = new SystemRuntime(source);
+    const position = new Vector3().fromArray(world.arrival().position);
+    const route = travelDirection(source, destination);
+    const horizon = departureWindow(source, destination);
+    expect(
+      departureObstruction(world, position, route, HYPERSPACE_MOTION.departureDistance, horizon)
+        ?.id,
+    ).toBe('pelagos');
+    const launch = planDepartureDirection(
+      world,
+      position,
+      route,
+      HYPERSPACE_MOTION.departureDistance,
+      horizon,
+    );
+    expect(launch).not.toBeNull();
+    if (!launch) throw new Error('Expected a clear heading.');
+    expect(launch.length()).toBeCloseTo(1);
+    expect(
+      departureObstruction(world, position, launch, HYPERSPACE_MOTION.departureDistance, horizon),
+    ).toBeNull();
+    expect(
+      planDepartureDirection(
+        world,
+        position,
+        launch,
+        HYPERSPACE_MOTION.departureDistance,
+        horizon,
+      )?.distanceTo(launch),
+    ).toBeLessThan(1e-12);
+    expect(
+      planDepartureDirection(
+        world,
+        world.positions.get('pelagos') ?? position,
+        route,
+        HYPERSPACE_MOTION.departureDistance,
+        horizon,
       ),
     ).toBeNull();
   });

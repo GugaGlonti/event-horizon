@@ -5,6 +5,7 @@ import { departureBearing, findDepartureWaypoint } from '@/engine/navigation/hyp
 import {
   departureObstruction,
   departureWindow,
+  planDepartureDirection,
   routeArrival,
   travelDirection,
   travelDistance,
@@ -23,7 +24,7 @@ import {
 
 interface Callbacks {
   onPause: () => void;
-  onDepart: (direction: Readonly<Vector3>) => void;
+  onDepart: (direction: Readonly<Vector3>, launchDirection: Readonly<Vector3>) => void;
   onCommit: (system: SystemRuntime) => void;
   onRestore: () => void;
   onError: (message: string) => void;
@@ -42,6 +43,7 @@ export class ExplorationSession {
   private readonly lastPosition = new Vector3();
   private readonly lastOrientation = new Quaternion();
   private readonly direction = new Vector3();
+  private readonly launchDirection = new Vector3();
   private prepared: SystemRuntime | null = null;
   private preparation: AbortController | null = null;
   private generation = 0;
@@ -145,15 +147,14 @@ export class ExplorationSession {
       return false;
     }
     travelDirection(this.world.definition, target, this.direction);
-    if (
-      departureObstruction(
-        this.world,
-        this.lastPosition,
-        this.direction,
-        JUMP_MOTION.departureDistance,
-        departureWindow(this.world.definition, target),
-      )
-    ) {
+    const launch = planDepartureDirection(
+      this.world,
+      this.lastPosition,
+      this.direction,
+      JUMP_MOTION.departureDistance,
+      departureWindow(this.world.definition, target),
+    );
+    if (!launch) {
       this.departureDestination = target.id;
       this.departureWaypoint = null;
       useExplorationStore.setState({ overlay: null, error: null });
@@ -161,6 +162,7 @@ export class ExplorationSession {
       this.callbacks.onGuide?.();
       return false;
     }
+    this.launchDirection.copy(launch);
     return true;
   }
 
@@ -169,33 +171,60 @@ export class ExplorationSession {
     const target = SYSTEMS.find((system) => system.id === this.departureDestination);
     if (!target) return null;
     travelDirection(this.world.definition, target, this.direction);
-    const obstruction = departureObstruction(
+    const horizon = departureWindow(this.world.definition, target);
+    const launch = planDepartureDirection(
       this.world,
       this.lastPosition,
       this.direction,
       JUMP_MOTION.departureDistance,
-      departureWindow(this.world.definition, target),
+      horizon,
     );
+    const obstruction =
+      !launch &&
+      departureObstruction(
+        this.world,
+        this.lastPosition,
+        this.direction,
+        JUMP_MOTION.departureDistance,
+        horizon,
+      );
     if (
       obstruction &&
       (!this.departureWaypoint ||
         this.clock - this.departurePlanTime > 0.5 ||
         this.lastPosition.distanceToSquared(this.departurePlanPosition) > 500 ** 2 ||
-        departureObstruction(
+        !planDepartureDirection(
           this.world,
           this.departureWaypoint,
           this.direction,
           JUMP_MOTION.departureDistance,
-          departureWindow(this.world.definition, target),
+          horizon,
         ))
     ) {
-      const waypoint = findDepartureWaypoint(
+      let waypoint = findDepartureWaypoint(
         this.world,
         this.lastPosition,
         this.direction,
-        JUMP_MOTION.departureDistance,
-        departureWindow(this.world.definition, target),
+        0,
+        horizon,
       );
+      if (
+        !waypoint ||
+        !planDepartureDirection(
+          this.world,
+          waypoint,
+          this.direction,
+          JUMP_MOTION.departureDistance,
+          horizon,
+        )
+      )
+        waypoint = findDepartureWaypoint(
+          this.world,
+          this.lastPosition,
+          this.direction,
+          JUMP_MOTION.departureDistance,
+          horizon,
+        );
       this.departureWaypoint = waypoint ? new Vector3().copy(waypoint) : null;
       this.departurePlanPosition.copy(this.lastPosition);
       this.departurePlanTime = this.clock;
@@ -204,7 +233,7 @@ export class ExplorationSession {
     const reason = this.canDepart?.();
     return {
       destinationId: target.id,
-      blockedBy: reason ?? obstruction?.name ?? null,
+      blockedBy: reason ?? (obstruction ? obstruction.name : null),
       waypoint: waypoint ? [waypoint.x, waypoint.y, waypoint.z] : null,
       distance: obstruction && waypoint ? this.lastPosition.distanceTo(waypoint) : 0,
       ...(waypoint
@@ -261,7 +290,7 @@ export class ExplorationSession {
     travelDirection(this.world.definition, target, this.direction);
     this.cancelDeparture();
     this.sourceId = this.world.definition.id;
-    this.callbacks.onDepart(this.direction);
+    this.callbacks.onDepart(this.direction, this.launchDirection);
     this.closeMap();
     this.suspended = false;
     useExplorationStore.setState({ error: null, arrival: null });

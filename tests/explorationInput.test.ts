@@ -217,7 +217,8 @@ describe('exploration input integration', () => {
     expect(useFlightStore.getState().phase).toBe('flying');
     expect(useExplorationStore.getState().arrival).toMatch(/Welcome to Vesper/);
     advance(1);
-    expect(session.controller.speed).toBeCloseTo(100 - FLIGHT_CONFIG.deceleration);
+    // Near-planet gravity can add a small radial component after the exact 100 m/s handoff.
+    expect(session.controller.speed).toBeCloseTo(100 - FLIGHT_CONFIG.deceleration, 0);
     const speed = session.controller.speed;
     key('KeyW');
     advance(1);

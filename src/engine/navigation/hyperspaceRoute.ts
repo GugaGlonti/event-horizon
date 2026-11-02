@@ -139,6 +139,39 @@ export function departureObstruction(
   return null;
 }
 
+/** Prefer the galactic bearing, then bounded outward cones for a clear real-space launch. */
+export function planDepartureDirection(
+  world: SystemRuntime,
+  start: Readonly<Vector3>,
+  route: Readonly<Vector3>,
+  distance: number,
+  horizon: number,
+) {
+  if (!departureObstruction(world, start, route, distance, horizon))
+    return new Vector3().copy(route);
+  // A heading cannot clear an atmosphere/facility that already contains the launch point.
+  if (departureObstruction(world, start, route, 0, horizon)) return null;
+  const orientation = routeOrientation(route);
+  const right = new Vector3(1, 0, 0).applyQuaternion(orientation);
+  const up = new Vector3(0, 1, 0).applyQuaternion(orientation);
+  const direction = new Vector3();
+  for (let cone = 1; cone <= 5; cone += 1) {
+    const angle = (cone * Math.PI) / 6;
+    for (let spoke = 0; spoke < 8; spoke += 1) {
+      const around = (spoke * Math.PI) / 4;
+      direction
+        .copy(route)
+        .multiplyScalar(Math.cos(angle))
+        .addScaledVector(right, Math.sin(angle) * Math.cos(around))
+        .addScaledVector(up, Math.sin(angle) * Math.sin(around))
+        .normalize();
+      if (!departureObstruction(world, start, direction, distance, horizon)) return direction;
+    }
+  }
+  direction.copy(route).negate();
+  return departureObstruction(world, start, direction, distance, horizon) ? null : direction;
+}
+
 /** Final pose near the anchor; the entire incoming coast is checked behind this endpoint. */
 export function routeArrival(
   world: SystemRuntime,
