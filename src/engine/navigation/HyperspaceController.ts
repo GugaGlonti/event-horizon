@@ -6,7 +6,7 @@ export type JumpPhase =
   | 'EXITING'
   | 'COOLDOWN';
 
-const BEAM_ANIMATION_SECONDS = 3.4;
+const BEAM_ANIMATION_SECONDS = 3;
 const ENTRY_FLASH_RECOVERY_SECONDS = 0.42;
 
 export const HYPERSPACE_TIMING = Object.freeze({
@@ -36,12 +36,12 @@ export function hyperspaceDuration(distance: number) {
 }
 
 export const HYPERSPACE_ENTRY = Object.freeze({
-  stretchStart: 0.02,
+  stretchStart: 0,
   ignitionStart: 0.42,
   impactStart: 0.9,
   tunnelStart: 0.94,
   beamsFade: 0.98,
-  flashPeak: 0.99,
+  flashPeak: 1,
 });
 
 function reverseEntryProgress(progress: number) {
@@ -52,10 +52,10 @@ function reverseEntryProgress(progress: number) {
 }
 
 export const HYPERSPACE_EXIT = Object.freeze({
-  // Reverse the entry plus its flash recovery. Brake only once both flash and mask clear.
+  // Reverse the entry plus its flash recovery. Keep the braking beat after world-mask clearance.
   streaksStart: reverseEntryProgress(1),
   streaksVisible: reverseEntryProgress(HYPERSPACE_ENTRY.beamsFade),
-  flashEnd: reverseEntryProgress(HYPERSPACE_ENTRY.impactStart),
+  flashEnd: reverseEntryProgress(HYPERSPACE_ENTRY.stretchStart),
   revealStart: reverseEntryProgress(1),
   revealEnd: reverseEntryProgress(HYPERSPACE_ENTRY.tunnelStart),
   brakingStart: reverseEntryProgress(HYPERSPACE_ENTRY.impactStart),

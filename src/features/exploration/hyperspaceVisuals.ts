@@ -8,11 +8,11 @@ import {
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
 
-/** One beam curve grows into the entry flash and runs backward out of the exit flash. */
+/** Beam length, width and whitening grow together for three seconds, then reverse on exit. */
 export function jumpStretch(jump: HyperspaceController) {
   return smoothRamp(
     HYPERSPACE_ENTRY.stretchStart,
-    HYPERSPACE_ENTRY.impactStart,
+    HYPERSPACE_ENTRY.flashPeak,
     jump.crossingTime / HYPERSPACE_TIMING.ACCELERATING,
   );
 }
@@ -46,18 +46,12 @@ export function jumpStarVisibility(jump: HyperspaceController) {
   );
 }
 
-/** Beam bloom crosses white once at each tunnel boundary, independently of the braking impulse. */
+/** Beam bloom peaks once without holding white; exit reverses the same rise and immediate fade. */
 export function jumpExposure(jump: HyperspaceController, reduced = false) {
   if (reduced) return 0;
   const time = jump.crossingTime;
-  return (
-    smoothRamp(
-      HYPERSPACE_ENTRY.impactStart,
-      HYPERSPACE_ENTRY.flashPeak,
-      time / HYPERSPACE_TIMING.ACCELERATING,
-    ) *
-    (1 - smoothRamp(HYPERSPACE_TIMING.ACCELERATING, HYPERSPACE_TIMING.EXITING, time))
-  );
+  const peak = HYPERSPACE_TIMING.ACCELERATING * HYPERSPACE_ENTRY.flashPeak;
+  return jumpStretch(jump) * (1 - smoothRamp(peak, HYPERSPACE_TIMING.EXITING, time));
 }
 
 /** One crossing impulse drives the lens, recoil and audio; entry decay carries into the tunnel. */

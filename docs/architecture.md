@@ -307,30 +307,28 @@ flight, then accepts Tab or the HUD button when the lane is clear. Cancellation/
 clear the suggestion. Compact layouts reserve room for the guidance banner and flight instruments.
 
 `HyperspaceFlight` samples analytical alignment/bank, a quadratic forward creep plus an eighth-power
-departure surge and a heavy arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 0.76 seconds of exit, after
-coverage and flash reach zero. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
-scalar distance functions supply the path and derived coast extent (about 853 km). Offline and
+departure surge and a heavy arrival ease-out. Arrival retains 800 km/s through the reveal; braking begins at 0.72 seconds of exit, after
+world coverage reaches zero while the optical fade continues. Its ninth-power velocity falloff matches the 100 m/s physics handoff. Shared
+scalar distance functions supply the path and derived coast extent (about 792 km). Offline and
 multiplayer both use a near-planet final pose with the lead-in behind it. Normal physics never
 integrates hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
 cancellation follows the authoritative admission/recovery path.
 
-The 3.4-second entry grows beam length, width and glow continuously until the 90% flash onset,
-starts its physical surge at 42%, and begins tunnel coverage at 94%. A shared crossing impulse starts at 90% and
-carries its decay into the tunnel. Over 60% of departure translation precedes half cloud coverage.
-The persistent star field supplies every trail;
-no particles recycle into another layout. White cores and cyan halos widen into a white crossing
-flash, then disappear beneath its fully white peak before the cloud tunnel emerges. No star beams
-remain in transit. The inverse transition occurs early in exit, before the braking impulse; beams
-reappear beneath the fully white peak. Star heads reset invisibly under the opaque tunnel.
-A small full-screen quad renders the optical scatter after the
-foreground, only while flashing; the independent 80 m world mask retains its readiness guarantees.
-One optical timeline covers 3.4 seconds of entry plus 0.42 seconds of flash recovery during early
+The three-second entry grows beam length, width, glow and whitening together from its first frame
+through the white peak. `jumpExposure` samples the same growth as `jumpStretch`; there is no
+separate brightening stage or full-length hold. Physical surge starts at 42%, the crossing impulse
+at 90%, and tunnel coverage at 94%. Over 60% of departure translation precedes half cloud coverage.
+The persistent star field supplies every trail; star beams exchange with cloud-only transit under
+near-white exposure. Star heads reset invisibly under the opaque tunnel. A small full-screen quad
+renders optical scatter after the foreground; the independent 80 m world mask preserves readiness.
+
+One optical timeline covers three seconds of entry plus 0.42 seconds of flash recovery during early
 transit. `HyperspaceController.crossingTime` advances through it, holds its opaque endpoint during
-cruise and runs it backward during the 3.82-second exit. Coverage and the presentation beam/flash
-curves sample that same time. Both shader phases use the same width/glow profile and spatial mask;
-there is no exit-only wipe direction or separately tuned contraction. Star-head travel remains
-forward and resets invisibly under the tunnel. Reduced motion suppresses trails and flashes and
-uses a uniform opacity blend.
+cruise and runs backward over the 3.42-second exit. Length and whitening share the same rise and
+reverse together for exactly three seconds. Exposure peaks once at entry 3 seconds / exit 0.42
+seconds and immediately fades, without a plateau. Both shader phases use the same width/glow
+profile and spatial mask. Star-head travel remains forward and resets under the tunnel. Reduced
+motion suppresses trails and flashes and uses a uniform opacity blend.
 `hyperspaceVisuals` owns
 continuous envelopes, recoil, rattle and smooth seeded noise. Per-journey variation affects only
 presentation. Camera impulses and small rotations are removed before each follow update, preventing
@@ -354,15 +352,14 @@ EXITING stays at zero progress with full coverage until the matching destination
 its first frame after every terrain body has complete six-face base coverage. The renderer reports
 readiness on the following frame, after that coverage has drawn. Stale source frames cannot unlock it.
 Both CPU preparation and renderer readiness have
-bounded 12-second deadlines. The 3.82-second exit stays opaque through 0.42 seconds; coverage falls
-over 0.42–0.624 seconds, matching the 0.204-second entry wipe in reverse. Optical trail visibility
-rises under the white peak at 0.42–0.488 seconds.
-Star travel resets while invisible at handoff, leaving arrival heads anchored instead of reversing
-their departure sweep. The flash clears at 0.76 seconds, leaving exactly 3.06 seconds of clear
-star-beam animation to match entry. Full extension holds until 0.76 seconds, then the entry growth
-curve runs backward. Braking, recoil/lens/audio impact and engine release start together at 0.76 seconds. Lens widening holds
-through the reveal before settling, avoiding a premature collapse and second zoom. Chase-camera
-translation follows the analytical braking path without accumulating a speed-dependent gap. Optical visibility never changes world-mask coverage or readiness.
+bounded 12-second deadlines. The 3.42-second exit stays opaque through 0.42 seconds; coverage falls
+over 0.42–0.6 seconds, reversing the 0.18-second entry wipe. Optical trail visibility rises under the
+near-white peak over 0.42–0.48 seconds. Star travel resets while invisible at handoff, leaving
+arrival heads anchored. Beam contraction and recovery from white run together over 0.42–3.42
+seconds. Braking, recoil/lens/audio impact and engine release begin at 0.72 seconds, after world
+coverage clears. Lens widening holds through reveal before settling; chase-camera translation
+follows the analytical braking path without accumulating a speed-dependent gap. Optical visibility
+never changes world-mask coverage or destination readiness.
 `FlightCamera` retains the pre-jump speed/FOV contribution through masked relocation, then blends
 it toward the normal 100 m/s contribution during braking. Cockpit's immediate lens updates and
 chase's damped updates preserve FOV at both system commit and the normal-flight handoff.
@@ -485,12 +482,12 @@ contains every star used by the jump, and the same angular pattern survives the 
 depend only on sky radius, never system seed or frame time. Stars occupy 35–100% of that virtual radius.
 Projecting each star's finite forward exposure produces depth-dependent length and outward speed;
 bounded proximity controls width. Virtual depths affect motion only: normal stars render behind the
-celestial bodies. Trail widths use CSS viewport pixels. One entry growth envelope drives exposure
-length, viewport-proportional width, glow and tapered inward scatter around the fixed star heads.
-It grows from 2% of acceleration through the existing 90% flash onset; there is no earlier length
-plateau or separately timed screen-fill stage. Rays merge across most of the view before white
-scatter takes over. This changes no jump timers, readiness/coverage gates or exit choreography.
-Reduced motion zeros the stretch and entry uniforms, and the tunnel
+celestial bodies. Trail widths use CSS viewport pixels. One shared envelope drives exposure length,
+viewport-proportional width, glow, tapered inward scatter and whitening around the fixed star heads.
+It spans the full three-second acceleration and reverses over three seconds on exit. Rays merge
+across most of the view while white scatter grows with them, without a separate brightening stage.
+Readiness/coverage gates retain their independent safety role.
+Reduced motion zeros stretch and exposure, and the tunnel
 still has no star beams. The same buffers, draw call and foreground depth boundary are retained.
 There is no separate corridor particle layout,
 time loop or accumulating star simulation.
@@ -504,7 +501,7 @@ median 8.3 ms, p95 9.4 ms, p99 12.5 ms; peaks were 138 draws / 326,708 triangles
 includes map holds, generation and system handoffs rather than isolating beam fill. DPR 1.5 and OS
 reduced-motion preferences were not exercised; reduced motion explicitly zeros beam growth.
 
-Mirrored-timeline verification (2026-11-03): `npm run check` passed lint, 602 tests, strict typecheck
+Historical mirrored-timeline verification (2026-11-03, before the merged three-second beam curve): `npm run check` passed lint, 602 tests, strict typecheck
 and production build. Complete entry/reversed-exit samples agree at 120 Hz for stretch, visibility,
 flash and coverage; readiness holds retain an opaque, flash-free tunnel. All-system corridor and
 real-server integration checks passed with the derived 853 km arrival coast. Browser checks covered
