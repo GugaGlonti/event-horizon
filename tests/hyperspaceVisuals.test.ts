@@ -18,17 +18,44 @@ import {
 } from '@/features/exploration/hyperspaceVisuals';
 
 describe('hyperspace visual timing', () => {
-  it('holds fully extended stars in clear space for a readable beat before revealing the tunnel', () => {
+  it('grows the departure beams continuously from the start into the crossing flash', () => {
     const jump = new HyperspaceController();
     jump.phase = 'ACCELERATING';
-    let visibleHold = 0;
-    for (let time = 0; time < HYPERSPACE_TIMING.ACCELERATING; time += 1 / 120) {
-      jump.elapsed = time;
-      if (jumpStretch(jump) >= 0.99 && jump.coverage === 0) visibleHold += 1 / 120;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.02;
+    expect(jumpStretch(jump)).toBe(0);
+    let previous = 0;
+    for (let frame = 3; frame <= 108; frame++) {
+      jump.elapsed = (HYPERSPACE_TIMING.ACCELERATING * frame) / 120;
+      const growth = jumpStretch(jump);
+      expect(growth).toBeGreaterThan(previous);
+      expect(growth).toBeLessThanOrEqual(1);
+      expect(jumpExposure(jump)).toBe(0);
+      previous = growth;
     }
-    expect(visibleHold).toBeGreaterThan(0.65);
+    expect(previous).toBe(1);
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.86;
+    expect(jumpStretch(jump)).toBeGreaterThan(0.99);
+    expect(jumpStretch(jump)).toBeLessThan(1);
+    expect(jumpExposure(jump)).toBe(0);
+  });
+
+  it('keeps stretching past the old full-length hold without a second growth onset', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'ACCELERATING';
+    for (const progress of [0.64, 0.72, 0.88]) {
+      const samples = [-0.001, 0, 0.001].map((offset) => {
+        jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * (progress + offset);
+        return jumpStretch(jump);
+      });
+      const incoming = (samples[1] ?? 0) - (samples[0] ?? 0);
+      const outgoing = (samples[2] ?? 0) - (samples[1] ?? 0);
+      expect(incoming).toBeGreaterThan(0);
+      expect(outgoing).toBeGreaterThan(0);
+      expect(outgoing / incoming).toBeGreaterThan(0.9);
+      expect(outgoing / incoming).toBeLessThan(1.1);
+    }
     jump.elapsed = HYPERSPACE_TIMING.ACCELERATING / 2;
-    expect(jumpStretch(jump)).toBeGreaterThan(0.6);
+    expect(jumpStretch(jump)).toBeGreaterThan(0.5);
     expect(jumpStretch(jump)).toBeLessThan(1);
     expect(jump.coverage).toBe(0);
     expect(jumpKick(jump)).toBe(0);

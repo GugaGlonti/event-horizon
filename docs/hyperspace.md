@@ -76,10 +76,12 @@ view from actual ship translation. The physics integrator never receives cinemat
 requested [supercut moments](https://www.youtube.com/watch?v=qckDs0ODemg&t=142s) were inspected in the
 browser; film footage is not bundled.
 
-The persistent 12,000-star field supplies every streak. Wider white cores, cyan shoulders and blue
-halos build to full stretch by 72% of entry. The physical surge starts at 42%, its shared crossing
-impulse at 90%, and tunnel coverage at 94%, leaving about 0.75 seconds of fully extended stars in
-clear space. Over 60% of the departure distance is covered before the cloud blend is half opaque.
+The persistent 12,000-star field supplies every streak. White cores, cyan shoulders and blue halos
+share one continuous growth curve for length, width, glow and tapered inward scatter, reaching full
+stretch at the 90% entry flash onset. The brightest rays merge across almost the whole view before
+the flash; there is no separate late screen-fill stage. The physical surge starts at 42%, its shared
+crossing impulse at 90%, and tunnel coverage at 94%. Over 60% of the departure distance is covered
+before the cloud blend is half opaque.
 Stretched exposures share the tunnel's logarithmic 80 m optical boundary;
 ordinary stars remain behind celestial geometry. Hull, cockpit and exhaust retain foreground depth.
 
@@ -141,7 +143,7 @@ stretched star beams → widening white flash → flowing blue cloud tunnel (no 
 
 | Local phase time   | Visible transition                                                              |
 | ------------------ | ------------------------------------------------------------------------------- |
-| Entry 0–3.06 s     | Original stars stretch and hold; real-space acceleration builds.                |
+| Entry 0–3.06 s     | Original stars continuously lengthen, widen and glow; acceleration builds.      |
 | Entry 3.06–3.4 s   | The same beams widen and brighten to white; clouds blend underneath.            |
 | Transit 0–0.42 s   | White recovers into the cloud tunnel; star beams are already hidden.            |
 | Remaining transit  | Flowing, rotating cloud walls and pulsing blue light; no star beams.            |

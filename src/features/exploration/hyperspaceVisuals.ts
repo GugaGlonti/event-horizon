@@ -8,10 +8,10 @@ import {
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
 
-/** Shared envelopes keep stars, camera and engine transients on the same threshold. */
+/** Entry length, width and glow share one uninterrupted growth into the crossing flash. */
 export function jumpStretch(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
-    return smoothRamp(0.02, HYPERSPACE_ENTRY.stretchComplete, jump.progress);
+    return smoothRamp(0.02, HYPERSPACE_ENTRY.impactStart, jump.progress);
   if (jump.phase === 'HYPERSPACE') return 1;
   // Reveal the same fully lit exposures before contracting them back to ordinary stars.
   if (jump.phase === 'EXITING') {
@@ -42,7 +42,7 @@ export function jumpKick(jump: HyperspaceController) {
 export function jumpStarTravel(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING')
     return (
-      smoothRamp(0.02, HYPERSPACE_ENTRY.stretchComplete, jump.progress) * 0.08 +
+      jumpStretch(jump) * 0.08 +
       (hyperspaceDepartureDistance(jump.progress) / HYPERSPACE_MOTION.departureDistance) * 0.92
     );
   if (jump.phase === 'HYPERSPACE') return 1;

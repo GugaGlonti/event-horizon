@@ -370,10 +370,12 @@ opaque tunnel. Arrival coasts at 800 km/s through the reveal, then brakes with a
 once the mask is gone, handing control back at 100 m/s. The roughly 964 km incoming path ends
 near the destination planet, so bodies grow and sweep past as the ship slows.
 
-The persistent 12,000-star field produces broader white/cyan optical trails. Full stretch remains
-visible for about 0.75 seconds before tunnel coverage begins. The longer buildup keeps the stars
-growing while the ship starts moving; over 60% of the departure distance is covered before the cloud
-blend reaches half coverage. The beams widen and brighten into a brief white flash, revealing
+The persistent 12,000-star field produces broader white/cyan optical trails. Entry length, thickness
+and glow grow together continuously until the crossing flash, without a separate screen-fill stage.
+The longer buildup keeps the stars growing while the ship starts moving; over 60% of the departure
+distance is covered before the cloud blend reaches half coverage. Before the flash starts, the brightest beams widen in viewport proportion,
+taper toward the vanishing point and overlap into an almost full-screen field of white/cyan light.
+The beams then brighten into a brief white flash, revealing
 layered blue clouds with dark folds, fine luminous wisps and pulsing light pools. No star beams
 remain inside the tunnel. Clouds rush outward from
 the vanishing point toward the ship, with shearing layers around an 11-degree-per-second clockwise swirl.

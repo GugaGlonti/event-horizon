@@ -36,7 +36,6 @@ export function hyperspaceDuration(distance: number) {
 }
 
 export const HYPERSPACE_ENTRY = Object.freeze({
-  stretchComplete: 0.72,
   ignitionStart: 0.42,
   impactStart: 0.9,
   tunnelStart: 0.94,

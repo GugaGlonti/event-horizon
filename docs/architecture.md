@@ -311,8 +311,8 @@ multiplayer both use a near-planet final pose with the lead-in behind it. Normal
 integrates hyperspeed. Offline abort adopts the currently displayed safe pose with zero speed; network
 cancellation follows the authoritative admission/recovery path.
 
-The 3.4-second entry reaches full extension by 72%, starts its physical surge at 42%, and begins tunnel coverage at
-94%, leaving about 0.75 seconds of clear full stretch. A shared crossing impulse starts at 90% and
+The 3.4-second entry grows beam length, width and glow continuously until the 90% flash onset,
+starts its physical surge at 42%, and begins tunnel coverage at 94%. A shared crossing impulse starts at 90% and
 carries its decay into the tunnel. Over 60% of departure translation precedes half cloud coverage.
 The persistent star field supplies every trail;
 no particles recycle into another layout. White cores and cyan halos widen into a white crossing
@@ -477,8 +477,24 @@ contains every star used by the jump, and the same angular pattern survives the 
 depend only on sky radius, never system seed or frame time. Stars occupy 35–100% of that virtual radius.
 Projecting each star's finite forward exposure produces depth-dependent length and outward speed;
 bounded proximity controls width. Virtual depths affect motion only: normal stars render behind the
-celestial bodies. Trail widths use CSS viewport pixels. There is no separate corridor particle layout,
+celestial bodies. Trail widths use CSS viewport pixels. One entry growth envelope drives exposure
+length, viewport-proportional width, glow and tapered inward scatter around the fixed star heads.
+It grows from 2% of acceleration through the existing 90% flash onset; there is no earlier length
+plateau or separately timed screen-fill stage. Rays merge across most of the view before white
+scatter takes over. This changes no jump timers, readiness/coverage gates or exit choreography.
+Reduced motion zeros the stretch and entry uniforms, and the tunnel
+still has no star beams. The same buffers, draw call and foreground depth boundary are retained.
+There is no separate corridor particle layout,
 time loop or accumulating star simulation.
+
+Continuous-growth verification (2026-11-02): `npm run check` passed lint, 596 tests, strict typecheck and
+production build. Chrome captures confirm dense rays before the flash in chase and cockpit views,
+including 390×844, while the opaque tunnel remains free of stars. The Solara → Vesper → Aether →
+Solara route, masked handoffs, abort and reset were exercised with a clean browser console. A 60-second
+1920×1080 / render DPR 1 foreground journey sample on the local M2 Pro recorded 7,080 frames:
+median 8.3 ms, p95 9.4 ms, p99 12.5 ms; peaks were 138 draws / 326,708 triangles. This mixed sample
+includes map holds, generation and system handoffs rather than isolating beam fill. DPR 1.5 and OS
+reduced-motion preferences were not exercised; reduced motion explicitly zeros beam growth.
 
 FlightWorld loads three local, uncompressed GLBs through `useSpacecraftModels`, with remote decoder
 loading disabled. The player uses Spitfire; fixed enemy presentation slots alternate Striker and
