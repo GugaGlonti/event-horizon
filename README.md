@@ -106,6 +106,29 @@ System palettes, ambient light and seeded nebula backgrounds give each destinati
 appearance. A shared distant starfield preserves the galactic sky across journeys. Moons follow
 deterministic inclined orbits. Planet positions are deliberately fixed.
 
+## Procedural planetary visuals
+
+A shared seeded surface field now drives continental shelves, ridge belts, valleys, craters, biome
+blends and worker-baked orbital maps. Pelagos' reference region connects ocean coast, forested
+lowlands and Western Ridge to Port Helios. Existing named settlements, survey bases, pads and
+arrival anchors retain their positions. Desert, oceanic, frozen, volcanic and barren worlds use the
+same bounded pipeline with distinct landforms and palettes.
+
+Nearby forests and rock clusters stream in small cells; distant canopy stays in surface shading.
+Compact cities assemble six building families into civic, residential, industrial, research and
+spaceport districts. Modular buildings share their recipes with authoritative collision boxes.
+Water normals, cloud patterns and atmospheric sky fill remain lightweight approximations.
+
+Terrain remains limited to 150 leaves with a 384-patch hard cache ceiling. Two scene-owned workers
+prioritize terrain over decorative generation; only the nearest city streams up to 16 detailed
+blocks. Scenery has a 4,096-instance ceiling (the current kit allocates 3,072 slots). DPR remains
+capped at 1.5. See [generation, budgets and verification](docs/planetary-visual-generation.md).
+
+**Multiplayer now uses protocol v5. Restart the authority and reload clients together.** Previous
+clients are rejected because their generated terrain and building collision geometry differ.
+No terrain meshes or decorative scenery are sent over the network. Vegetation and small rocks are
+visual scenery; they do not add flight collisions. Buildings and terrain remain authoritative.
+
 ## Controls
 
 | Input              | Action                                                         |

@@ -249,3 +249,7 @@ These runs do not establish WAN latency, long-lived room stability or production
   Longer high-density city/network soak tests, real WAN conditions and snapshot optimization remain.
 
 Missions, Contracts & Player Progression remains the next planned milestone.
+
+The later [seeded visual generation revision](planetary-visual-generation.md) preserves these named
+locations while replacing shared geography, biome presentation and modular building collisions.
+Its protocol v5 and measured acceptance supersede the visual-generation details above.

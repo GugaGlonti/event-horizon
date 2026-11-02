@@ -42,7 +42,8 @@ without a task requirement. Current scope and verification limits live in docs/g
 - `src/features/combat`: encounter/world adaptation, HUD projections, effects and optional audio.
 - `src/engine/input`: keyboard and pointer-lock adapter, input snapshots, event lifecycle.
 - `src/engine/world`: serializable definitions, validation, analytical hierarchy/orbits, render origin.
-  systems.ts composes the original catalogue, expandedSystems.ts and planetProfiles.ts.
+  systems.ts composes the original catalogue, expandedSystems.ts and planetProfiles.ts. Existing
+  settlementAnchors.ts records pin named surface locations across generation revisions.
 - `src/engine/navigation`: pure target/distance/bearing logic and explicit hyperspace state machine.
 - `src/features/flight`: session orchestration, configuration, interpolated presentation, cameras, HUD.
   Player engine sound consumes reusable scalar snapshots; keep audio inertia separate from physics.
@@ -169,7 +170,7 @@ without a task requirement. Current scope and verification limits live in docs/g
   Landing assist is a validated selected-zone intention, not client-authored motion; keep it in full
   snapshots/replay. Cancel on manual movement, every input-mode pause callback, maps and disconnect.
   ETA is a 10 Hz estimate of continuing the shared descent profile, not guaranteed arrival time.
-- Protocol v4 transports travel mode plus full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
+- Protocol v5 transports travel mode plus full surface/lock/landing-assist state, docking state and bounded shared occupancy. Keep
   positions as doubles; clients never assign coordinates, landing outcomes or repairs. Share seeds.
 - Civilization/settlement generation and biome/weather queries remain pure engine/planetary code.
   Validate developed capitals/regional counts, dry/sloped placement, spacing, surface anchors and budgets.
@@ -216,6 +217,21 @@ without a task requirement. Current scope and verification limits live in docs/g
   orbital footprints; fade skyline/full batches at 80/16 km and generate transport ribbons in a worker.
   Facilities are capped at 16/system, 32 ports/system and 512 boxes/facility. DPR is capped at 1.5. Terminate workers and dispose
   cached resources on teardown. Add richer terrain/adaptive quality only with measured need.
+
+- Surface revision 2 shares seeded height/biome rules between authority, terrain workers and orbital
+  map baking. Keep the height-only physics path independent of cover/scenery queries. Preserve the
+  authored anchor distinction: generated sites require suitable natural terrain; authored sites
+  require dry, safe engineered foundations. Never derive authority height from a GPU map.
+- SystemScene owns PlanetGeneration's two workers and cancels jobs on teardown. Queue short atlas
+  strips behind visible terrain, tag requests with the shared surface revision and discard cancelled
+  results. Published textures must survive until their React replacement commits.
+- Scenery streams at most 32 projected 256 m cells, with 4,096 instances maximum (current kit 3,072).
+  Keep scatter decorative, exclude facilities/roads/liquids and fade into distant canopy shading.
+  Only the nearest city streams up to 16 full-detail blocks. Shared building recipes own both mesh
+  parts and collision boxes; preserve pad frames and keep the 512-box facility ceiling.
+- Track incremental planetary GPU allocation estimates, including texture mipmaps, against 32 MiB.
+  Keep the 180-draw/350k-triangle reference budget. Profile 60-second foreground frame intervals at
+  1920x1080 CSS / DPR 1.5; separate cold generation and never infer universal hardware guarantees.
 
 ## Tests and verification
 

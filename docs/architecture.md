@@ -23,7 +23,7 @@ App → FlightSession → FlightInputManager + FixedStepLoop + FlightController 
 App → FlightHud + ExplorationOverlay → detached store read models / session actions
 SpaceScene → FlightWorld → SystemScene + ship + FlightCamera + CombatScene + HyperspaceTunnel
 SystemScene → celestial geometry + CelestialBody + nearest PlanetTerrain worker/cache + AtmosphericSky
-            → CityScene + infrastructure worker + weather effects + nearby StationScene
+            → CityScene + shared planetary generation queue + weather effects + nearby StationScene
 CombatSession / MultiplayerWorld → AmbientTraffic → shared flight commands + CombatSimulation
 ```
 
@@ -550,3 +550,28 @@ Authoritative multiplayer PvP/cooperative PvE is implemented in Milestone 5. See
 [dated verification record](milestone-5.md) for real-client tests, two-browser checks and 2/8/16-client
 load measurements. Milestones 6–7 add planetary/station systems; see the
 [acceptance record](milestones-6-7.md) for their current evidence and limits.
+
+## Seeded planetary visual generation
+
+The shared planetary field separates fast terrain height queries from richer surface descriptions
+(elevation, slope, temperature, moisture and normalized physical cover). Spherical-domain seeds and
+bounded landform modifiers drive every archetype; engineered irregular foundations preserve explicit
+catalogue anchors. Workers sample the same final field when baking orbital cube faces and terrain
+attributes. Rendering never supplies heights back to physics.
+
+SystemScene owns a two-worker PlanetGeneration queue for terrain, short surface-map strips,
+scenery cells and transport ribbons. Visible root/refinement work has priority. Job IDs and the
+surface revision prevent obsolete callbacks from adopting disposed work. React owns presentation
+selection at low frequency; mounted refs own frame-rate transforms and uniforms. Each owner releases
+its buffers/textures, while published maps are released after replacement commits. Incremental GPU
+allocation estimates include mipmaps and fixed instance capacities.
+
+A small pure building-recipe module supplies normalized parts to renderer geometry and oriented
+collision boxes. District layouts and the authored pad corridor remain static and serializable.
+Only the nearest city streams full-detail blocks; distant proxies and night footprints remain cheap.
+Cached rotated box bounds reject irrelevant sweeps before the existing precise solver. Decorative
+vegetation and small rocks never enter authority or network snapshots.
+
+See [visual generation and acceptance](planetary-visual-generation.md) for budgets, benchmark
+commands, reference scenes, actual results and remaining limits. Protocol v5 marks the incompatible
+surface/collision revision without expanding the snapshot payload.

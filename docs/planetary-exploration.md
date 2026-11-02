@@ -38,11 +38,11 @@ boundary, preserving ship/cockpit/exhaust while covering distant worlds.
 Optional `CelestialDefinition` capabilities include gravity, physical atmosphere, terrain, landing
 eligibility, zones and points of interest. Gas giants and stars cannot be declared landable. Body,
 station, zone and landmark navigation IDs must be unique. Definitions stay JSON-serializable and are
-validated at preparation. Lightweight deterministic weather is now implemented; vegetation meshes and
-walking characters remain outside the current scope.
+validated at preparation. Lightweight deterministic weather and nearby decorative vegetation are
+implemented; walking characters remain outside the scope.
 
-`terrain.ts` evaluates a seeded, continuous 3D value-noise field on unit directions. Six weighted
-frequency bands create broad plains, valleys and ridges. Landing zones flatten a disc and smoothly
+`terrain.ts` evaluates bounded, continuous seeded fields on unit directions. Continental shelves,
+regional ridge belts, valleys and named landform profiles share the same height query. Landing zones flatten a disc and smoothly
 blend its rim into the same field. Physics, CPU normals and render workers query that exact function.
 No mesh is downloaded to or generated on the server. Terrain normals use central differences across
 cube faces. Elevation/slope colors, distance-faded detail and approximate roughness variation provide
@@ -53,8 +53,9 @@ builds resolution-16 patches (configurable 8/16/32). Level 11 gives roughly 10 m
 Coarse parents remain until children are ready; finer geometry morphs from parent triangles, and
 radial skirts cover mixed-level edges. The cache retains 256 patches where possible, with a hard
 384-patch ceiling while drawn parents remain pinned. It evicts unused patches. Work is
-serial/bounded in one worker for the nearest active terrain body; scene teardown terminates it and disposes cached GPU
-geometries and the shared material. The whole planet is never generated at its finest resolution.
+bounded in the shared two-worker queue for the nearest active terrain body; scene teardown
+terminates workers and disposes cached GPU geometries and the shared material. The whole planet is
+never generated at its finest resolution.
 
 Physical density fades smoothly at the atmosphere boundary and decreases exponentially with
 altitude. The exterior limb shader, camera-relative sky, horizon/day/night tint, terrain distance haze
@@ -179,5 +180,18 @@ verification. Its terminal accepts `deep`, `orbit`, `entry`, `low`, `land`, `sta
 `descent`, `status`, `damage` and `exit`. These place authority-owned test fixtures for connected pilots; they are absent
 from the production server and game message schemas. Browser diagnostics show 0.5 s rolling FPS,
 frame time, calls/triangles, geometry/texture counts, patch/cache count and latest worker build time.
-GPU byte usage is not exposed. Fixtures are useful for repeatable views; they do not constitute proof
+Incremental planetary allocation estimates are tracked; driver VRAM is not exposed. Fixtures are
+useful for repeatable views; they do not constitute proof
 that an entire journey was manually flown. See the dated acceptance record for actual evidence.
+
+## Surface visual generation
+
+Pelagos now has a shared coast/forest/ridge reference region and an upgraded Port Helios. Terrain,
+orbital maps and planetary-chart biomes use the same deterministic surface rules. Named locations,
+landing-zone elevations, pad poses and approach beacons are preserved. Other solid archetypes use
+matching seeded materials/landforms; water remains non-landable.
+
+Cities use modular district layouts with shared authoritative building bounds. Tree/shrub/rock
+scatter is decorative and streams close to the ship; it has no additional collision gameplay.
+Protocol v5 requires a matching authority/client build. Detailed budgets and measured acceptance
+are recorded in [planetary visual generation](planetary-visual-generation.md).

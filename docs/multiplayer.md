@@ -103,7 +103,7 @@ as client prediction. Other configured rates divide each authority tick into app
 substeps, with the identical subdivision on predicting clients. Colyseus bounds fixed-tick catch-up
 to five steps; packet arrival never advances simulation.
 
-The join payload declares protocol version 4, callsign, system/instance and an optional single-use
+The join payload declares protocol version 5, callsign, system/instance and an optional single-use
 travel ticket. Client messages are `input` or `action`; actions include travel, cancel-travel, ready,
 respawn, encounter, gear, transit, landing-assist zone/cancel, takeoff, docking request/capture/cancel,
 undock, services and ping.
@@ -198,7 +198,7 @@ Next: Missions, Contracts & Player Progression.
 Later: larger battles, squadrons, missions and persistent progression, backed by longer load tests
 and smaller/delta snapshots rather than speculative distributed infrastructure.
 
-Protocol v4 additionally replicates body-local surface attachments, gear/travel-mode/flight-lock state,
+Protocol v5 retains the planetary fields introduced in v4 and replicates body-local surface attachments, gear/travel-mode/flight-lock state,
 per-ship docking phase and the shared bounded port roster. Landing, takeoff, docking, undocking and
 free services are strict intentions validated by the same authority as combat. No client may send
 poses, terrain outcomes, repair amounts or occupancy mutations.
@@ -209,3 +209,10 @@ instead of the previous transit boolean. Only shared input/action processing sel
 cannot send mode or pose mutations. F changes stabilization independently. Released V/R retain
 surface coasting; neutral/menu input does not erase inertia while the server advances.
 See [approach verification](planetary-approach.md).
+
+
+Surface generation revision 2 changes shared terrain and modular building collision geometry.
+Protocol v5 rejects older clients; restart server/client builds together. The catalogue retains
+existing settlement and spaceport anchors. Surface descriptions, maps, vegetation and render meshes
+are regenerated locally, never added to ordinary snapshots. Facility sweeps cache conservative
+rotated bounds before testing oriented boxes, including radius padding at rotated corners.
