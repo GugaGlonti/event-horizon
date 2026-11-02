@@ -10,6 +10,7 @@ import {
 import { Encounter } from '@/engine/combat/Encounter';
 import { encounterSpace } from '@/engine/combat/encounterSpace';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { EXIT_COAST_DISTANCE, HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
   routeArrival,
@@ -96,7 +97,21 @@ export class MultiplayerWorld {
       position
         .copy(base)
         .add(new Vector3((i % 8) * 90, Math.floor(i / 64) * 140, (Math.floor(i / 8) % 8) * 90));
-      if (this.safe(position)) return { position, orientation };
+      const direction = route && source && travelDirection(source, this.system.definition);
+      const start = direction && position.clone().addScaledVector(direction, -EXIT_COAST_DISTANCE);
+      if (
+        this.safe(position) &&
+        (!direction ||
+          !start ||
+          !departureObstruction(
+            this.system,
+            start,
+            direction,
+            EXIT_COAST_DISTANCE + 1000,
+            HYPERSPACE_TIMING.EXITING + HYPERSPACE_TIMING.preparationTimeout,
+          ))
+      )
+        return { position, orientation };
     }
     throw new Error('No safe spawn is available.');
   }

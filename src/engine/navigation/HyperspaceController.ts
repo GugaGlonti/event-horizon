@@ -16,6 +16,23 @@ export const HYPERSPACE_TIMING = Object.freeze({
   maxFrameTime: 0.1,
 });
 
+export const HYPERSPACE_MOTION = Object.freeze({
+  departureDistance: 5200,
+  arrivalSpeed: 3200,
+  exitSpeed: 100,
+});
+export const EXIT_COAST_DISTANCE =
+  HYPERSPACE_TIMING.EXITING *
+  (HYPERSPACE_MOTION.exitSpeed +
+    (HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) / 8);
+
+/** Galactic catalogue coordinates are light years; one more light year adds 0.12 seconds. */
+export function hyperspaceDuration(distance: number) {
+  if (!Number.isFinite(distance) || distance < 0)
+    throw new RangeError('Route distance must be finite and nonnegative.');
+  return HYPERSPACE_TIMING.HYPERSPACE + distance * 0.12;
+}
+
 export const HYPERSPACE_ENTRY = Object.freeze({
   stretchComplete: 0.48,
   ignitionStart: 0.55,
@@ -45,13 +62,53 @@ export class HyperspaceController {
   prepared = false;
   arrivalReady = false;
   private arrivalWait = 0;
+  distance = 0;
+  private sequence = 0;
+  variation = 0;
   error: string | null = null;
 
   get busy() {
     return this.phase !== 'IDLE' && this.phase !== 'COOLDOWN';
   }
   get progress() {
-    return this.phase === 'IDLE' ? 0 : Math.min(1, this.elapsed / HYPERSPACE_TIMING[this.phase]);
+    return this.phase === 'IDLE' ? 0 : Math.min(1, this.elapsed / this.duration(this.phase));
+  }
+  duration(phase: Exclude<JumpPhase, 'IDLE'>) {
+    return phase === 'HYPERSPACE' ? hyperspaceDuration(this.distance) : HYPERSPACE_TIMING[phase];
+  }
+  get journeyDuration() {
+    return (
+      HYPERSPACE_TIMING.CHARGING +
+      HYPERSPACE_TIMING.ACCELERATING +
+      this.duration('HYPERSPACE') +
+      HYPERSPACE_TIMING.EXITING
+    );
+  }
+  get journeyElapsed() {
+    const phases = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
+    if (this.phase === 'IDLE') return 0;
+    let elapsed = 0;
+    for (const phase of phases) {
+      if (this.phase === phase) return elapsed + Math.min(this.elapsed, this.duration(phase));
+      elapsed += this.duration(phase);
+    }
+    return elapsed;
+  }
+  get distanceTraveled() {
+    return (
+      this.distance *
+      (this.phase === 'HYPERSPACE'
+        ? this.progress
+        : this.phase === 'EXITING' || this.phase === 'COOLDOWN'
+          ? 1
+          : 0)
+    );
+  }
+  get waiting() {
+    return (
+      (this.phase === 'HYPERSPACE' && this.progress === 1 && !this.prepared) ||
+      (this.phase === 'EXITING' && !this.arrivalReady)
+    );
   }
   get intensity() {
     if (this.phase === 'CHARGING') return this.progress * 0.08;
@@ -70,8 +127,9 @@ export class HyperspaceController {
     return 0;
   }
 
-  request(current: string, destination: string | null, validIds: readonly string[]) {
+  request(current: string, destination: string | null, validIds: readonly string[], distance = 0) {
     if (this.phase !== 'IDLE') return false;
+    hyperspaceDuration(distance);
     if (!destination || destination === current || !validIds.includes(destination)) {
       this.error = !destination
         ? 'Select a destination first.'
@@ -87,6 +145,11 @@ export class HyperspaceController {
     this.arrivalReady = false;
     this.arrivalWait = 0;
     this.error = null;
+    this.distance = distance;
+    this.sequence += 1;
+    this.variation = this.sequence * 7919;
+    for (const char of `${current}/${destination}`)
+      this.variation = (Math.imul(this.variation, 31) + char.charCodeAt(0)) >>> 0;
     return true;
   }
 
@@ -102,6 +165,7 @@ export class HyperspaceController {
     this.arrivalReady = false;
     this.arrivalWait = 0;
     this.error = null;
+    this.distance = 0;
   }
 
   advance(delta: number) {
@@ -125,7 +189,7 @@ export class HyperspaceController {
       return;
     }
     if (
-      this.elapsed + 1e-9 < HYPERSPACE_TIMING[this.phase] ||
+      this.elapsed + 1e-9 < this.duration(this.phase) ||
       (this.phase === 'HYPERSPACE' && !this.prepared)
     )
       return;

@@ -1,7 +1,36 @@
 import { Quaternion, quaternionFromBasis, Vector3 } from '@/engine/math/linear';
+import { HYPERSPACE_TIMING } from '@/engine/navigation/HyperspaceController';
+import { maximumTerrainHeight } from '@/engine/planetary/terrain';
 import { traceStation } from '@/engine/stations/stationGeometry';
 import type { SystemRuntime } from '@/engine/world/SystemRuntime';
-import type { StarSystemDefinition } from '@/engine/world/worldTypes';
+import type { CelestialDefinition, StarSystemDefinition } from '@/engine/world/worldTypes';
+
+export function travelDistance(source: StarSystemDefinition, destination: StarSystemDefinition) {
+  return new Vector3()
+    .fromArray(source.galacticPosition)
+    .distanceTo(new Vector3().fromArray(destination.galacticPosition));
+}
+
+/** Include every ancestor's orbital speed, even for moons of an orbiting planet. */
+export function jumpBodyRadius(world: SystemRuntime, body: CelestialDefinition, seconds: number) {
+  let motion = 0;
+  let ancestor: CelestialDefinition | undefined = body;
+  while (ancestor) {
+    if (ancestor.orbit) motion += (Math.PI * 2 * ancestor.orbit.radius) / ancestor.orbit.period;
+    const parentId: string | undefined = ancestor.parentId;
+    ancestor = world.definition.bodies.find((candidate) => candidate.id === parentId);
+  }
+  return (
+    Math.max(
+      body.radius + maximumTerrainHeight(body),
+      body.radius * (body.rings?.outer ?? 1),
+      body.radius * (body.atmosphere?.scale ?? 1),
+      body.radius + (body.atmosphere?.height ?? 0),
+    ) +
+    motion * seconds +
+    200
+  );
+}
 
 export function travelDirection(
   source: StarSystemDefinition,
@@ -25,23 +54,20 @@ export function routeOrientation(
   return quaternionFromBasis(out, x, y, z);
 }
 
-/** Swept corridor including rings, atmosphere and six seconds of possible moon displacement. */
+/** A conservative sweep covers the whole cinematic, its camera, terrain and moving ancestors. */
 export function departureObstruction(
   world: SystemRuntime,
   start: Readonly<Vector3>,
   direction: { readonly x: number; readonly y: number; readonly z: number },
   distance: number,
+  seconds = HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING,
 ) {
   const offset = new Vector3();
   const closest = new Vector3();
   for (const body of world.definition.bodies) {
     const center = world.positions.get(body.id);
     if (!center) continue;
-    const extent = body.radius * Math.max(body.rings?.outer ?? 1, body.atmosphere?.scale ?? 1);
-    const orbitalTravel = body.orbit
-      ? (Math.PI * 2 * body.orbit.radius * 6) / body.orbit.period
-      : 0;
-    const radius = extent + orbitalTravel + 180;
+    const radius = jumpBodyRadius(world, body, seconds);
     offset.copy(center).sub(start);
     const along = Math.max(0, Math.min(distance, offset.dot(direction)));
     closest.copy(start).addScaledVector(direction, along);
@@ -53,9 +79,18 @@ export function departureObstruction(
     new Vector3().copy(start).addScaledVector(direction, distance),
     80,
   );
-  if (stationHit) {
+  const movingHit =
+    stationHit ??
+    traceStation(
+      world,
+      start,
+      new Vector3().copy(start).addScaledVector(direction, distance),
+      80,
+      seconds,
+    );
+  if (movingHit) {
     const station = world.definition.stations?.find(
-      (candidate) => candidate.id === stationHit.stationId,
+      (candidate) => candidate.id === movingHit.stationId,
     );
     if (station) return { ...station, kind: 'station' as const };
   }
@@ -80,11 +115,13 @@ export function routeArrival(
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const distance = Math.max(4800, coastDistance + 3000) + attempt * 2200;
     position.copy(center).addScaledVector(direction, -distance);
-    const lateralClearance =
-      anchor.radius * Math.max(anchor.atmosphere?.scale ?? 1, anchor.rings?.outer ?? 1) + 22000;
+    const horizon = HYPERSPACE_TIMING.EXITING + HYPERSPACE_TIMING.preparationTimeout;
+    const lateralClearance = jumpBodyRadius(world, anchor, horizon) + 22000;
     position.addScaledVector(right, lateralClearance);
     position.addScaledVector(up, 2500 + attempt * 500);
-    if (!departureObstruction(world, position, direction, coastDistance + 1000))
+    // Multiplayer presents the lead-in *behind* its authoritative holding point.
+    const start = position.clone().addScaledVector(direction, -coastDistance);
+    if (!departureObstruction(world, start, direction, coastDistance * 2 + 1000, horizon))
       return { position, orientation };
   }
   throw new Error('No clear arrival corridor was found.');

@@ -1,5 +1,6 @@
 import { Quaternion, Vector3 } from 'three';
 import {
+  EXIT_COAST_DISTANCE,
   entrySurge,
   HYPERSPACE_TIMING,
   type HyperspaceController,
@@ -10,9 +11,9 @@ import type { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { GAME_CONFIG } from '@/features/flight/config';
 
 export const JUMP_MOTION = GAME_CONFIG.hyperspace;
+export { EXIT_COAST_DISTANCE } from '@/engine/navigation/HyperspaceController';
+
 const exitDuration = HYPERSPACE_TIMING.EXITING;
-export const EXIT_COAST_DISTANCE =
-  exitDuration * (JUMP_MOTION.exitSpeed + (JUMP_MOTION.arrivalSpeed - JUMP_MOTION.exitSpeed) / 8);
 
 /** Bounded analytical cinematic poses. Hyperspeed never enters normal flight integration. */
 export class HyperspaceFlight {

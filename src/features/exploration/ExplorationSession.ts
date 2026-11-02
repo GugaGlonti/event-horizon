@@ -5,6 +5,7 @@ import {
   departureObstruction,
   routeArrival,
   travelDirection,
+  travelDistance,
 } from '@/engine/navigation/hyperspaceRoute';
 import { NavigationComputer } from '@/engine/navigation/NavigationComputer';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
@@ -139,11 +140,13 @@ export class ExplorationSession {
       return false;
     }
     const state = useExplorationStore.getState();
+    const destinationDefinition = SYSTEMS.find((system) => system.id === state.destinationId);
     if (
       !this.jump.request(
         this.world.definition.id,
         state.destinationId,
         SYSTEMS.map((system) => system.id),
+        destinationDefinition ? travelDistance(this.world.definition, destinationDefinition) : 0,
       )
     ) {
       useExplorationStore.setState({ error: this.jump.error ?? 'Hyperdrive is cooling down.' });

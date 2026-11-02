@@ -184,7 +184,7 @@ describe('exploration input integration', () => {
     session.exploration.selectDestination('vesper');
     session.exploration.beginJump();
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
-    for (let frame = 0; frame < 1200 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
+    for (let frame = 0; frame < 4000 && session.exploration.jump.phase !== 'COOLDOWN'; frame += 1)
       advance(1 / 120);
     expect(session.exploration.world.definition.id).toBe('vesper');
     const source = SYSTEMS.find((system) => system.id === 'solara');
@@ -209,7 +209,7 @@ describe('exploration input integration', () => {
     session.exploration.selectDestination('vesper');
     session.exploration.beginJump();
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
-    for (let frame = 0; frame < 1200 && session.exploration.jump.phase !== 'EXITING'; frame += 1)
+    for (let frame = 0; frame < 4000 && session.exploration.jump.phase !== 'EXITING'; frame += 1)
       session.advance(1 / 120);
     expect(session.exploration.world.definition.id).toBe('vesper');
     session.exploration.markArrivalReady('solara');

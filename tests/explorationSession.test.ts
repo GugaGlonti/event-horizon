@@ -62,7 +62,7 @@ describe('exploration transactions', () => {
       session.selectDestination(destination);
       expect(session.beginJump()).toBe(true);
       await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
-      tick(session, 15);
+      tick(session, session.jump.journeyDuration + HYPERSPACE_TIMING.COOLDOWN + 1);
       expect(session.world.definition.id).toBe(destination);
       expect(session.navigation.targetId).toBe(definition(destination).defaultTargetId);
       expect(session.jump.phase).toBe('IDLE');
@@ -87,7 +87,7 @@ describe('exploration transactions', () => {
     failing = false;
     expect(session.beginJump()).toBe(true);
     await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
-    tick(session, 10);
+    tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('vesper');
   });
 
@@ -127,7 +127,7 @@ describe('exploration transactions', () => {
     finish(definition('vesper'));
     await Promise.resolve();
     await Promise.resolve();
-    tick(session, 15);
+    tick(session, session.jump.journeyDuration + HYPERSPACE_TIMING.COOLDOWN + 1);
     expect(session.world.definition.id).toBe('solara');
     expect(session.jump.phase).toBe('IDLE');
     expect(events.onCommit).not.toHaveBeenCalled();
@@ -163,7 +163,7 @@ describe('exploration transactions', () => {
     finish(definition('vesper'));
     await Promise.resolve();
     await Promise.resolve();
-    tick(session, 10);
+    tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('solara');
     expect(events.onCommit).not.toHaveBeenCalled();
   });
@@ -180,7 +180,7 @@ describe('exploration transactions', () => {
     expect(session.jump.elapsed).toBe(elapsed);
     expect(session.jump.phase).toBe('CHARGING');
     session.resumeJourney();
-    tick(session, 10);
+    tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('vesper');
     expect(session.jump.busy).toBe(false);
   });
@@ -198,12 +198,12 @@ describe('exploration transactions', () => {
       session,
       HYPERSPACE_TIMING.CHARGING +
         HYPERSPACE_TIMING.ACCELERATING +
-        HYPERSPACE_TIMING.HYPERSPACE +
+        session.jump.duration('HYPERSPACE') +
         0.1,
     );
     expect(session.jump.phase).toBe('EXITING');
     session.cancelJump();
-    tick(session, 10);
+    tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('vesper');
     expect(session.jump.phase).toBe('IDLE');
     expect(events.onCommit).toHaveBeenCalledOnce();
@@ -251,7 +251,7 @@ describe('network-approved journey preparation', () => {
     expect(session.jump.elapsed).toBe(0);
     session.resumeJourney();
     await vi.waitFor(() => expect(session.jump.prepared).toBe(true));
-    tick(session, 12);
+    tick(session, session.jump.journeyDuration + 1);
     expect(session.world.definition.id).toBe('vesper');
   });
 });

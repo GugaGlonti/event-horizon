@@ -14,7 +14,7 @@ export const GAME_CONFIG = {
   },
   planetMarkers: { range: 300_000, limit: 3 },
   input: { mouseSensitivity: 0.003, mouseReturnRate: 2.8 },
-  hyperspace: { departureDistance: 5200, arrivalSpeed: 3200, exitSpeed: 100 },
+  hyperspace: HYPERSPACE_MOTION,
   camera: {
     chaseOffset: [0, 3.8, 15] as const,
     narrowScreenAspect: 0.9,
@@ -35,3 +35,5 @@ export const GAME_CONFIG = {
     starRadius: 18000,
   },
 } as const;
+
+import { HYPERSPACE_MOTION } from '@/engine/navigation/HyperspaceController';

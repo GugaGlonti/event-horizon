@@ -155,7 +155,7 @@ describe('flight presentation boundaries', () => {
     await vi.waitFor(() => expect(session.exploration.jump.prepared).toBe(true));
     const revision = session.resetVersion;
     let committed = false;
-    for (let frame = 0; frame < 1500; frame += 1) {
+    for (let frame = 0; frame < 4000; frame += 1) {
       const previous = session.exploration.jump.phase;
       const offset = camera.position.clone().sub(session.renderPosition);
       const fov = camera.fov;

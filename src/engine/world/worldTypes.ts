@@ -82,7 +82,7 @@ export interface StarSystemDefinition {
   readonly description: string;
   readonly civilization?: Civilization;
   readonly chartPosition: readonly [number, number];
-  /** Shared galactic axes: +Y up, -Z chart north. Used for jump headings, not local metres. */
+  /** Light years on shared galactic axes: +Y up, -Z chart north; never local metres. */
   readonly galacticPosition: Position3;
   readonly environment: {
     readonly background: string;

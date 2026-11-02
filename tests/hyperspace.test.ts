@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   HYPERSPACE_TIMING,
   HyperspaceController,
+  hyperspaceDuration,
   type JumpPhase,
 } from '@/engine/navigation/HyperspaceController';
 
@@ -10,6 +11,43 @@ function advance(jump: HyperspaceController, seconds: number) {
 }
 
 describe('hyperspace state machine', () => {
+  it('scales transit monotonically with distance and publishes honest progress and remaining time', () => {
+    const short = new HyperspaceController();
+    const long = new HyperspaceController();
+    short.request('solara', 'vesper', ['solara', 'vesper'], 10);
+    long.request('solara', 'vesper', ['solara', 'vesper'], 80);
+    expect(long.journeyDuration - short.journeyDuration).toBeCloseTo(70 * 0.12);
+    short.phase = long.phase = 'HYPERSPACE';
+    short.elapsed = short.duration('HYPERSPACE') / 2;
+    long.elapsed = short.elapsed;
+    expect(short.distanceTraveled).toBe(5);
+    expect(long.progress).toBeLessThan(short.progress);
+    const age = short.journeyElapsed;
+    short.advance(0.1);
+    expect(short.journeyElapsed - age).toBeCloseTo(0.1);
+    expect(short.distanceTraveled).toBeGreaterThan(5);
+    short.cancel();
+    expect(short.distanceTraveled).toBe(0);
+    expect(() => hyperspaceDuration(Infinity)).toThrow();
+    expect(() => hyperspaceDuration(-1)).toThrow();
+  });
+
+  it('does not time out an already prepared long journey and distinguishes an arrival hold', () => {
+    const jump = new HyperspaceController();
+    jump.request('solara', 'vesper', ['solara', 'vesper'], 150);
+    jump.prepared = true;
+    advance(jump, HYPERSPACE_TIMING.CHARGING + HYPERSPACE_TIMING.ACCELERATING + 13);
+    expect(jump.phase).toBe('HYPERSPACE');
+    expect(jump.waiting).toBe(false);
+    advance(jump, 10);
+    expect(jump.phase).toBe('EXITING');
+    expect(jump.waiting).toBe(true);
+    const elapsed = jump.journeyElapsed;
+    advance(jump, 1);
+    expect(jump.journeyElapsed).toBe(elapsed);
+    jump.arrivalReady = true;
+    expect(jump.waiting).toBe(false);
+  });
   it.each([null, 'solara', 'missing'])('rejects invalid destination %s', (destination) => {
     const jump = new HyperspaceController();
     expect(jump.request('solara', destination, ['solara', 'vesper'])).toBe(false);
