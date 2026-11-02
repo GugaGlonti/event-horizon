@@ -32,7 +32,7 @@ function until<T>(
 }
 async function join(name: string, systemId = 'solara', ticket?: string) {
   const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(ROOM_NAME, {
-    v: 4,
+    v: 5,
     name,
     systemId,
     instanceId: 'public',

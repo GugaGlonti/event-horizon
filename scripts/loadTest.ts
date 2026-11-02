@@ -1,6 +1,6 @@
 import { Client, type Room } from '@colyseus/sdk';
 import { neutralInput } from '@/engine/network/InputQueue';
-import { ROOM_NAME, type WorldSnapshot } from '@/engine/network/protocol';
+import { PROTOCOL_VERSION, ROOM_NAME, type WorldSnapshot } from '@/engine/network/protocol';
 import { serverConfig } from '../server/config';
 import { createGameServer } from '../server/createServer';
 import { placeVerificationPilots, verificationScenarios } from './planetaryFixtures';
@@ -30,7 +30,7 @@ try {
     for (let i = 0; i < count; i++) {
       const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(
         ROOM_NAME,
-        { v: 4, name: `Load-${i}`, systemId: 'solara', instanceId: 'public' },
+        { v: PROTOCOL_VERSION, name: `Load-${i}`, systemId: 'solara', instanceId: 'public' },
       );
       const receive = room.connection.events.onmessage;
       room.connection.events.onmessage = (event: { data: unknown }) => {

@@ -21,7 +21,7 @@ import { StationSimulation } from '@/engine/stations/StationSimulation';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
 import { InputQueue, neutralInput } from './InputQueue';
-import type { FlightState, ShipState, WorldSnapshot } from './protocol';
+import { type FlightState, PROTOCOL_VERSION, type ShipState, type WorldSnapshot } from './protocol';
 
 export interface Pilot {
   id: string;
@@ -360,7 +360,7 @@ export class MultiplayerWorld {
     const nearby = (position: Vector3) =>
       position.distanceToSquared(pilot.ship.position) <= relevance ** 2;
     return {
-      v: 4,
+      v: PROTOCOL_VERSION,
       tick: this.tick,
       time: this.time,
       systemId: this.system.definition.id,

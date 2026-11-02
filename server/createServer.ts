@@ -8,6 +8,7 @@ import {
   actionSchema,
   type JoinOptions,
   joinSchema,
+  PROTOCOL_VERSION,
   ROOM_NAME,
   type TravelPermit,
 } from '@/engine/network/protocol';
@@ -116,7 +117,7 @@ export class StarSystemRoom extends Room {
   }
   private sendWelcome(client: Client, id: string) {
     client.send('welcome', {
-      v: 4,
+      v: PROTOCOL_VERSION,
       playerId: id,
       systemId: this.world.system.definition.id,
       instanceId: this.world.instanceId,
