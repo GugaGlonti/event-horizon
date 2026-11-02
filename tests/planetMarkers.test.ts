@@ -10,9 +10,16 @@ function setup(width = 1440, height = 900, limit: number = GAME_CONFIG.planetMar
   if (!definition) throw new Error('Missing fixture.');
   const world = new SystemRuntime({
     ...definition,
+    stations: definition.stations?.filter((station) => station.type !== 'surface'),
     bodies: definition.bodies.map((body) => {
       const { atmosphere: _atmosphere, ...rest } = body;
-      return { ...rest, radius: body.radius / (body.kind === 'star' ? 800 : 300), landable: false };
+      return {
+        ...rest,
+        radius: body.radius / (body.kind === 'star' ? 800 : 300),
+        landable: false,
+        settlements: [],
+        civilization: 'UNINHABITED' as const,
+      };
     }),
     spawns: definition.spawns.map((spawn) => ({ ...spawn, offset: [0, 0, 1900] })),
   } as typeof definition);

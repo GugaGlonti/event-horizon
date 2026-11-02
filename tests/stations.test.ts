@@ -26,7 +26,9 @@ function fixture(system = 'solara') {
 }
 describe('authoritative station operations', () => {
   it('defines original large orbital and compact industrial facilities', () => {
-    expect(SYSTEMS.flatMap((s) => s.stations ?? [])).toHaveLength(2);
+    expect(
+      SYSTEMS.flatMap((s) => s.stations ?? []).filter((s) => s.type !== 'surface'),
+    ).toHaveLength(8);
     expect(fixture().station.ports.some((p) => p.kind === 'hangar')).toBe(true);
     expect(fixture('vesper').station.type).toBe('industrial');
   });
@@ -120,7 +122,13 @@ import { SystemRuntime } from '@/engine/world/SystemRuntime';
 it('measures approach speed in the moving station frame', () => {
   const f = fixture();
   const moving = { ...f.station, orbit: { radius: 300, period: 1200, phase: 0, inclination: 0 } };
-  const system = new SystemRuntime({ ...f.world.system.definition, stations: [moving] });
+  const system = new SystemRuntime({
+    ...f.world.system.definition,
+    stations: [
+      ...(f.world.system.definition.stations ?? []).filter((s) => s.id !== moving.id),
+      moving,
+    ],
+  });
   const operations = new StationSimulation(system, f.world.simulation.ships),
     pose = portPose(system, moving, f.port);
   f.move('a', pose.approach);

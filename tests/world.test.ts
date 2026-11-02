@@ -15,8 +15,8 @@ function required<T>(value: T | undefined): T {
 const solara = () => structuredClone(SYSTEMS[0]) as StarSystemDefinition;
 
 describe('star system definitions', () => {
-  it('validates three serializable handcrafted systems with stars, planets and moons', () => {
-    expect(SYSTEMS).toHaveLength(3);
+  it('validates ten serializable distinct systems with stars, planets and moons', () => {
+    expect(SYSTEMS).toHaveLength(10);
     expect(() => validateCatalog(JSON.parse(JSON.stringify(SYSTEMS)))).not.toThrow();
     for (const system of SYSTEMS) {
       expect(system.bodies.filter((body) => body.kind === 'moon').length).toBeGreaterThanOrEqual(2);

@@ -1,4 +1,10 @@
 import { z } from 'zod';
+import { SYSTEMS } from '@/engine/world/systems';
+
+const systemIdSchema = z
+  .string()
+  .refine((value) => SYSTEMS.some((system) => system.id === value), 'Unknown star system.');
+
 import type { CombatEvent } from '@/engine/combat/combatTypes';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { DockingState } from '@/engine/stations/stationTypes';
@@ -15,7 +21,7 @@ export const joinSchema = z.strictObject({
     .min(1)
     .max(24)
     .regex(/^[\p{L}\p{N} _-]+$/u),
-  systemId: z.enum(['solara', 'vesper', 'aether']),
+  systemId: systemIdSchema,
   instanceId: z.literal('public').default('public'),
   ticket: z.string().uuid().optional(),
 });
@@ -54,7 +60,7 @@ export const actionSchema = z.discriminatedUnion('kind', [
   ...gameplayActionSchemas,
   z.strictObject({
     kind: z.literal('travel'),
-    destination: z.enum(['solara', 'vesper', 'aether']),
+    destination: systemIdSchema,
   }),
   z.strictObject({ kind: z.literal('cancel-travel') }),
   z.strictObject({ kind: z.literal('ready') }),
@@ -69,6 +75,7 @@ export type FlightState = ReturnType<FlightController['snapshot']>;
 export interface ShipState {
   id: string;
   name: string;
+  /** Friendly hull archetype, including ambient couriers; snapshot.players counts guests. */
   player: boolean;
   stationary: boolean;
   flight: FlightState;
@@ -313,7 +320,7 @@ export const welcomeSchema: z.ZodType<Welcome> = z.strictObject({
   tickRate: scalar.min(10).max(60),
 });
 export const travelSchema: z.ZodType<TravelPermit> = z.strictObject({
-  destination: z.enum(['solara', 'vesper', 'aether']),
+  destination: systemIdSchema,
   ticket: z.string().uuid(),
   expiresIn: scalar,
 });

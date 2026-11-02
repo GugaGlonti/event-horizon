@@ -1,4 +1,6 @@
 import { SOLARA_STATION, VESPER_STATION } from '@/engine/stations/stations';
+import { EXPANDED_SYSTEMS } from '@/engine/world/expandedSystems';
+import { populateSystem } from '@/engine/world/planetProfiles';
 import { validateCatalog } from '@/engine/world/validateSystem';
 import type {
   CelestialDefinition,
@@ -90,7 +92,7 @@ function moon(
   };
 }
 
-export const SYSTEMS: readonly StarSystemDefinition[] = [
+const originalSystems: readonly StarSystemDefinition[] = [
   {
     id: 'solara',
     stations: [SOLARA_STATION],
@@ -307,6 +309,11 @@ export const SYSTEMS: readonly StarSystemDefinition[] = [
     defaultTargetId: 'serein',
   },
 ];
+
+export const SYSTEMS: readonly StarSystemDefinition[] = [
+  ...originalSystems,
+  ...EXPANDED_SYSTEMS,
+].map(populateSystem);
 
 validateCatalog(SYSTEMS);
 
