@@ -1,4 +1,4 @@
-import { createFlightInput } from '@/engine/simulation/flightTypes';
+import { createFlightInput, type FlightMode } from '@/engine/simulation/flightTypes';
 import { inputSchema, type NetworkInput } from './protocol';
 
 export function neutralInput(seq = 0): NetworkInput {
@@ -9,7 +9,7 @@ export function neutralInput(seq = 0): NetworkInput {
     weapon: 1,
     targetId: null,
     paused: true,
-    assistance: true,
+    flightMode: 'combat',
   };
 }
 /** One command per fixed tick; packet arrival never advances physics. */
@@ -52,14 +52,14 @@ export class InputQueue {
     if (this.idle > 0.25 || this.current.paused)
       return {
         ...neutralInput(this.ack),
-        assistance: this.current.assistance,
+        flightMode: this.current.flightMode,
         weapon: this.current.weapon,
       };
     return this.current;
   }
-  clear() {
+  clear(flightMode: FlightMode = this.current.flightMode) {
     this.queue.length = 0;
-    this.current = neutralInput(this.ack);
+    this.current = { ...neutralInput(this.ack), flightMode };
     this.newest = this.ack;
     this.idle = 1;
   }

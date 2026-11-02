@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { InputMode } from '@/engine/input/FlightInputManager';
-import type { FlightTelemetry } from '@/engine/simulation/flightTypes';
+import type { FlightMode, FlightTelemetry } from '@/engine/simulation/flightTypes';
 import { getSpeedTrend, type SpeedTrend } from '@/features/flight/flightInstruments';
 
 export type CameraMode = 'chase' | 'cockpit';
@@ -10,7 +10,7 @@ interface FlightState {
   phase: FlightPhase;
   inputMode: InputMode | null;
   cameraMode: CameraMode;
-  assistance: boolean;
+  flightMode: FlightMode;
   engineSound: boolean;
   rendererReady: boolean;
   notice: string | null;
@@ -18,7 +18,7 @@ interface FlightState {
   speedTrend: SpeedTrend;
   setInputMode: (mode: InputMode | null) => void;
   toggleCamera: () => void;
-  toggleAssistance: () => void;
+  setFlightMode: (mode: FlightMode) => void;
   setRendererReady: (ready: boolean) => void;
   setNotice: (notice: string) => void;
   publishTelemetry: (telemetry: FlightTelemetry, seconds?: number) => void;
@@ -28,7 +28,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
   phase: 'ready',
   inputMode: null,
   cameraMode: 'chase',
-  assistance: true,
+  flightMode: 'combat',
   engineSound: true,
   rendererReady: false,
   notice: null,
@@ -53,7 +53,7 @@ export const useFlightStore = create<FlightState>()((set) => ({
     })),
   toggleCamera: () =>
     set((state) => ({ cameraMode: state.cameraMode === 'chase' ? 'cockpit' : 'chase' })),
-  toggleAssistance: () => set((state) => ({ assistance: !state.assistance })),
+  setFlightMode: (flightMode) => set({ flightMode }),
   setRendererReady: (rendererReady) => set({ rendererReady }),
   setNotice: (notice) => set({ notice }),
   publishTelemetry: (telemetry, seconds = 0) =>

@@ -3,6 +3,7 @@ import type { CombatShip } from './combatTypes';
 
 /** A selected hostile must be alive, in range and within the forward acquisition cone. */
 export function missileCanLock(ship: CombatShip, target: CombatShip | undefined) {
+  if (!ship.controller.weaponsEnabled) return false;
   if (!target || (target.team === ship.team && ship.team !== 'player') || target.health.destroyed)
     return false;
   const offset = new Vector3().subVectors(target.position, ship.position);

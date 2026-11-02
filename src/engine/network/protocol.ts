@@ -9,7 +9,7 @@ import type { CombatEvent } from '@/engine/combat/combatTypes';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { DockingState } from '@/engine/stations/stationTypes';
 
-export const PROTOCOL_VERSION = 5;
+export const PROTOCOL_VERSION = 6;
 export const ROOM_NAME = 'star-system';
 const axis = z.number().finite().min(-1).max(1);
 const id = z.string().min(1).max(80);
@@ -43,11 +43,10 @@ export const inputSchema = z.strictObject({
   weapon: z.union([z.literal(1), z.literal(2), z.literal(3), z.literal(4)]),
   targetId: id.nullable(),
   paused: z.boolean(),
-  assistance: z.boolean(),
+  flightMode: z.enum(['travel', 'combat']),
 });
 export const gameplayActionSchemas = [
   z.strictObject({ kind: z.literal('landing-gear'), enabled: z.boolean() }),
-  z.strictObject({ kind: z.literal('transit'), enabled: z.boolean() }),
   z.strictObject({ kind: z.literal('landing-assist'), zoneId: id.nullable() }),
   z.strictObject({ kind: z.literal('takeoff') }),
   z.strictObject({ kind: z.literal('dock'), stationId: id, portId: id.optional() }),
@@ -179,6 +178,8 @@ const flightStateSchema = z.strictObject({
   boostExhausted: z.boolean(),
   boosting: z.boolean(),
   assistance: z.boolean(),
+  flightMode: z.enum(['travel', 'combat']),
+  trafficClearance: scalar.min(0).max(100000),
   distance: scalar,
   surface: z.strictObject({
     phase: z.enum(['flying', 'approaching', 'landing', 'landed', 'taking-off']),

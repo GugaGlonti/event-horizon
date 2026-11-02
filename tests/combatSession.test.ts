@@ -49,6 +49,21 @@ afterEach(() => {
 });
 
 describe('integrated combat lifecycle', () => {
+  it('shows powered-down target shields as offline while preserving their stored charge', () => {
+    session.startEncounter(true);
+    const simulation = session.combat.simulation;
+    const contact = simulation.targetId && simulation.ships.get(simulation.targetId);
+    if (!contact) throw new Error('Practice contact');
+    const charge = contact.health.shields;
+    contact.controller.setFlightMode('travel');
+    session.combat.publish();
+    expect(useCombatStore.getState().readout.target?.shields).toBe(0);
+    expect(contact.health.shields).toBe(charge);
+    contact.controller.setFlightMode('combat');
+    session.combat.publish();
+    expect(useCombatStore.getState().readout.target?.shields).toBe(1);
+  });
+
   it('honors Escape with a HUD or map button focused while preserving Tab focus navigation', () => {
     const buttonKey = (code: string) => {
       const event = Object.assign(new Event('keydown', { cancelable: true }), { code });

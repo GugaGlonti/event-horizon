@@ -423,6 +423,7 @@ describe('flak scattergun', () => {
     const command = { ...idle, weapon: 4 as const, fire: true };
     for (let index = 0; index < 16; index++) {
       world.player.cooldown = 0;
+      world.player.controller.restore({ ...world.player.controller.snapshot(), boostCharge: 1 });
       world.step(command, dt);
     }
     expect(world.projectiles).toHaveLength(192);

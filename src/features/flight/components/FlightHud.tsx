@@ -71,10 +71,9 @@ export function FlightHud({ session }: { session: FlightSession }) {
   const speedTrend = useFlightStore((state) => state.speedTrend);
   const phase = useFlightStore((state) => state.phase);
   const cameraMode = useFlightStore((state) => state.cameraMode);
-  const assistance = useFlightStore((state) => state.assistance);
+  const flightMode = useFlightStore((state) => state.flightMode);
   const inputMode = useFlightStore((state) => state.inputMode);
   const toggleCamera = useFlightStore((state) => state.toggleCamera);
-  const toggleAssistance = useFlightStore((state) => state.toggleAssistance);
   const ready = useFlightStore((state) => state.rendererReady);
   const systemId = useExplorationStore((state) => state.systemId);
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
@@ -232,11 +231,11 @@ export function FlightHud({ session }: { session: FlightSession }) {
               <div className="flex max-w-56 justify-between gap-2 text-[10px] text-phosphor-dim short-mobile:hidden">
                 <span>
                   {travelMode === 'surface'
-                    ? 'SURFACE COAST'
+                    ? 'COAST'
                     : travelMode === 'transit'
                       ? altitude < 60000
-                        ? 'APPROACH'
-                        : 'TRANSIT'
+                        ? 'AUTO APPROACH'
+                        : 'TRAVEL'
                       : `CRS ${FLIGHT_CONFIG.maxSpeed}`}
                 </span>
                 <span>
@@ -265,7 +264,7 @@ export function FlightHud({ session }: { session: FlightSession }) {
               <div className="space-y-4">
                 <Meter label="THROTTLE" value={telemetry.throttle} />
                 <Meter
-                  label="BOOST"
+                  label={flightMode === 'combat' ? 'ENERGY' : 'ENERGY / STANDBY'}
                   value={telemetry.boostCharge}
                   amber={telemetry.boosting}
                   compact
@@ -281,14 +280,12 @@ export function FlightHud({ session }: { session: FlightSession }) {
                 <dl className="space-y-3 text-[10px]">
                   <div>
                     <dt className="text-phosphor-dim">STABILIZER</dt>
-                    <dd className={assistance ? 'text-phosphor' : 'text-instrument'}>
-                      {assistance ? 'ENGAGED' : 'MANUAL'}
-                    </dd>
+                    <dd>ENGAGED</dd>
                   </div>
                   <div>
-                    <dt className="text-phosphor-dim">BOOST</dt>
+                    <dt className="text-phosphor-dim">FLIGHT MODE</dt>
                     <dd className={telemetry.boosting ? 'text-instrument' : 'text-phosphor'}>
-                      {telemetry.boosting ? 'ACTIVE' : telemetry.boostReady ? 'READY' : 'RECHARGE'}
+                      {flightMode.toUpperCase()}
                     </dd>
                   </div>
                 </dl>
@@ -338,13 +335,14 @@ export function FlightHud({ session }: { session: FlightSession }) {
             </button>
             <button
               type="button"
-              aria-label="Flight assistance"
-              title="Stabilization and gravity compensation. Travel mode controls speed."
-              aria-pressed={assistance}
-              onClick={toggleAssistance}
+              aria-label="Switch Travel or Combat mode"
+              title="Both modes are stabilized. Travel: fast, weapons and shields off. Combat: armed, uses energy."
+              aria-pressed={flightMode === 'combat'}
+              onClick={session.toggleFlightMode}
+              disabled={!active}
               className="cursor-pointer border-l border-line px-2 py-2 hover:text-instrument focus-visible:outline-2 focus-visible:outline-focus"
             >
-              <kbd className="text-instrument">F</kbd> / STAB {assistance ? 'ON' : 'OFF'}
+              <kbd className="text-instrument">F</kbd> / {flightMode}
             </button>
           </div>
         )}
@@ -359,13 +357,14 @@ export function FlightHud({ session }: { session: FlightSession }) {
         zero. Left mouse or Space fires the selected weapon. 1 selects the gun, 2 homing missiles, 3
         the railgun, and 4 the flak scattergun. Hold Space to charge the railgun. A/D strafe, R/V
         move up/down. G selects the nearest hostile ahead, H clears it, N or Tab cycles hostiles. B
-        starts a patrol encounter. Use Shift with W for boost, C for camera, F for assistance, and
-        Escape to pause. M opens the galaxy map; L opens the local system map; Y opens the planetary
-        map. T cycles navigation targets; X clears the target. K toggles landing gear. U takes off
-        or undocks. P requests or captures docking; I cancels clearance. O toggles space transit and
-        planetary approach. J assists landing at the selected zone; manual input cancels. V/R use
-        planet-relative descent/lift near landable worlds; release to coast, S to brake or W for
-        normal flight. F controls stabilization, independently of travel-mode speed limits. Maps
+        starts a patrol encounter. Use Shift with W for boost, C for camera, F for Travel or Combat
+        mode, and Escape to pause. M opens the galaxy map; L opens the local system map; Y opens the
+        planetary map. T cycles navigation targets; X clears the target. K toggles landing gear. U
+        takes off or undocks. P requests or captures docking; I cancels clearance. Travel
+        automatically adjusts speed for planetary approach. J assists landing at the selected zone;
+        manual input cancels. V/R use planet-relative descent/lift near landable worlds; release to
+        coast, S to brake or W for normal flight. Both flight modes stay stabilized. Travel powers
+        down weapons and shields. Combat uses shared energy for weapons, shields and boost. Maps
         pause offline flight. Controls are available in the flight briefing.
       </p>
       <FlightMenu session={session} />

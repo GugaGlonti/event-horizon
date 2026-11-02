@@ -141,7 +141,6 @@ export class StarSystemRoom extends Room {
     if (!pilot) return;
     switch (action.data.kind) {
       case 'landing-gear':
-      case 'transit':
       case 'landing-assist':
       case 'takeoff':
       case 'dock':

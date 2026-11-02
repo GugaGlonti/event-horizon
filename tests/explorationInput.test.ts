@@ -54,6 +54,20 @@ afterEach(() => {
 });
 
 describe('exploration input integration', () => {
+  it('toggles stabilized Travel/Combat on F and clears held fire across both switches', () => {
+    key('Space');
+    key('KeyF');
+    expect(useFlightStore.getState().flightMode).toBe('travel');
+    expect(session.controller.snapshot().assistance).toBe(true);
+    key('KeyF');
+    expect(useFlightStore.getState().flightMode).toBe('combat');
+    advance(0.2);
+    expect(session.combat.simulation.events.some((event) => event.kind === 'fired')).toBe(false);
+    key('Space');
+    advance(0.2);
+    expect(session.combat.simulation.events.some((event) => event.kind === 'fired')).toBe(true);
+  });
+
   it.each([
     ['KeyM', 'galaxy'],
     ['KeyL', 'local'],

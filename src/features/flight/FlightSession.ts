@@ -244,7 +244,7 @@ export class FlightSession {
           useFlightStore.getState().setInputMode(mode);
         },
         onCamera: store.toggleCamera,
-        onAssistance: store.toggleAssistance,
+        onFlightMode: this.toggleFlightMode,
         onWeapon: (slot) => this.combat.selectWeapon(slot),
         onError: store.setNotice,
       },
@@ -287,7 +287,7 @@ export class FlightSession {
       (event.target as HTMLElement | null)?.isContentEditable
     )
       return;
-    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyO', 'KeyJ'].includes(event.code)) {
+    if (['KeyK', 'KeyU', 'KeyP', 'KeyI', 'KeyJ'].includes(event.code)) {
       if (
         useFlightStore.getState().phase !== 'flying' ||
         this.exploration.jump.busy ||
@@ -299,8 +299,6 @@ export class FlightSession {
         this.shipAction({ kind: 'landing-gear', enabled: !this.controller.landingGear });
       if (event.code === 'KeyU')
         this.shipAction({ kind: this.stationReadout.phase === 'docked' ? 'undock' : 'takeoff' });
-      if (event.code === 'KeyO')
-        this.shipAction({ kind: 'transit', enabled: !this.controller.transit });
       if (event.code === 'KeyI') this.shipAction({ kind: 'cancel-docking' });
       if (event.code === 'KeyP') this.requestDocking();
       if (event.code === 'KeyJ') this.toggleLandingAssist();
@@ -318,6 +316,7 @@ export class FlightSession {
       event.preventDefault();
       if (event.code === 'KeyB') this.startEncounter();
       else {
+        if (this.controller.flightMode !== 'combat') return;
         if (event.code === 'KeyG') this.combat.simulation.targetAhead();
         else if (event.code === 'KeyH') this.combat.simulation.clearTarget();
         else this.combat.simulation.cycleTarget();
@@ -439,7 +438,7 @@ export class FlightSession {
     this.exploration.cancelJump();
     this.exploration.closeMap();
     this.controller.reset();
-    this.controller.setAssistance(useFlightStore.getState().assistance);
+    this.controller.setFlightMode(useFlightStore.getState().flightMode);
     this.arrive(this.exploration.world);
     this.combat.reset(this.exploration.world);
     this.exploration.syncPose(this.position, this.orientation);
@@ -491,6 +490,18 @@ export class FlightSession {
     if (['approaching', 'aligning'].includes(docking.phase)) this.shipAction({ kind: 'capture' });
     else if (docking.stationId) this.shipAction({ kind: 'dock', stationId: docking.stationId });
   };
+  toggleFlightMode = () => {
+    if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
+    this.cancelLandingAssistance();
+    const mode = useFlightStore.getState().flightMode === 'combat' ? 'travel' : 'combat';
+    useFlightStore.getState().setFlightMode(mode);
+    this.controller.setFlightMode(mode);
+    this.manager?.clearFire();
+    this.combat.cancelWeaponCharge();
+    if (mode === 'travel') this.combat.simulation.clearTarget();
+    this.combat.publish();
+    this.publishPlanetary();
+  };
   toggleLandingAssist = () => {
     if (!this.controller.landingAssist && !this.exploration.navigation.targetId) {
       useFlightStore.getState().setNotice('Select a landing zone first.');
@@ -503,6 +514,7 @@ export class FlightSession {
   };
   startEncounter = (practice = false) => {
     if (this.exploration.jump.busy || this.combat.simulation.player.health.destroyed) return;
+    if (this.controller.flightMode !== 'combat') this.toggleFlightMode();
     if (this.multiplayer.enabled) this.multiplayer.network.action({ kind: 'encounter', practice });
     else this.combat.startEncounter(practice);
   };
@@ -533,7 +545,7 @@ export class FlightSession {
     }
     this.previousPosition.copy(this.currentPosition);
     this.previousOrientation.copy(this.currentOrientation);
-    this.controller.setAssistance(useFlightStore.getState().assistance);
+    this.controller.setFlightMode(useFlightStore.getState().flightMode);
     this.exploration.advanceWorld(dt);
     this.combat.step(this.input, this.manager?.firing ?? false, dt);
     if (this.combat.simulation.player.health.destroyed) {
@@ -553,7 +565,7 @@ export class FlightSession {
         this.input,
         this.manager?.firing ?? false,
         !flying,
-        state.assistance,
+        state.flightMode,
       );
       if (!this.exploration.jump.busy) {
         this.multiplayer.present(this.position, this.orientation);

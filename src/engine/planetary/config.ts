@@ -22,7 +22,7 @@ export interface PlanetaryFlightConfig {
   readonly landingVerticalSpeed: number;
   readonly landingGroundSpeed: number;
 }
-/** Shared authority/prediction tuning. F disables gravity compensation and gear leveling. */
+/** Shared authority/prediction tuning. Both flight modes retain gravity compensation and gear leveling. */
 export const PLANETARY_FLIGHT_CONFIG: Readonly<PlanetaryFlightConfig> = Object.freeze({
   gravityCompensation: 0.9,
   drag: 0.12,

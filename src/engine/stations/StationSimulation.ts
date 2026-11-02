@@ -54,7 +54,7 @@ export class StationSimulation {
       stationId: station.id,
       portId: port.id,
     });
-    ship.controller.transit = false;
+    ship.controller.travelMode = 'normal';
     ship.controller.landingAssist = null;
     return null;
   }

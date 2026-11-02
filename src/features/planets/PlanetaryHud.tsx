@@ -52,15 +52,15 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
             </p>
           )}
           <dl className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1">
-            <dt className="text-phosphor-dim">SPEED MODE</dt>
+            <dt className="text-phosphor-dim">HANDLING</dt>
             <dd>
               {planet.landingAssist
                 ? 'LAND ASSIST'
                 : planet.travelMode === 'surface'
-                  ? 'SURFACE COAST'
+                  ? 'COAST'
                   : planet.transit
-                    ? 'APPROACH'
-                    : 'NORMAL'}
+                    ? 'AUTO APPROACH'
+                    : 'COMBAT'}
             </dd>
             <dt className="text-phosphor-dim">ALT / AGL</dt>
             <dd>{formatDistance(Math.max(0, planet.altitude - 5))}</dd>
@@ -249,14 +249,6 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
           </output>
         </div>
       )}
-      <InstrumentButton
-        variant="hud"
-        className="mt-3"
-        aria-pressed={planet?.transit ?? false}
-        onClick={() => session.shipAction({ kind: 'transit', enabled: !planet?.transit })}
-      >
-        O / {surface ? 'Approach' : 'Transit'} {planet?.transit ? 'ON' : 'OFF'}
-      </InstrumentButton>
     </section>
   );
 }

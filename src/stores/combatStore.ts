@@ -10,6 +10,8 @@ export interface TargetReadout {
   readonly state: AiState | 'practice' | 'pvp';
 }
 export interface CombatReadout {
+  readonly shieldsEnabled: boolean;
+  readonly weaponsEnabled: boolean;
   readonly weapon: WeaponSlot;
   readonly weaponCooldown: number;
   readonly weaponCharge: number;
@@ -42,6 +44,8 @@ interface CombatState {
 }
 export const useCombatStore = create<CombatState>()(() => ({
   readout: {
+    shieldsEnabled: true,
+    weaponsEnabled: true,
     weapon: 1,
     weaponCooldown: 0,
     weaponCharge: 0,

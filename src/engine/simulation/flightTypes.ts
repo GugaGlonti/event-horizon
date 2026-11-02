@@ -1,4 +1,6 @@
 /** Metres, seconds, radians. Local forward is -Z, up is +Y, right is +X. */
+export type FlightMode = 'travel' | 'combat';
+/** Automatic handling state, never an additional player-selected flight mode. */
 export type TravelMode = 'normal' | 'transit' | 'surface';
 
 export interface FlightInput {

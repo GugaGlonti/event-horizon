@@ -65,7 +65,7 @@ describe('multiplayer browser adapter without WebGL', () => {
     const { session, combat, input, receive } = setup();
     combat.selectWeapon(3);
     receive();
-    session.advance(1 / 30, input, true, false, true);
+    session.advance(1 / 30, input, true, false, 'combat');
     expect(transport.sent.at(-1)?.weapon).toBe(3);
     expect(combat.simulation.player.weapon).toBe(3);
   });
@@ -92,7 +92,7 @@ describe('multiplayer browser adapter without WebGL', () => {
     const step = vi.spyOn(combat.simulation, 'step'),
       publish = vi.spyOn(combat, 'publish');
     for (let frame = 0; frame < 60; frame++) {
-      session.advance(1 / 60, input, true, false, true);
+      session.advance(1 / 60, input, true, false, 'combat');
       if (frame % 3 === 0) receive();
     }
     expect(step).not.toHaveBeenCalled();

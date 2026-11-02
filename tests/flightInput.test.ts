@@ -12,7 +12,7 @@ describe('flight input lifecycle', () => {
   let target: HTMLElement;
   const onMode = vi.fn();
   const onCamera = vi.fn();
-  const onAssistance = vi.fn();
+  const onFlightMode = vi.fn();
   const onWeapon = vi.fn();
   const onError = vi.fn();
 
@@ -44,7 +44,7 @@ describe('flight input lifecycle', () => {
     vi.stubGlobal('document', doc);
     manager = new FlightInputManager(
       target,
-      { onMode, onCamera, onAssistance, onWeapon, onError },
+      { onMode, onCamera, onFlightMode, onWeapon, onError },
       0.003,
       2.8,
     );
@@ -195,7 +195,7 @@ describe('flight input lifecycle', () => {
     expect(manager.firing).toBe(false);
   });
 
-  it('handles simultaneous controls and does not repeat camera/assistance toggles', () => {
+  it('handles simultaneous controls and does not repeat camera/flight-mode toggles', () => {
     manager.startKeyboard();
     key('keydown', 'KeyW');
     key('keydown', 'ArrowUp');
@@ -213,7 +213,7 @@ describe('flight input lifecycle', () => {
     key('keydown', 'KeyC', true);
     key('keydown', 'KeyF');
     expect(onCamera).toHaveBeenCalledTimes(1);
-    expect(onAssistance).toHaveBeenCalledTimes(1);
+    expect(onFlightMode).toHaveBeenCalledTimes(1);
     key('keyup', 'KeyW');
     expect(manager.sample(0.01).throttle).toBe(0);
   });

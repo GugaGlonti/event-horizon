@@ -139,6 +139,7 @@ export class MultiplayerWorld {
       travelCooldown: sourceId ? 5 : 0,
     };
     this.pilots.set(id, pilot);
+    pilot.inputs.clear(ship.controller.flightMode);
     this.simulation.ships.set(id, ship);
     return pilot;
   }
@@ -257,11 +258,13 @@ export class MultiplayerWorld {
       const input = pilot.inputs.step(dt),
         ship = pilot.ship;
       const active = pilot.connected && !ship.transferring && !ship.health.destroyed;
-      const command = active ? input : neutralInput();
+      const command = active
+        ? input
+        : { ...neutralInput(), flightMode: ship.controller.flightMode };
       if (command.paused) ship.controller.landingAssist = null;
       if (!input.paused && pilot.connected && !ship.health.destroyed) hasActive = true;
-      ship.controller.setAssistance(command.assistance);
-      ship.targetId = command.targetId;
+      ship.controller.setFlightMode(command.flightMode);
+      ship.targetId = command.flightMode === 'combat' ? command.targetId : null;
       const target = ship.targetId && this.simulation.ships.get(ship.targetId);
       if (
         !target ||

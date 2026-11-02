@@ -81,7 +81,7 @@ describe('surface revision and preserved chart', () => {
         expect(station.ports).toEqual(previous.ports);
       }
     }
-    expect(PROTOCOL_VERSION).toBe(5);
+    expect(PROTOCOL_VERSION).toBe(6);
     expect(joinSchema.safeParse({ v: 4, name: 'Old client', systemId: 'solara' }).success).toBe(
       false,
     );

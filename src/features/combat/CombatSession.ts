@@ -5,6 +5,7 @@ import { Encounter } from '@/engine/combat/Encounter';
 import { encounterSpace } from '@/engine/combat/encounterSpace';
 import { missileCanLock } from '@/engine/combat/weapons';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import { FLIGHT_MODE_CONFIG } from '@/engine/simulation/config';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { FlightInput } from '@/engine/simulation/flightTypes';
 import { AmbientTraffic } from '@/engine/stations/AmbientTraffic';
@@ -86,7 +87,11 @@ export class CombatSession {
   }
 
   selectWeapon(slot: WeaponSlot) {
-    if (this.simulation.player.health.destroyed) return;
+    if (
+      this.simulation.player.health.destroyed ||
+      this.simulation.player.controller.flightMode !== 'combat'
+    )
+      return;
     if (this.simulation.player.weapon !== slot) this.simulation.player.railgunCharge = 0;
     this.command.weapon = slot;
     this.simulation.player.weapon = slot;
@@ -253,13 +258,18 @@ export class CombatSession {
     useCombatStore.setState({
       readout: {
         weapon: player.weapon,
+        shieldsEnabled: player.controller.shieldsEnabled,
+        weaponsEnabled:
+          player.controller.weaponsEnabled &&
+          player.controller.energyReserve >= FLIGHT_MODE_CONFIG.weaponCost[player.weapon],
         weaponCooldown: player.cooldown,
         heat: player.heat,
         overheated: player.overheated,
         damage: player.hitFlash / 0.3,
         reinforcements: this.encounter.nextRespawn,
         weaponCharge: player.railgunCharge / player.config.railgun.chargeTime,
-        missileLocked: missileCanLock(player, target ?? undefined),
+        missileLocked:
+          player.controller.weaponsEnabled && missileCanLock(player, target ?? undefined),
         shields: player.health.shields / player.config.defense.shields,
         hull: player.health.hull / player.config.defense.hull,
         dead: player.health.destroyed,
@@ -274,7 +284,9 @@ export class CombatSession {
                 this.targetNames?.get(target.id) ??
                 `${target.config.name} ${target.id.split(':').at(-1)}`,
               distance: target.position.distanceTo(player.position),
-              shields: target.health.shields / Math.max(1, target.config.defense.shields),
+              shields: target.controller.shieldsEnabled
+                ? target.health.shields / Math.max(1, target.config.defense.shields)
+                : 0,
               hull: target.health.hull / target.config.defense.hull,
               state:
                 target.team === 'player' ? 'pvp' : target.stationary ? 'practice' : target.aiState,

@@ -23,30 +23,32 @@ export class ShipHealth {
     return this.hull <= 0;
   }
 
-  damage(amount: number) {
+  damage(amount: number, shieldsEnabled = true) {
     if (!Number.isFinite(amount) || amount <= 0 || this.destroyed || this.invulnerability > 0)
       return false;
-    const absorbed = Math.min(this.shields, amount);
+    const absorbed = shieldsEnabled ? Math.min(this.shields, amount) : 0;
     this.shields -= absorbed;
     this.hull = Math.max(0, this.hull - (amount - absorbed));
     this.sinceDamage = 0;
     return true;
   }
 
-  step(dt: number) {
+  step(dt: number, shieldsEnabled = true, regenerationBudget = Infinity) {
     this.invulnerability = Math.max(0, this.invulnerability - dt);
     const before = this.sinceDamage;
     this.sinceDamage += dt;
-    if (!this.destroyed) {
+    const shields = this.shields;
+    if (!this.destroyed && shieldsEnabled) {
       const regenerationTime = Math.max(
         0,
         this.sinceDamage - Math.max(before, this.config.regenerationDelay),
       );
       this.shields = Math.min(
         this.config.shields,
-        this.shields + this.config.regeneration * regenerationTime,
+        this.shields + Math.min(regenerationBudget, this.config.regeneration * regenerationTime),
       );
     }
+    return this.shields - shields;
   }
 }
 

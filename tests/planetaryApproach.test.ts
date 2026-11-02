@@ -27,6 +27,7 @@ function fixture(altitude: number) {
   const up = surfaceDirection(zone.latitude, zone.longitude),
     point = center.clone().addScaledVector(up, body.radius + zone.elevation + altitude);
   const controller = new FlightController(FLIGHT_CONFIG);
+  controller.setFlightMode('travel');
   controller.environment = new PlanetaryEnvironment(world);
   controller.relocate(point, tangentFrame(up));
   return { controller, world, up, point, body, zone };
@@ -50,14 +51,12 @@ describe('planetary approach envelope', () => {
       f.controller.environment?.flightClearance(f.point, f.up.clone().negate(), 5000),
     ).toBeCloseTo(990, 0);
   });
-  it('extends O cruise into the atmosphere and brakes excess speed progressively', () => {
+  it('extends Travel cruise into the atmosphere and brakes excess speed progressively', () => {
     const f = fixture(12000);
-    f.controller.transit = true;
     for (let i = 0; i < 1200; i++)
       f.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
     expect(f.controller.speed).toBeGreaterThan(700);
     const low = fixture(500);
-    low.controller.transit = true;
     low.controller.resolveMotion(
       low.point,
       new Vector3(0, 0, -900).applyQuaternion(tangentFrame(low.up)),
@@ -69,17 +68,20 @@ describe('planetary approach envelope', () => {
 });
 
 describe('stabilization and speed modes', () => {
-  it.each([-1, 1])('retains %s radial travel after V/R release while F is toggled', (lift) => {
-    const f = fixture(30000);
-    for (let i = 0; i < 1020; i++) f.controller.step({ ...createFlightInput(), lift }, 1 / 120);
-    expect(f.controller.travelMode).toBe('surface');
-    for (const assisted of [false, true]) {
-      f.controller.setAssistance(assisted);
-      for (let i = 0; i < 240; i++) f.controller.step(createFlightInput(), 1 / 120);
-      expect(f.controller.copyVelocity(new Vector3()).dot(f.up) * lift).toBeGreaterThan(750);
+  it.each([-1, 1])(
+    'retains %s radial travel after V/R release across low-level damping changes',
+    (lift) => {
+      const f = fixture(30000);
+      for (let i = 0; i < 1020; i++) f.controller.step({ ...createFlightInput(), lift }, 1 / 120);
       expect(f.controller.travelMode).toBe('surface');
-    }
-  });
+      for (const assisted of [false, true]) {
+        f.controller.setAssistance(assisted);
+        for (let i = 0; i < 240; i++) f.controller.step(createFlightInput(), 1 / 120);
+        expect(f.controller.copyVelocity(new Vector3()).dot(f.up) * lift).toBeGreaterThan(750);
+        expect(f.controller.travelMode).toBe('surface');
+      }
+    },
+  );
   it.each([true, false])(
     'keeps terrain braking with stabilization %s and safely lands a released descent',
     (stabilized) => {
@@ -101,9 +103,8 @@ describe('stabilization and speed modes', () => {
       expect(f.controller.travelMode).toBe('normal');
     },
   );
-  it('retains O approach speeds when stabilization is toggled', () => {
+  it('retains automatic approach speeds when stabilization is toggled', () => {
     const f = fixture(30000);
-    f.controller.transit = true;
     for (let i = 0; i < 1200; i++)
       f.controller.step({ ...createFlightInput(), throttle: 1 }, 1 / 120);
     for (const stabilized of [false, true]) {
@@ -122,7 +123,7 @@ describe('stabilization and speed modes', () => {
         f.controller.step({ ...createFlightInput(), lift: -1 }, 1 / 120);
       const speed = f.controller.speed;
       f.controller.step({ ...createFlightInput(), ...control }, 1 / 120);
-      expect(f.controller.travelMode).toBe('normal');
+      expect(f.controller.travelMode).toBe('transit');
       expect(f.controller.speed).toBeGreaterThan(speed * 0.95);
       expect(f.controller.speed).toBeLessThan(speed);
     },
@@ -138,10 +139,10 @@ describe('stabilization and speed modes', () => {
     const f = fixture(61000);
     f.controller.travelMode = 'surface';
     f.controller.step(createFlightInput(), 1 / 120);
-    expect(f.controller.travelMode).toBe('normal');
+    expect(f.controller.travelMode).toBe('transit');
     f.controller.travelMode = 'surface';
     f.controller.reset();
-    expect(f.controller.travelMode).toBe('normal');
+    expect(f.controller.travelMode).toBe('transit');
     f.controller.travelMode = 'surface';
     f.controller.relocate(f.point, tangentFrame(f.up));
     expect(f.controller.travelMode).toBe('normal');
@@ -155,7 +156,7 @@ describe('stabilization and speed modes', () => {
       const command = {
         ...neutralInput(seq),
         paused: false,
-        assistance: seq < 100,
+        flightMode: seq < 100 ? ('travel' as const) : ('combat' as const),
         flight: { ...createFlightInput(), lift: seq <= 90 ? -1 : 0 },
       };
       predict(a.controller, command, 30);
@@ -176,24 +177,32 @@ describe('stabilization and speed modes', () => {
 });
 
 describe('optional landing assistance', () => {
-  it('validates a nearby selected zone and continuously levels, settles drift and lands', () => {
-    const f = fixture(1800);
-    f.controller.relocate(f.point.clone().add(new Vector3(0, 55, 0)), new Quaternion());
-    expect(f.controller.requestLandingAssist('forged')).toMatch(/Select/);
-    expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
-    expect(f.controller.landingGear).toBe(true);
-    let time = 0;
-    while (time < 45 && f.controller.surface.phase !== 'landed') {
-      f.world.update(time);
-      f.controller.step(createFlightInput(), 1 / 120);
-      time += 1 / 120;
-    }
-    expect(f.controller.surface.phase).toBe('landed');
-    expect(f.controller.landingAssist).toBeNull();
-    expect(f.controller.impactSpeed).toBe(0);
-    expect(time).toBeGreaterThan(5);
-    expect(f.controller.copyVelocity(new Vector3()).length()).toBeLessThan(0.01);
-  });
+  it.each(['travel', 'combat'] as const)(
+    'validates a nearby zone and lands within the %s descent envelope',
+    (mode) => {
+      const f = fixture(1800);
+      f.controller.setFlightMode(mode);
+      f.controller.relocate(f.point.clone().add(new Vector3(0, 55, 0)), new Quaternion());
+      expect(f.controller.requestLandingAssist('forged')).toMatch(/Select/);
+      expect(f.controller.requestLandingAssist(f.zone.id)).toBeNull();
+      expect(f.controller.landingGear).toBe(true);
+      let time = 0;
+      let peakSpeed = 0;
+      while (time < 45 && f.controller.surface.phase !== 'landed') {
+        f.world.update(time);
+        f.controller.step(createFlightInput(), 1 / 120);
+        peakSpeed = Math.max(peakSpeed, f.controller.speed);
+        time += 1 / 120;
+      }
+      expect(f.controller.surface.phase).toBe('landed');
+      expect(f.controller.landingAssist).toBeNull();
+      expect(f.controller.impactSpeed).toBe(0);
+      expect(time).toBeGreaterThan(5);
+      if (mode === 'combat') expect(peakSpeed).toBeLessThanOrEqual(361);
+      else expect(peakSpeed).toBeGreaterThan(360);
+      expect(f.controller.copyVelocity(new Vector3()).length()).toBeLessThan(0.01);
+    },
+  );
   it('rejects distant, fast, obstructed or unassisted capture and gives manual inputs priority', () => {
     const distant = fixture(22000);
     expect(distant.controller.requestLandingAssist(distant.zone.id)).not.toBeNull();

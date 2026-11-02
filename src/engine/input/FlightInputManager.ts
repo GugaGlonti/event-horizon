@@ -7,7 +7,7 @@ export type InputMode = 'mouse' | 'keyboard';
 interface InputCallbacks {
   onMode: (mode: InputMode | null) => void;
   onCamera: () => void;
-  onAssistance: () => void;
+  onFlightMode: () => void;
   onWeapon: (slot: WeaponSlot) => void;
   onError: (message: string) => void;
 }
@@ -187,7 +187,7 @@ export class FlightInputManager {
     this.keys.add(event.code);
     if (event.repeat) return;
     if (event.code === 'KeyC') this.callbacks.onCamera();
-    if (event.code === 'KeyF') this.callbacks.onAssistance();
+    if (event.code === 'KeyF') this.callbacks.onFlightMode();
     const weapon = WEAPON_KEYS.get(event.code);
     if (weapon) this.callbacks.onWeapon(weapon);
   };
@@ -201,6 +201,11 @@ export class FlightInputManager {
 
   get firing() {
     return this.mode !== null && (this.keys.has('Space') || this.mouseFire);
+  }
+
+  clearFire() {
+    this.keys.delete('Space');
+    this.mouseFire = false;
   }
 
   private onMouseDown = (event: MouseEvent) => {

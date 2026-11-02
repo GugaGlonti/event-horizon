@@ -2,7 +2,12 @@ import { Client, type Room } from '@colyseus/sdk';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
 import { neutralInput } from '@/engine/network/InputQueue';
-import { ROOM_NAME, type TravelPermit, type WorldSnapshot } from '@/engine/network/protocol';
+import {
+  PROTOCOL_VERSION,
+  ROOM_NAME,
+  type TravelPermit,
+  type WorldSnapshot,
+} from '@/engine/network/protocol';
 import { surfaceDirection, tangentFrame } from '@/engine/planetary/coordinates';
 import { portPose } from '@/engine/stations/stationGeometry';
 import { serverConfig } from '../server/config';
@@ -32,7 +37,7 @@ function until<T>(
 }
 async function join(name: string, systemId = 'solara', ticket?: string) {
   const room = await new Client(`ws://127.0.0.1:${game.port}`).joinOrCreate<unknown>(ROOM_NAME, {
-    v: 5,
+    v: PROTOCOL_VERSION,
     name,
     systemId,
     instanceId: 'public',
@@ -53,6 +58,60 @@ afterAll(async () => {
   await game.close();
 });
 describe('real authoritative room protocol', () => {
+  it('enforces Travel power-down and shared Combat energy over real sockets', async () => {
+    const client = await join('Mode pilot');
+    const initial = await until<WorldSnapshot>(client, 'snapshot');
+    const room = [...game.rooms].find((candidate) => candidate.roomId === client.roomId);
+    const pilot = room?.world.pilots.get(initial.playerId);
+    if (!room || !pilot) throw new Error('Pilot authority');
+    let seq = 1;
+    let mode: 'travel' | 'combat' = 'travel';
+    const timer = setInterval(
+      () =>
+        client.send('input', {
+          ...neutralInput(seq++),
+          paused: false,
+          flightMode: mode,
+          fire: true,
+        }),
+      33,
+    );
+    const own = (snapshot: WorldSnapshot) =>
+      snapshot.ships.find((ship) => ship.id === initial.playerId);
+    try {
+      const travel = await until<WorldSnapshot>(
+        client,
+        'snapshot',
+        (snapshot) => snapshot.ack >= 3 && own(snapshot)?.flight.flightMode === 'travel',
+      );
+      expect(own(travel)?.firing).toBe(false);
+      expect(
+        travel.events.some((event) => event.shipId === pilot.id && event.kind === 'fired'),
+      ).toBe(false);
+      expect(own(travel)?.flight.boostCharge).toBe(1);
+      pilot.ship.health.invulnerability = 0;
+      room.world.simulation.damage(pilot.ship, 10);
+      expect(pilot.ship.health.hull).toBe(90);
+      expect(pilot.ship.health.shields).toBe(100);
+      mode = 'combat';
+      const combat = await until<WorldSnapshot>(
+        client,
+        'snapshot',
+        (snapshot) =>
+          own(snapshot)?.flight.flightMode === 'combat' &&
+          snapshot.projectiles.some((shot) => shot.owner === pilot.id),
+      );
+      expect(own(combat)?.flight.assistance).toBe(true);
+      expect(own(combat)?.flight.boostCharge).toBeLessThan(0.99);
+      room.world.simulation.damage(pilot.ship, 10);
+      expect(pilot.ship.health.hull).toBe(90);
+      expect(pilot.ship.health.shields).toBe(90);
+    } finally {
+      clearInterval(timer);
+      await client.leave();
+    }
+  });
+
   it('joins a shared room, rejects forged state, fires centrally, respawns and transfers a stable guest', async () => {
     const a = await join('Alpha'),
       b = await join('Bravo');
@@ -345,20 +404,20 @@ describe('real authoritative room protocol', () => {
     }
   });
 
-  it('replicates released surface coasting across stabilization changes and explicit braking', async () => {
+  it('replicates released surface coasting across Travel/Combat changes and explicit braking', async () => {
     const a = await join('Coast Alpha'),
       b = await join('Coast Bravo');
     const initial = await until<WorldSnapshot>(a, 'snapshot', (s) => s.players === 2);
     let seq = 1,
       lift = -1,
-      assisted = true,
+      mode: 'travel' | 'combat' = 'travel',
       brake = false;
     const commands = setInterval(
       () =>
         a.send('input', {
           ...neutralInput(seq++),
           paused: false,
-          assistance: assisted,
+          flightMode: mode,
           flight: { ...neutralInput().flight, lift, brake, reverse: brake },
         }),
       33,
@@ -375,25 +434,28 @@ describe('real authoritative room protocol', () => {
         6500,
       );
       lift = 0;
-      assisted = false;
+      mode = 'combat';
       const released = await until<WorldSnapshot>(
         a,
         'snapshot',
-        (s) => own(s)?.flight.assistance === false,
+        (s) => own(s)?.flight.flightMode === 'combat' && own(s)?.flight.assistance === true,
       );
       const coast = await until<WorldSnapshot>(b, 'snapshot', (s) => s.tick > released.tick + 10);
       expect(own(coast)?.flight.travelMode).toBe('surface');
       expect(Math.hypot(...(own(coast)?.flight.velocity ?? [0, 0, 0]))).toBeGreaterThan(350);
-      assisted = true;
+      mode = 'travel';
       const stabilized = await until<WorldSnapshot>(
         b,
         'snapshot',
-        (s) => s.tick > coast.tick + 10 && own(s)?.flight.assistance === true,
+        (s) =>
+          s.tick > coast.tick + 10 &&
+          own(s)?.flight.flightMode === 'travel' &&
+          own(s)?.flight.assistance === true,
       );
       expect(own(stabilized)?.flight.travelMode).toBe('surface');
       expect(Math.hypot(...(own(stabilized)?.flight.velocity ?? [0, 0, 0]))).toBeGreaterThan(350);
       brake = true;
-      await until<WorldSnapshot>(b, 'snapshot', (s) => own(s)?.flight.travelMode === 'normal');
+      await until<WorldSnapshot>(b, 'snapshot', (s) => own(s)?.flight.travelMode === 'transit');
     } finally {
       clearInterval(commands);
       await a.leave();

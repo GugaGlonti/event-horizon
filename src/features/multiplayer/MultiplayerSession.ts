@@ -6,7 +6,7 @@ import { Prediction } from '@/engine/network/Prediction';
 import type { JoinOptions, NetworkInput, WorldSnapshot } from '@/engine/network/protocol';
 import { SnapshotBuffer } from '@/engine/network/SnapshotBuffer';
 import type { FlightController } from '@/engine/simulation/FlightController';
-import type { FlightInput } from '@/engine/simulation/flightTypes';
+import type { FlightInput, FlightMode } from '@/engine/simulation/flightTypes';
 import type { CombatSession } from '@/features/combat/CombatSession';
 import { useMultiplayerStore } from '@/stores/multiplayerStore';
 import { NetworkSession } from './NetworkSession';
@@ -182,7 +182,13 @@ export class MultiplayerSession {
     this.combat.targetNames = this.names;
     if (first) this.combat.publish();
   };
-  advance(delta: number, flight: FlightInput, fire: boolean, paused: boolean, assistance: boolean) {
+  advance(
+    delta: number,
+    flight: FlightInput,
+    fire: boolean,
+    paused: boolean,
+    flightMode: FlightMode,
+  ) {
     this.network.ping();
     const snapshot = this.network.latest,
       simulation = this.combat.simulation;
@@ -198,7 +204,7 @@ export class MultiplayerSession {
         flight: paused ? neutralInput().flight : { ...flight },
         fire: !paused && fire,
         paused,
-        assistance,
+        flightMode,
         weapon: this.combat.requestedWeapon,
         targetId: simulation.targetId,
       };
@@ -244,7 +250,7 @@ export class MultiplayerSession {
     const input = {
       ...neutralInput(++this.sequence),
       weapon: this.combat.simulation.player.weapon,
-      assistance: this.prediction.controller.snapshot().assistance,
+      flightMode: this.prediction.controller.flightMode,
     };
     this.network.send(input);
   }

@@ -22,12 +22,11 @@ const controls = [
   ['B / N', 'Start patrol / cycle hostile'],
   ['G / H', 'Nearest hostile ahead / clear'],
   ['TAB', 'Cycle hostile while flying'],
-  ['C / F', 'Camera / stabilization (independent of speed mode)'],
+  ['C / F', 'Camera / Travel or Combat (both stabilized)'],
   ['M / L / Y', 'Galaxy / local / planetary chart'],
   ['T / X', 'Cycle / clear contact'],
   ['K / U', 'Landing gear / takeoff or undock'],
   ['P / I', 'Request or capture docking / cancel'],
-  ['O', 'Toggle bounded space transit'],
   ['J', 'Land assist at selected zone / cancel'],
   ['ESC', 'Pause / release mouse'],
 ] as const;
@@ -39,7 +38,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
   const phase = useFlightStore((state) => state.phase);
   const ready = useFlightStore((state) => state.rendererReady);
   const notice = useFlightStore((state) => state.notice);
-  const assistance = useFlightStore((state) => state.assistance);
+  const flightMode = useFlightStore((state) => state.flightMode);
   const engineSound = useFlightStore((state) => state.engineSound);
   const overlay = useExplorationStore((state) => state.overlay);
   const jumpPhase = useExplorationStore((state) => state.jump.phase);
@@ -83,8 +82,8 @@ export function FlightMenu({ session }: { session: FlightSession }) {
                 <dd>{system?.name}</dd>
               </div>
               <div className="flex justify-between">
-                <dt className="text-phosphor-dim">ASSISTANCE</dt>
-                <dd>{assistance ? 'ENGAGED' : 'MANUAL'}</dd>
+                <dt className="text-phosphor-dim">FLIGHT MODE</dt>
+                <dd>{flightMode.toUpperCase()}</dd>
               </div>
               <div className="flex justify-between">
                 <dt className="text-phosphor-dim">HYPERDRIVE</dt>
@@ -110,7 +109,7 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             </h2>
             <p className="mt-3 max-w-lg text-[12px] leading-5 normal-case text-phosphor-dim">
               {phase === 'ready'
-                ? `Welcome to ${system?.name ?? 'Solara'}. Orbital patrols arrive after eight seconds of flight. K deploys landing gear; P requests nearby docking. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
+                ? `Welcome to ${system?.name ?? 'Solara'}. F switches between stabilized Combat and fast Travel. Weapons and shields are off in Travel. Choose Practice target for a stationary contact, or consult the charts to plot a jump.`
                 : `Controls suspended in ${system?.name ?? 'the current system'}. Select an input mode to resume flight.`}
             </p>
             <MultiplayerPanel session={session} />
@@ -139,7 +138,8 @@ export function FlightMenu({ session }: { session: FlightSession }) {
             <p className="order-2 mt-4 border-l-2 border-instrument/70 pl-3 text-[11px] leading-5 normal-case text-phosphor-dim tablet:order-none">
               Hold W to build throttle. Release W to slow down; hold S to brake, then reverse once
               throttle reaches zero. Mouse steering recenters gently. Release Shift after boost
-              depletion to rearm. Hold Space to charge the railgun; releasing early cancels.
+              depletion to rearm in Combat. Weapons, shields and boost share rechargeable energy.
+              Travel uses no energy. Hold Space to charge the railgun; releasing early cancels.
             </p>
             {notice && (
               <p

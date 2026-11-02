@@ -9,7 +9,14 @@ import { tangentFrame } from '@/engine/planetary/coordinates';
 import { type PlanetaryEnvironment, SurfaceSample } from '@/engine/planetary/PlanetaryEnvironment';
 import { createSurfaceState } from '@/engine/planetary/planetTypes';
 import { terrainHeight } from '@/engine/planetary/terrain';
-import type { FlightConfig, FlightInput, FlightTelemetry, TravelMode } from './flightTypes';
+import { FLIGHT_MODE_CONFIG } from './config';
+import type {
+  FlightConfig,
+  FlightInput,
+  FlightMode,
+  FlightTelemetry,
+  TravelMode,
+} from './flightTypes';
 
 function approach(current: number, target: number, amount: number) {
   return current + MathUtils.clamp(target - current, -amount, amount);
@@ -35,6 +42,8 @@ export class FlightController {
   landingGear = false;
   landingAssist: string | null = null;
   travelMode: TravelMode = 'normal';
+  flightMode: FlightMode = 'combat';
+  trafficClearance = Infinity;
   flightLocked = false;
   impactSpeed = 0;
   landingClearance = true;
@@ -52,6 +61,7 @@ export class FlightController {
   private readonly rotationAxis = new Vector3();
   private readonly rotation = new Quaternion();
   private throttle = 0;
+  /** Shared combat energy; full snapshots retain the original reserve field names. */
   private boostCharge = 1;
   private boostDelay = 0;
   private boostExhausted = false;
@@ -80,8 +90,30 @@ export class FlightController {
   get transit() {
     return this.travelMode === 'transit';
   }
-  set transit(enabled: boolean) {
-    this.travelMode = enabled ? 'transit' : 'normal';
+
+  setFlightMode(mode: FlightMode) {
+    this.flightMode = mode;
+    this.assistance = true;
+    if (this.travelMode !== 'surface') this.travelMode = mode === 'travel' ? 'transit' : 'normal';
+  }
+
+  get energyReserve() {
+    return this.boostCharge;
+  }
+
+  get shieldsEnabled() {
+    return this.flightMode === 'combat' && this.boostCharge > 1e-9;
+  }
+
+  get weaponsEnabled() {
+    return this.shieldsEnabled && this.speed <= this.config.boostMaxSpeed + 1;
+  }
+
+  consumeEnergy(amount: number, delayRecharge = true) {
+    if (!Number.isFinite(amount) || amount < 0 || amount > this.boostCharge + 1e-9) return false;
+    this.boostCharge = Math.max(0, this.boostCharge - amount);
+    if (delayRecharge) this.boostDelay = this.config.boostRechargeDelay;
+    return true;
   }
 
   setAssistance(enabled: boolean) {
@@ -90,7 +122,9 @@ export class FlightController {
 
   reset() {
     Object.assign(this.surface, createSurfaceState());
-    this.landingGear = this.transit = false;
+    this.landingGear = false;
+    this.travelMode = this.flightMode === 'travel' ? 'transit' : 'normal';
+    this.trafficClearance = Infinity;
     this.landingAssist = null;
     this.flightLocked = false;
     this.position.set(0, 0, 0);
@@ -130,6 +164,8 @@ export class FlightController {
       boostExhausted: this.boostExhausted,
       boosting: this.boosting,
       assistance: this.assistance,
+      flightMode: this.flightMode,
+      trafficClearance: Math.min(100000, this.trafficClearance),
       distance: this.distance,
       surface: {
         ...this.surface,
@@ -154,6 +190,8 @@ export class FlightController {
     this.boostExhausted = state.boostExhausted;
     this.boosting = state.boosting;
     this.assistance = state.assistance;
+    this.flightMode = state.flightMode;
+    this.trafficClearance = state.trafficClearance;
     this.distance = state.distance;
     Object.assign(this.surface, state.surface);
     this.landingGear = state.landingGear;
@@ -194,7 +232,7 @@ export class FlightController {
     this.throttle = forwardSpeed / this.config.maxSpeed;
     this.boosting = false;
     Object.assign(this.surface, createSurfaceState());
-    this.transit = false;
+    this.travelMode = 'normal';
     this.landingAssist = null;
     this.flightLocked = false;
   }
@@ -266,7 +304,7 @@ export class FlightController {
     if (reason) return reason;
     this.landingAssist = zoneId;
     this.landingGear = true;
-    this.transit = false;
+    this.travelMode = 'normal';
     return null;
   }
 
@@ -286,7 +324,10 @@ export class FlightController {
     this.orientation.slerp(level, 1 - Math.exp(-2.5 * dt));
     const aligned =
       this.forward.set(0, 1, 0).applyQuaternion(this.orientation).dot(sample.up) > 0.995;
-    const speed = surfaceDescentSpeed(sample.altitude - 5, true, this.planetaryConfig);
+    const speed = Math.min(
+      surfaceDescentSpeed(sample.altitude - 5, true, this.planetaryConfig),
+      this.flightMode === 'combat' ? this.config.boostMaxSpeed : Infinity,
+    );
     const descent = aligned && distance < 10 ? -speed : 0;
     this.translation.add(sample.velocity).addScaledVector(sample.up, descent);
     this.lateral
@@ -343,6 +384,9 @@ export class FlightController {
     if (!Number.isFinite(dt) || dt < 0)
       throw new RangeError('Flight dt must be finite and nonnegative.');
     if (dt === 0) return;
+    this.boostDelay = Math.max(0, this.boostDelay - dt);
+    if (this.boostDelay === 0)
+      this.boostCharge = Math.min(1, this.boostCharge + this.config.boostRecharge * dt);
     this.impactSpeed = 0;
     if (this.flightLocked) return;
     const field = this.environment;
@@ -370,10 +414,12 @@ export class FlightController {
       }
     }
     const nearSurface = Boolean(field && sample.body?.landable && sample.altitude < 60000);
-    // Movement selects the speed regime; F only changes stabilization/compensation.
+    // Surface coasting is automatic handling inside either stabilized flight mode.
     if (!nearSurface || input.throttle > 0 || input.brake || input.reverse) {
       if (this.travelMode === 'surface') this.travelMode = 'normal';
     } else if (input.lift) this.travelMode = 'surface';
+    if (this.travelMode !== 'surface')
+      this.travelMode = this.flightMode === 'travel' ? 'transit' : 'normal';
     const surfaceTravel = this.travelMode === 'surface';
     // Unassisted gravity is not erased by the space controller's automatic engine braking.
     const fallingSpeed =
@@ -384,13 +430,14 @@ export class FlightController {
     this.motionStart.copy(this.position);
     const density = field ? sample.density : 0;
     let transitFactor =
-      field && this.transit && !this.landingGear
+      this.transit && !this.landingGear
         ? 1 +
           (this.planetaryConfig.transitMultiplier - 1) *
             MathUtils.clamp(
               Math.min(
-                sample.transitClearance,
-                sample.altitude - (sample.body?.atmosphere?.height ?? 0) - 2000,
+                field ? sample.transitClearance : Infinity,
+                this.trafficClearance,
+                field ? sample.altitude - (sample.body?.atmosphere?.height ?? 0) - 2000 : Infinity,
               ) / this.planetaryConfig.transitRamp,
               0,
               1,
@@ -415,6 +462,7 @@ export class FlightController {
       const clearance = Math.min(
         sample.altitude - 5,
         sample.transitClearance,
+        this.trafficClearance,
         field.flightClearance(this.position, this.forward, lookahead),
       );
       transitFactor =
@@ -445,6 +493,8 @@ export class FlightController {
         this.landingGear,
         this.planetaryConfig,
       );
+      if (this.flightMode === 'combat')
+        surfaceJetSpeed = Math.min(surfaceJetSpeed, this.config.boostMaxSpeed);
     }
     const config = this.config;
     const previousSpeed = this.speed;
@@ -457,16 +507,11 @@ export class FlightController {
       !input.brake &&
       throttleTarget > 0 &&
       this.throttle > 0 &&
-      !this.boostExhausted &&
-      this.boostCharge > 0;
-    if (this.boosting) {
+      (this.flightMode === 'travel' || (!this.boostExhausted && this.boostCharge > 0));
+    if (this.boosting && this.flightMode === 'combat') {
       this.boostCharge = Math.max(0, this.boostCharge - config.boostDrain * dt);
       this.boostDelay = config.boostRechargeDelay;
       if (this.boostCharge === 0) this.boostExhausted = true;
-    } else {
-      this.boostDelay = Math.max(0, this.boostDelay - dt);
-      if (this.boostDelay === 0)
-        this.boostCharge = Math.min(1, this.boostCharge + config.boostRecharge * dt);
     }
 
     const damping = this.assistance
@@ -571,17 +616,14 @@ export class FlightController {
       this.velocity.addScaledVector(this.forward, thrust);
     }
     // Boost exit sheds excess speed progressively; normal thrust cannot exceed maxSpeed.
-    const speedLimit = planetaryApproach
-      ? Math.max(
-          config.maxSpeed * speedFactor,
-          previousSpeed - this.planetaryConfig.approachBraking * dt,
-        )
-      : (this.boosting
-          ? config.boostMaxSpeed
-          : Math.max(
-              config.maxSpeed,
-              previousSpeed / speedFactor - config.boostDeceleration * (this.transit ? 16 : 1) * dt,
-            )) * speedFactor;
+    const desiredLimit =
+      (this.boosting && !planetaryApproach ? config.boostMaxSpeed : config.maxSpeed) * speedFactor;
+    const brakingRate = planetaryApproach
+      ? this.planetaryConfig.approachBraking
+      : this.flightMode === 'combat' && previousSpeed > config.boostMaxSpeed + 1
+        ? FLIGHT_MODE_CONFIG.combatBraking
+        : config.boostDeceleration * (this.transit ? 16 : 1);
+    const speedLimit = Math.max(desiredLimit, previousSpeed - brakingRate * dt);
     this.velocity.clampLength(0, speedLimit);
     if (!braking) {
       this.translation
@@ -728,7 +770,7 @@ export class FlightController {
       speed: this.speed,
       throttle: this.throttle,
       boostCharge: this.boostCharge,
-      boostReady: !this.boostExhausted && this.boostCharge > 0,
+      boostReady: this.flightMode === 'travel' || (!this.boostExhausted && this.boostCharge > 0),
       boosting: this.boosting,
       assistance: this.assistance,
       distance: this.distance,

@@ -7,6 +7,7 @@ import {
   sweepSphere,
 } from '@/engine/physics/spheres';
 import type { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
+import { FLIGHT_MODE_CONFIG } from '@/engine/simulation/config';
 import type { FlightController } from '@/engine/simulation/FlightController';
 import type { StationSimulation } from '@/engine/stations/StationSimulation';
 import { traceStation } from '@/engine/stations/stationGeometry';
@@ -191,10 +192,10 @@ export class CombatSimulation {
   damage(ship: CombatShip, amount: number, sourceId: string | null = null) {
     // Slot IDs survive respawn; an old object must never damage or destroy its replacement.
     if (this.ships.get(ship.id) !== ship) return;
-    const shield = ship.health.shields > 0;
+    const shield = ship.controller.shieldsEnabled && ship.health.shields > 0;
     const beforeShield = ship.health.shields,
       beforeHull = ship.health.hull;
-    if (ship.transferring || !ship.health.damage(amount)) return;
+    if (ship.transferring || !ship.health.damage(amount, ship.controller.shieldsEnabled)) return;
     this.event(ship.id, ship.position, {
       kind: 'damage',
       sourceId,
@@ -230,7 +231,7 @@ export class CombatSimulation {
   };
 
   private fire(ship: CombatShip) {
-    if (ship.cooldown > 1e-9 || ship.health.destroyed) return;
+    if (ship.cooldown > 1e-9 || ship.health.destroyed || !ship.controller.weaponsEnabled) return;
     const laser = ship.config.laser;
     if (ship.weapon === 1 && (ship.overheated || laser.hardpoints.length === 0)) return;
     const projectileCount =
@@ -240,6 +241,9 @@ export class CombatSimulation {
           ? laser.hardpoints.length
           : 1;
     if (ship.weapon !== 3 && this.projectiles.length + projectileCount > 192) return;
+    const energyCost =
+      FLIGHT_MODE_CONFIG.weaponCost[ship.weapon] * (ship.weapon === 1 ? projectileCount : 1);
+    if (!ship.controller.consumeEnergy(energyCost)) return;
     this.direction.set(0, 0, -1).applyQuaternion(ship.orientation);
     this.point
       .set(0, ship.weapon === 2 ? -0.4 : 0, -6)
@@ -540,7 +544,17 @@ export class CombatSimulation {
       ship.sync();
       ship.previous.copy(ship.position);
       ship.previousOrientation.copy(ship.orientation);
-      ship.health.step(dt);
+      if (!ship.health.destroyed && !ship.transferring && ship.controller.shieldsEnabled)
+        ship.controller.consumeEnergy(
+          Math.min(ship.controller.energyReserve, FLIGHT_MODE_CONFIG.shieldUpkeep * dt),
+          false,
+        );
+      const regenerated = ship.health.step(
+        dt,
+        ship.controller.shieldsEnabled,
+        ship.controller.energyReserve / FLIGHT_MODE_CONFIG.shieldRegenerationCost,
+      );
+      ship.controller.consumeEnergy(regenerated * FLIGHT_MODE_CONFIG.shieldRegenerationCost, false);
       ship.hitFlash = Math.max(0, ship.hitFlash - dt);
       ship.cooldown = Math.max(0, ship.cooldown - dt);
       ship.heat = Math.max(0, ship.heat - ship.config.laser.heat.coolingRate * dt);
@@ -574,6 +588,14 @@ export class CombatSimulation {
       }
       const input = commands || ship !== this.player ? ship.command.flight : command.flight;
       ship.controller.environment = ship.stationary ? null : this.environment;
+      ship.controller.trafficClearance = Infinity;
+      for (const other of this.ships.values()) {
+        if (other !== ship && !other.health.destroyed && !other.transferring)
+          ship.controller.trafficClearance = Math.min(
+            ship.controller.trafficClearance,
+            Math.max(0, other.position.distanceTo(ship.position) - 1000),
+          );
+      }
       ship.controller.landingClearance = ![...this.ships.values()].some(
         (other) =>
           other !== ship &&
@@ -581,7 +603,7 @@ export class CombatSimulation {
           other.position.distanceTo(ship.position) < ship.radius + other.radius + 10,
       );
       ship.controller.step(input, dt);
-      if (ship.controller.flightLocked) {
+      if (ship.controller.flightLocked || !ship.controller.weaponsEnabled) {
         ship.command.fire = false;
         ship.railgunCharge = 0;
       }
@@ -633,6 +655,7 @@ export class CombatSimulation {
       const firing =
         !ship.transferring &&
         !ship.controller.flightLocked &&
+        ship.controller.weaponsEnabled &&
         (commands || ship !== this.player ? ship.command.fire : command.fire);
       if (ship.weapon === 3) {
         if (!firing || ship.health.destroyed || ship.cooldown > 1e-9) ship.railgunCharge = 0;

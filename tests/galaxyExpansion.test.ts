@@ -7,7 +7,12 @@ import {
   travelDirection,
 } from '@/engine/navigation/hyperspaceRoute';
 import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
-import { actionSchema, joinSchema, snapshotSchema } from '@/engine/network/protocol';
+import {
+  actionSchema,
+  joinSchema,
+  PROTOCOL_VERSION,
+  snapshotSchema,
+} from '@/engine/network/protocol';
 import {
   generateCityLayout,
   generateSettlements,
@@ -47,9 +52,9 @@ describe('expanded galaxy and shared cities', () => {
       new Set(SYSTEMS.flatMap((s) => s.bodies.map((b) => b.archetype)).filter(Boolean)).size,
     ).toBe(7);
     for (const system of SYSTEMS) {
-      expect(joinSchema.safeParse({ v: 5, name: 'Survey', systemId: system.id }).success).toBe(
-        true,
-      );
+      expect(
+        joinSchema.safeParse({ v: PROTOCOL_VERSION, name: 'Survey', systemId: system.id }).success,
+      ).toBe(true);
       expect(actionSchema.safeParse({ kind: 'travel', destination: system.id }).success).toBe(true);
       const world = new MultiplayerWorld(system.id);
       world.addPlayer('survey', 'Survey');
@@ -65,9 +70,9 @@ describe('expanded galaxy and shared cities', () => {
       for (const city of system.bodies.flatMap((b) => b.settlements ?? []))
         expect(contacts.some((c) => c.id === city.id)).toBe(true);
     }
-    expect(joinSchema.safeParse({ v: 5, name: 'Survey', systemId: 'unlisted' }).success).toBe(
-      false,
-    );
+    expect(
+      joinSchema.safeParse({ v: PROTOCOL_VERSION, name: 'Survey', systemId: 'unlisted' }).success,
+    ).toBe(false);
   });
 
   it('keeps every capital and regional city dry, separated and reproducible from its seed', () => {

@@ -1,5 +1,13 @@
 import type { FlightConfig } from '@/engine/simulation/flightTypes';
 
+/** Fractions of one rechargeable reserve, shared by combat systems and boost. */
+export const FLIGHT_MODE_CONFIG = Object.freeze({
+  combatBraking: 600,
+  shieldUpkeep: 0.02,
+  shieldRegenerationCost: 0.004,
+  weaponCost: { 1: 0.04, 2: 0.18, 3: 0.3, 4: 0.12 },
+});
+
 export const FLIGHT_CONFIG: FlightConfig = Object.freeze({
   maxSpeed: 180,
   acceleration: 45,
