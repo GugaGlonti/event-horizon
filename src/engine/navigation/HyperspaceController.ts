@@ -18,9 +18,9 @@ export const HYPERSPACE_TIMING = Object.freeze({
 
 export const HYPERSPACE_MOTION = Object.freeze({
   departureDistance: 1_800_000,
-  departureExponent: 5,
+  departureExponent: 8,
   arrivalSpeed: 800_000,
-  arrivalExponent: 6,
+  arrivalExponent: 10,
   exitSpeed: 100,
 });
 

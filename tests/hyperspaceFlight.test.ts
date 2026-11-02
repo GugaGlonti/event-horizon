@@ -120,9 +120,10 @@ describe('continuous jump motion', () => {
     const { motion, jump, position, orientation, destination } = setup();
     const launch = position.clone();
     jump.phase = 'ACCELERATING';
-    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.8;
+    jump.elapsed = HYPERSPACE_TIMING.ACCELERATING * 0.9;
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(launch)).toBeGreaterThan(90000);
+    expect(jump.coverage).toBeLessThan(0.6);
+    expect(position.distanceTo(launch)).toBeGreaterThan(200000);
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
     jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.5;
@@ -142,7 +143,7 @@ describe('continuous jump motion', () => {
       HYPERSPACE_TIMING.ACCELERATING *
       (HYPERSPACE_ENTRY.ignitionStart + (1 - HYPERSPACE_ENTRY.ignitionStart) * 0.5);
     motion.sample(jump, position, orientation);
-    expect(position.distanceTo(launch)).toBeLessThan(JUMP_MOTION.departureDistance * 0.04);
+    expect(position.distanceTo(launch)).toBeLessThan(JUMP_MOTION.departureDistance * 0.005);
 
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
