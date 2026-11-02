@@ -14,12 +14,14 @@ import {
   EXIT_COAST_DISTANCE,
   HYPERSPACE_MOTION,
   HYPERSPACE_TIMING,
+  hyperspaceDuration,
 } from '@/engine/navigation/HyperspaceController';
 import {
   departureObstruction,
   departureWindow,
   routeArrival,
   travelDirection,
+  travelDistance,
 } from '@/engine/navigation/hyperspaceRoute';
 import { PlanetaryEnvironment } from '@/engine/planetary/PlanetaryEnvironment';
 import { AmbientTraffic } from '@/engine/stations/AmbientTraffic';
@@ -92,8 +94,15 @@ export class MultiplayerWorld {
   }
   safePose(sourceId?: string) {
     const source = SYSTEMS.find((system) => system.id === sourceId);
+    // Admission happens on tunnel entry, before the client's distance-scaled transit finishes.
+    const horizon =
+      HYPERSPACE_TIMING.preparationTimeout +
+      HYPERSPACE_TIMING.EXITING +
+      1 +
+      (source ? hyperspaceDuration(travelDistance(source, this.system.definition)) : 0);
     const route =
-      source && routeArrival(this.system, travelDirection(source, this.system.definition), 4200);
+      source &&
+      routeArrival(this.system, travelDirection(source, this.system.definition), 4200, horizon);
     const arrival = this.system.arrival();
     const position = route?.position ?? new Vector3().fromArray(arrival.position);
     const orientation = route?.orientation ?? new Quaternion().fromArray(arrival.orientation);
@@ -108,13 +117,7 @@ export class MultiplayerWorld {
         this.safe(position) &&
         (!direction ||
           !start ||
-          !departureObstruction(
-            this.system,
-            start,
-            direction,
-            EXIT_COAST_DISTANCE + 1000,
-            HYPERSPACE_TIMING.EXITING + HYPERSPACE_TIMING.preparationTimeout,
-          ))
+          !departureObstruction(this.system, start, direction, EXIT_COAST_DISTANCE + 1000, horizon))
       )
         return { position, orientation };
     }

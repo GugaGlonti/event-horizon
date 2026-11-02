@@ -79,6 +79,35 @@ describe('galactic jump routes', () => {
     }
   });
 
+  it('keeps a receiver holding point clear through a long transit before its exit lead-in', () => {
+    const source = SYSTEMS[0];
+    const moon = source?.bodies.find((body) => body.kind === 'moon');
+    if (!source || !moon?.orbit) throw new Error('Missing moon.');
+    const radius = moon.orbit.radius;
+    const world = new SystemRuntime({
+      ...source,
+      defaultTargetId: moon.id,
+      bodies: source.bodies.map((body) =>
+        body.id === moon.id
+          ? { ...body, orbit: { radius, period: 60, phase: 0, inclination: 0 } }
+          : body,
+      ),
+    });
+    const direction = new Vector3(0, 0, -1);
+    const short = routeArrival(world, direction, 1000, 2);
+    expect(departureObstruction(world, short.position, direction, 1000, 25)?.id).toBe(moon.id);
+    const held = routeArrival(world, direction, 1000, 25);
+    expect(
+      departureObstruction(
+        world,
+        held.position.clone().addScaledVector(direction, -1000),
+        direction,
+        3000,
+        25,
+      ),
+    ).toBeNull();
+  });
+
   it('protects the rendered source throughout transit and preparation holds, not only ignition', () => {
     const source = SYSTEMS[0],
       destination = SYSTEMS[1];

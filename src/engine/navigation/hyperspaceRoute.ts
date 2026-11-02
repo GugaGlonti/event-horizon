@@ -144,6 +144,7 @@ export function routeArrival(
   world: SystemRuntime,
   direction: { readonly x: number; readonly y: number; readonly z: number },
   coastDistance: number,
+  horizon = HYPERSPACE_TIMING.EXITING + HYPERSPACE_TIMING.preparationTimeout,
 ) {
   const anchor = world.definition.bodies.find(
     (body) => body.id === world.definition.defaultTargetId,
@@ -157,7 +158,6 @@ export function routeArrival(
   for (let attempt = 0; attempt < 24; attempt += 1) {
     const distance = Math.max(4800, coastDistance + 3000) + attempt * 2200;
     position.copy(center).addScaledVector(direction, -distance);
-    const horizon = HYPERSPACE_TIMING.EXITING + HYPERSPACE_TIMING.preparationTimeout;
     const lateralClearance = jumpBodyRadius(world, anchor, horizon) + 22000;
     position.addScaledVector(right, lateralClearance);
     position.addScaledVector(up, 2500 + attempt * 500);
