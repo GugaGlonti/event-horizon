@@ -1,0 +1,26 @@
+{
+  "seconds": 60,
+  "frames": 7200,
+  "p50": 8.3,
+  "p95": 9.4,
+  "p99": 11.3,
+  "valid": true,
+  "complete": true,
+  "peaks": {
+    "calls": 74,
+    "triangles": 85908,
+    "visualBytes": 6487317.333333334,
+    "scenery": 0,
+    "cells": 32,
+    "blocks": 0
+  },
+  "calls": 75,
+  "triangles": 85908,
+  "geometries": 229,
+  "textures": 9,
+  "patches": 150,
+  "cache": 256,
+  "workerMs": 1.6000001430511475,
+  "width": 2880,
+  "height": 1620
+}

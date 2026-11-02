@@ -1,0 +1,18 @@
+{
+  "seconds": 60,
+  "frames": 7167,
+  "p50": 8.3,
+  "p95": 11.3,
+  "p99": 14.6,
+  "valid": true,
+  "complete": true,
+  "calls": 87,
+  "triangles": 88318,
+  "geometries": 236,
+  "textures": 4,
+  "patches": 150,
+  "cache": 256,
+  "workerMs": 1.6999998092651367,
+  "width": 2880,
+  "height": 1620
+}
