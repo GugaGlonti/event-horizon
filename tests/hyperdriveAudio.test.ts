@@ -244,7 +244,7 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = 0;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(7);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealEnd + 0.01);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.brakingStart + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(7);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);
@@ -279,7 +279,7 @@ describe('hyperdrive audio lifecycle', () => {
     jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealStart;
     audio.update(jump, false);
     expect(context.sources).toHaveLength(afterIgnition);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealEnd + 0.01);
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.brakingStart + 0.01);
     audio.update(jump, true);
     expect(context.sources).toHaveLength(afterIgnition);
     expect(context.gains[0]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.04);

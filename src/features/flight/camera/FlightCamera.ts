@@ -48,7 +48,7 @@ export class FlightCamera {
         ? MathUtils.lerp(
             this.jumpSpeedFov,
             config.speedFov * Math.min(1, JUMP_MOTION.exitSpeed / FLIGHT_CONFIG.boostMaxSpeed),
-            smoothRamp(HYPERSPACE_EXIT.revealEnd, 1, jump.progress),
+            smoothRamp(HYPERSPACE_EXIT.brakingStart, 1, jump.progress),
           )
         : this.jumpSpeedFov
       : ordinarySpeedFov;

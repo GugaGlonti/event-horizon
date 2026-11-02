@@ -7,13 +7,13 @@ export type JumpPhase =
   | 'COOLDOWN';
 
 const BEAM_ANIMATION_SECONDS = 3.4;
-const EXIT_FLASH_SECONDS = 0.714;
+const ENTRY_FLASH_RECOVERY_SECONDS = 0.42;
 
 export const HYPERSPACE_TIMING = Object.freeze({
   CHARGING: 3.2,
   ACCELERATING: BEAM_ANIMATION_SECONDS,
   HYPERSPACE: 3.4,
-  EXITING: EXIT_FLASH_SECONDS + BEAM_ANIMATION_SECONDS,
+  EXITING: BEAM_ANIMATION_SECONDS + ENTRY_FLASH_RECOVERY_SECONDS,
   COOLDOWN: 4,
   preparationTimeout: 12,
   maxFrameTime: 0.1,
@@ -36,26 +36,37 @@ export function hyperspaceDuration(distance: number) {
 }
 
 export const HYPERSPACE_ENTRY = Object.freeze({
+  stretchStart: 0.02,
   ignitionStart: 0.42,
   impactStart: 0.9,
   tunnelStart: 0.94,
+  beamsFade: 0.98,
+  flashPeak: 0.99,
 });
 
+function reverseEntryProgress(progress: number) {
+  return (
+    (HYPERSPACE_TIMING.EXITING - HYPERSPACE_TIMING.ACCELERATING * progress) /
+    HYPERSPACE_TIMING.EXITING
+  );
+}
+
 export const HYPERSPACE_EXIT = Object.freeze({
-  // Keep the crossing/reveal in seconds; only the clear star-beam animation grows.
-  streaksStart: 0.252 / HYPERSPACE_TIMING.EXITING,
-  streaksVisible: 0.336 / HYPERSPACE_TIMING.EXITING,
-  flashEnd: EXIT_FLASH_SECONDS / HYPERSPACE_TIMING.EXITING,
-  revealStart: 0.504 / HYPERSPACE_TIMING.EXITING,
-  revealEnd: 0.882 / HYPERSPACE_TIMING.EXITING,
+  // Reverse the entry plus its flash recovery. Brake only once both flash and mask clear.
+  streaksStart: reverseEntryProgress(1),
+  streaksVisible: reverseEntryProgress(HYPERSPACE_ENTRY.beamsFade),
+  flashEnd: reverseEntryProgress(HYPERSPACE_ENTRY.impactStart),
+  revealStart: reverseEntryProgress(1),
+  revealEnd: reverseEntryProgress(HYPERSPACE_ENTRY.tunnelStart),
+  brakingStart: reverseEntryProgress(HYPERSPACE_ENTRY.impactStart),
   settle: 1,
 });
 export const EXIT_COAST_DISTANCE =
   HYPERSPACE_TIMING.EXITING *
-  (HYPERSPACE_MOTION.arrivalSpeed * HYPERSPACE_EXIT.revealEnd +
-    HYPERSPACE_MOTION.exitSpeed * (1 - HYPERSPACE_EXIT.revealEnd) +
+  (HYPERSPACE_MOTION.arrivalSpeed * HYPERSPACE_EXIT.brakingStart +
+    HYPERSPACE_MOTION.exitSpeed * (1 - HYPERSPACE_EXIT.brakingStart) +
     ((HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) *
-      (1 - HYPERSPACE_EXIT.revealEnd)) /
+      (1 - HYPERSPACE_EXIT.brakingStart)) /
       HYPERSPACE_MOTION.arrivalExponent);
 const JOURNEY_PHASES = ['CHARGING', 'ACCELERATING', 'HYPERSPACE', 'EXITING'] as const;
 
@@ -80,16 +91,16 @@ export function hyperspaceDepartureDistance(progress: number) {
 /** Keep the incoming coast fast through reveal, then heavily ease out in visible real space. */
 export function hyperspaceArrivalDistance(progress: number) {
   const p = Math.max(0, Math.min(1, progress));
-  const braking = Math.max(0, p - HYPERSPACE_EXIT.revealEnd);
-  const coast = braking / (1 - HYPERSPACE_EXIT.revealEnd);
+  const braking = Math.max(0, p - HYPERSPACE_EXIT.brakingStart);
+  const coast = braking / (1 - HYPERSPACE_EXIT.brakingStart);
   return (
     HYPERSPACE_MOTION.arrivalSpeed *
       HYPERSPACE_TIMING.EXITING *
-      Math.min(p, HYPERSPACE_EXIT.revealEnd) +
+      Math.min(p, HYPERSPACE_EXIT.brakingStart) +
     HYPERSPACE_MOTION.exitSpeed * HYPERSPACE_TIMING.EXITING * braking +
     ((HYPERSPACE_MOTION.arrivalSpeed - HYPERSPACE_MOTION.exitSpeed) *
       HYPERSPACE_TIMING.EXITING *
-      (1 - HYPERSPACE_EXIT.revealEnd) *
+      (1 - HYPERSPACE_EXIT.brakingStart) *
       (1 - (1 - coast) ** HYPERSPACE_MOTION.arrivalExponent)) /
       HYPERSPACE_MOTION.arrivalExponent
   );
@@ -119,6 +130,14 @@ export class HyperspaceController {
   }
   get progress() {
     return this.phase === 'IDLE' ? 0 : Math.min(1, this.elapsed / this.duration(this.phase));
+  }
+  /** Canonical optical time: forward on entry, held in cruise, backward on exit. */
+  get crossingTime() {
+    if (this.phase === 'ACCELERATING') return this.elapsed;
+    if (this.phase === 'HYPERSPACE')
+      return Math.min(HYPERSPACE_TIMING.EXITING, HYPERSPACE_TIMING.ACCELERATING + this.elapsed);
+    if (this.phase === 'EXITING') return Math.max(0, HYPERSPACE_TIMING.EXITING - this.elapsed);
+    return 0;
   }
   duration(phase: Exclude<JumpPhase, 'IDLE'>) {
     return phase === 'HYPERSPACE' ? hyperspaceDuration(this.distance) : HYPERSPACE_TIMING[phase];
@@ -162,16 +181,15 @@ export class HyperspaceController {
       return 0.08 + smoothRamp(0, 0.85, entrySurge(this.progress)) * 0.92;
     if (this.phase === 'HYPERSPACE') return 1;
     if (this.phase === 'EXITING')
-      return 1 - smoothRamp(HYPERSPACE_EXIT.revealEnd, HYPERSPACE_EXIT.settle, this.progress);
+      return 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, this.progress);
     return 0;
   }
   get coverage() {
-    if (this.phase === 'ACCELERATING')
-      return smoothRamp(HYPERSPACE_ENTRY.tunnelStart, 1, this.progress);
-    if (this.phase === 'HYPERSPACE') return 1;
-    if (this.phase === 'EXITING')
-      return 1 - smoothRamp(HYPERSPACE_EXIT.revealStart, HYPERSPACE_EXIT.revealEnd, this.progress);
-    return 0;
+    return smoothRamp(
+      HYPERSPACE_ENTRY.tunnelStart,
+      1,
+      this.crossingTime / HYPERSPACE_TIMING.ACCELERATING,
+    );
   }
 
   request(current: string, destination: string | null, validIds: readonly string[], distance = 0) {

@@ -58,7 +58,6 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
     () => ({
       uStretch: { value: 0 },
       uFlash: { value: 0 },
-      uEntry: { value: 0 },
       uVisibility: { value: 1 },
       uTravel: { value: 0 },
       uForegroundDepth: { value: 0 },
@@ -76,7 +75,6 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
     const jump = session.exploration.jump;
     if (target.uStretch) target.uStretch.value = reduced ? 0 : jumpStretch(jump);
     if (target.uFlash) target.uFlash.value = jumpExposure(jump, reduced);
-    if (target.uEntry) target.uEntry.value = !reduced && jump.phase === 'ACCELERATING' ? 1 : 0;
     if (target.uVisibility)
       target.uVisibility.value = reduced ? 1 - jump.coverage : jumpStarVisibility(jump);
     if (target.uAtmosphere)
@@ -113,7 +111,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
         depthWrite={false}
         toneMapped={false}
         vertexShader={`
-          uniform float uStretch, uTravel, uRadius, uForegroundDepth, uFlash, uEntry;
+          uniform float uStretch, uTravel, uRadius, uForegroundDepth, uFlash;
           uniform vec3 uDirection;
           uniform vec2 uViewport, uVanishing;
           attribute vec2 aCorner; attribute float aSeed, aSize;
@@ -140,7 +138,7 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
               * (1.0 + uFlash * 3.5);
             // Grow length, viewport-proportional width and inward scatter together, with no
             // late fill stage. Keep the same catalogue and anchored heads throughout the jump.
-            float growth = uStretch * uEntry;
+            float growth = uStretch;
             width += min(uViewport.x, uViewport.y) * 0.0065 * growth
               * smoothstep(0.4, 0.85, aSeed);
             float inward = length(radial * uViewport * 0.5) * growth * 0.86;
@@ -159,17 +157,17 @@ export function Starfield({ radius, session }: { radius: number; session: Flight
           }
         `}
         fragmentShader={`
-          uniform float uStretch, uVisibility, uAtmosphere, uFlash, uEntry;
+          uniform float uStretch, uVisibility, uAtmosphere, uFlash;
           varying vec2 vCorner; varying float vBrightness, vAlong, vTrailLength, vSize, vInward;
           void main() {
             if (uVisibility < 0.001 || vBrightness < 0.001) discard;
-            float growth = uStretch * uEntry;
+            float growth = uStretch;
             float head = exp(-pow(vAlong / vSize, 2.0) * 0.9);
             float tail = step(0.0, vAlong) * (1.0 - smoothstep(0.0, max(1.0, vTrailLength), vAlong));
             float scatter = step(vAlong, 0.0)
               * (1.0 - smoothstep(0.0, max(1.0, vInward), -vAlong)) * growth;
             float shape = max(max(head, scatter), tail * uStretch);
-            float coreWidth = mix(55.0, mix(30.0, 22.0, uEntry), uStretch);
+            float coreWidth = mix(55.0, 22.0, uStretch);
             float core = exp(-vCorner.y * vCorner.y * mix(coreWidth, 8.0, uFlash));
             float shoulder = exp(-vCorner.y * vCorner.y * 10.0) * uStretch;
             float glow = exp(-vCorner.y * vCorner.y * 3.0) * uStretch;

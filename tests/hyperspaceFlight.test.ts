@@ -170,7 +170,7 @@ describe('continuous jump motion', () => {
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
     let previousSpeed = Number.POSITIVE_INFINITY;
-    for (const progress of [HYPERSPACE_EXIT.revealEnd, 0.75, 0.8, 0.9, 0.999]) {
+    for (const progress of [HYPERSPACE_EXIT.brakingStart, 0.75, 0.8, 0.9, 0.999]) {
       jump.elapsed = HYPERSPACE_TIMING.EXITING * progress;
       motion.sample(jump, position, orientation);
       const before = position.clone();

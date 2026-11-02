@@ -131,7 +131,7 @@ export class HyperdriveAudio {
     const chargeProgress = jump.phase === 'CHARGING' ? jump.progress : 1;
     const exiting = jump.phase === 'EXITING';
     const release = exiting
-      ? 1 - smoothRamp(HYPERSPACE_EXIT.revealEnd, HYPERSPACE_EXIT.settle, jump.progress)
+      ? 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, jump.progress)
       : 1;
     this.subGain?.gain.setTargetAtTime(0.022 * release * synthesized, time, 0.04);
     this.hum.frequency.setTargetAtTime(

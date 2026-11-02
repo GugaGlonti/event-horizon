@@ -8,24 +8,13 @@ import {
   smoothRamp,
 } from '@/engine/navigation/HyperspaceController';
 
-/** Entry length, width and glow share one uninterrupted growth into the crossing flash. */
+/** One beam curve grows into the entry flash and runs backward out of the exit flash. */
 export function jumpStretch(jump: HyperspaceController) {
-  if (jump.phase === 'ACCELERATING')
-    return smoothRamp(0.02, HYPERSPACE_ENTRY.impactStart, jump.progress);
-  if (jump.phase === 'HYPERSPACE') return 1;
-  // Reveal the same fully lit exposures before contracting them back to ordinary stars.
-  if (jump.phase === 'EXITING') {
-    const contraction = Math.max(
-      0,
-      Math.min(
-        1,
-        (jump.progress - HYPERSPACE_EXIT.revealEnd) /
-          (HYPERSPACE_EXIT.settle - HYPERSPACE_EXIT.revealEnd),
-      ),
-    );
-    return (1 - contraction) ** 2;
-  }
-  return 0;
+  return smoothRamp(
+    HYPERSPACE_ENTRY.stretchStart,
+    HYPERSPACE_ENTRY.impactStart,
+    jump.crossingTime / HYPERSPACE_TIMING.ACCELERATING,
+  );
 }
 
 export function jumpKick(jump: HyperspaceController) {
@@ -51,26 +40,24 @@ export function jumpStarTravel(jump: HyperspaceController) {
 
 /** Exchange beams and clouds only beneath the white peaks; no star beams remain in the tunnel. */
 export function jumpStarVisibility(jump: HyperspaceController) {
-  if (jump.phase === 'ACCELERATING') return 1 - smoothRamp(0.98, 1, jump.progress);
-  if (jump.phase === 'HYPERSPACE') return 0;
-  if (jump.phase === 'EXITING')
-    return smoothRamp(HYPERSPACE_EXIT.streaksStart, HYPERSPACE_EXIT.streaksVisible, jump.progress);
-  return 1;
+  return (
+    1 -
+    smoothRamp(HYPERSPACE_ENTRY.beamsFade, 1, jump.crossingTime / HYPERSPACE_TIMING.ACCELERATING)
+  );
 }
 
 /** Beam bloom crosses white once at each tunnel boundary, independently of the braking impulse. */
 export function jumpExposure(jump: HyperspaceController, reduced = false) {
   if (reduced) return 0;
-  if (jump.phase === 'ACCELERATING')
-    return smoothRamp(HYPERSPACE_ENTRY.impactStart, 0.99, jump.progress);
-  // Carry the entry peak through the phase boundary, then reveal the flowing cloud tunnel.
-  if (jump.phase === 'HYPERSPACE') return 1 - smoothRamp(0, 0.42, jump.elapsed);
-  if (jump.phase === 'EXITING')
-    return (
-      smoothRamp(0, HYPERSPACE_EXIT.streaksStart, jump.progress) *
-      (1 - smoothRamp(HYPERSPACE_EXIT.streaksVisible, HYPERSPACE_EXIT.flashEnd, jump.progress))
-    );
-  return 0;
+  const time = jump.crossingTime;
+  return (
+    smoothRamp(
+      HYPERSPACE_ENTRY.impactStart,
+      HYPERSPACE_ENTRY.flashPeak,
+      time / HYPERSPACE_TIMING.ACCELERATING,
+    ) *
+    (1 - smoothRamp(HYPERSPACE_TIMING.ACCELERATING, HYPERSPACE_TIMING.EXITING, time))
+  );
 }
 
 /** One crossing impulse drives the lens, recoil and audio; entry decay carries into the tunnel. */
@@ -80,7 +67,7 @@ export function jumpImpactAge(jump: HyperspaceController) {
   if (jump.phase === 'HYPERSPACE')
     return jump.elapsed + HYPERSPACE_TIMING.ACCELERATING * (1 - HYPERSPACE_ENTRY.impactStart);
   if (jump.phase === 'EXITING')
-    return jump.elapsed - HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealEnd;
+    return jump.elapsed - HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.brakingStart;
   return -1;
 }
 

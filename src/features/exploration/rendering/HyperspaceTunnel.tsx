@@ -33,7 +33,7 @@ const vertex = /* glsl */ `
   void main() { vUv = uv; gl_Position = vec4(position.xy, uMaskDepth, 1.0); }
 `;
 const fragment = /* glsl */ `
-  uniform float uFlowTime, uOpacity, uExposure, uExit, uMotion;
+  uniform float uFlowTime, uOpacity, uExposure, uMotion;
   uniform vec2 uLens, uDrift, uLightDirection, uPulse, uSpin;
   varying vec2 vUv;
   float hash(vec3 p) {
@@ -84,11 +84,10 @@ const fragment = /* glsl */ `
     float mist = noise(vec3(ray * 8.0, uFlowTime * 0.45));
     color += mix(vec3(0.015, 0.05, 0.12), vec3(0.09, 0.28, 0.42), mist) * exp(-radius * 5.0) * 0.65;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
-    // The crossing travels across the view: clouds engulf the center on entry and open
-    // from the center on exit. Both endpoints are exact, preserving the opaque handoff.
+    // One spatial wipe runs forward on entry and backward on exit, beneath the white peak.
+    // Both endpoints are exact, preserving the opaque handoff.
     float screenRadius = clamp(length(vUv * 2.0 - 1.0) / 1.414214, 0.0, 1.0);
-    float front = mix(screenRadius, 1.0 - screenRadius, uExit);
-    float mask = mix(uOpacity, smoothstep(front * 0.76, front * 0.76 + 0.24, uOpacity), uMotion);
+    float mask = mix(uOpacity, smoothstep(screenRadius * 0.76, screenRadius * 0.76 + 0.24, uOpacity), uMotion);
     float crest = 4.0 * mask * (1.0 - mask);
     color += vec3(0.12, 0.38, 0.7) * crest * uExposure * 1.4;
     color *= 1.0 + uExposure * 0.65;
@@ -121,7 +120,6 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uSpin: { value: new Vector2(1, 0) },
       uMaskDepth: { value: -0.477 },
       uOpacity: { value: 0 },
-      uExit: { value: 0 },
       uMotion: { value: 1 },
       uExposure: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
@@ -153,7 +151,6 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
         reduced ? 0 : jumpTurbulence(jump, 1) * 0.035,
       );
     if (target?.uOpacity) target.uOpacity.value = jump.coverage;
-    if (target?.uExit) target.uExit.value = jump.phase === 'EXITING' ? 1 : 0;
     if (target?.uMotion) target.uMotion.value = reduced ? 0 : 1;
     const exposure = jumpExposure(jump, reduced);
     if (target?.uExposure) target.uExposure.value = exposure;

@@ -117,7 +117,7 @@ export class HyperdriveRecordings {
         : 1;
     const release =
       jump.phase === 'EXITING'
-        ? 1 - smoothRamp(HYPERSPACE_EXIT.revealEnd, HYPERSPACE_EXIT.settle, jump.progress)
+        ? 1 - smoothRamp(HYPERSPACE_EXIT.brakingStart, HYPERSPACE_EXIT.settle, jump.progress)
         : 1;
     const active =
       charging || accelerating || jump.phase === 'HYPERSPACE' || jump.phase === 'EXITING';
