@@ -9,6 +9,13 @@ export const useRenderStatsStore = create<{
   patches: number;
   cache: number;
   generationMs: number;
+  visualMiB: number;
+  sceneryCells: number;
+  sceneryInstances: number;
+  cityBlocks: number;
+  workerFailures: number;
+  captureRequest: number;
+  captureResult: string;
 }>(() => ({
   fps: 0,
   frameMs: 0,
@@ -19,4 +26,11 @@ export const useRenderStatsStore = create<{
   patches: 0,
   cache: 0,
   generationMs: 0,
+  visualMiB: 0,
+  sceneryCells: 0,
+  sceneryInstances: 0,
+  cityBlocks: 0,
+  workerFailures: 0,
+  captureRequest: 0,
+  captureResult: '',
 }));

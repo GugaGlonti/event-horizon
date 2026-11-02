@@ -227,12 +227,27 @@ export function PlanetaryHud({ session }: { session: FlightSession }) {
         </div>
       )}
       {import.meta.env.DEV && debug && (
-        <p className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
+        <div className="mt-2 hidden text-[10px] text-phosphor-dim tablet:block">
           RTT {Math.round(rtt)} ms / {tickRate} Hz / corrections {corrections} /{' '}
           {stats.fps.toFixed(0)} FPS / {stats.frameMs.toFixed(1)} ms / {stats.drawCalls} calls /{' '}
           {stats.triangles} tris / {stats.geometries} geo / {stats.textures} tex / terrain{' '}
-          {stats.patches} live {stats.cache} cache / build {stats.generationMs.toFixed(1)} ms
-        </p>
+          {stats.patches} live {stats.cache} cache / build {stats.generationMs.toFixed(1)} ms /
+          detail {stats.visualMiB.toFixed(1)} MiB / scenery {stats.sceneryCells}:
+          {stats.sceneryInstances} / blocks {stats.cityBlocks} / worker errors{' '}
+          {stats.workerFailures}
+          <InstrumentButton
+            variant="hud"
+            className="ml-2"
+            onClick={() =>
+              useRenderStatsStore.setState({ captureRequest: stats.captureRequest + 1 })
+            }
+          >
+            Capture 60s
+          </InstrumentButton>
+          <output aria-label="Visual benchmark result" className="block max-w-lg break-all">
+            {stats.captureResult}
+          </output>
+        </div>
       )}
       <InstrumentButton
         variant="hud"

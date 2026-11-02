@@ -2,11 +2,15 @@
 import { createInterface } from 'node:readline';
 import { serverConfig } from '../server/config';
 import { createGameServer } from '../server/createServer';
-import { placeVerificationPilots, verificationScenarios } from './planetaryFixtures';
+import {
+  placeVerificationPilots,
+  setVerificationNight,
+  verificationScenarios,
+} from './planetaryFixtures';
 
 const game = await createGameServer({ ...serverConfig({}), host: '127.0.0.1' });
 console.info(
-  `QA authority: ws://127.0.0.1:${game.port}. Commands: status, deep, orbit, entry, descent, low, land, station, hangar, city, city-pad, damage, exit.`,
+  `QA authority: ws://127.0.0.1:${game.port}. Commands: status, deep, orbit, entry, descent, low, land, station, hangar, city, city-pad, coast, forest, ridge, night, damage, exit.`,
 );
 const input = createInterface({ input: process.stdin, output: process.stdout });
 input.on('line', (line) => {
@@ -26,10 +30,24 @@ input.on('line', (line) => {
           pilots: [...world.pilots.values()].map((p) => ({
             id: p.id,
             name: p.name,
+            health: {
+              hull: p.ship.health.hull,
+              shields: p.ship.health.shields,
+              protection: p.ship.health.invulnerability,
+            },
             flight: p.ship.controller.snapshot(),
             docking: world.simulation.stations?.state(p.id),
           })),
+          events: world.simulation.events.slice(-8),
         }),
+      );
+      continue;
+    }
+    if (command === 'night') {
+      console.info(
+        setVerificationNight(world)
+          ? 'Night city fixture ready.'
+          : 'Reference body has no rotating settled night.',
       );
       continue;
     }

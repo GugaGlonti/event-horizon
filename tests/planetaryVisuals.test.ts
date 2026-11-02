@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { Quaternion, Vector3 } from '@/engine/math/linear';
+import { MultiplayerWorld } from '@/engine/network/MultiplayerWorld';
 import { joinSchema, PROTOCOL_VERSION } from '@/engine/network/protocol';
 import {
   type BuildingInstance,
@@ -23,6 +24,7 @@ import {
   terrainHeight,
 } from '@/engine/planetary/terrain';
 import { buildTerrainPatch, cubeDirection } from '@/engine/planetary/terrainLod';
+import { FrameCapture } from '@/engine/rendering/FrameCapture';
 import { portPose, traceStation } from '@/engine/stations/stationGeometry';
 import { SystemRuntime } from '@/engine/world/SystemRuntime';
 import { SYSTEMS } from '@/engine/world/systems';
@@ -42,6 +44,7 @@ import {
   reserveVisualBytes,
   visualMetrics,
 } from '@/features/planets/rendering/visualBudget';
+import { placeVerificationPilots, setVerificationNight } from '../scripts/planetaryFixtures';
 import anchors from './fixtures/planetaryAnchors.json';
 
 function required<T>(value: T | undefined | null): T {
@@ -97,7 +100,27 @@ describe('surface revision and preserved chart', () => {
     ).toBe(true);
   });
 });
-
+describe('rotating QA fixtures', () => {
+  it('uses the body/station frame and relative velocity at night without protocol fixtures', () => {
+    const world = new MultiplayerWorld('vesper');
+    const pilot = world.addPlayer('night-pilot', 'Night');
+    expect(setVerificationNight(world)).toBe(true);
+    expect(placeVerificationPilots(world, 'city')).toBe(true);
+    const body = required(world.system.definition.bodies.find((body) => body.landable));
+    const city = required(body.settlements?.[0]);
+    const station = required(
+      world.system.definition.stations?.find((station) => station.id === `${city.id}-spaceport`),
+    );
+    const pose = portPose(world.system, station, required(station.ports[0]));
+    const position = new Vector3(),
+      orientation = new Quaternion();
+    pilot.ship.controller.copyTransform(position, orientation);
+    expect(position.distanceTo(pose.approach)).toBeLessThan(1e-6);
+    expect(
+      pilot.ship.controller.copyVelocity(new Vector3()).distanceTo(pose.velocity),
+    ).toBeLessThan(0.1);
+  });
+});
 describe('coherent physical surfaces', () => {
   it('creates coast, forest and a pale ridge in the Pelagos reference region', () => {
     const ocean = describeSurface(pelagos, surfaceDirection(-0.035, 2.27));
@@ -167,7 +190,50 @@ describe('coherent physical surfaces', () => {
     expect(whole[3]).toBe(Math.round(Math.min(1, height / required(pelagos.terrain).relief) * 255));
   });
 });
-
+describe('bounded geography-aware scenery', () => {
+  it('selects unique stable cells at seams/poles and bounds deterministic instances', () => {
+    for (const direction of [
+      surfaceDirection(0.015, 2.26),
+      new Vector3(0, 1, 0),
+      new Vector3(1, 0, 1).normalize(),
+    ]) {
+      const cells = selectSceneryCells(pelagos, direction);
+      expect(cells.length).toBeLessThanOrEqual(32);
+      expect(new Set(cells.map(sceneryCellKey)).size).toBe(cells.length);
+      expect(cells).toEqual(selectSceneryCells(structuredClone(pelagos), direction));
+    }
+    const cells = selectSceneryCells(pelagos, surfaceDirection(0.015, 2.26));
+    const a = cells.flatMap((cell) => buildSceneryCell(pelagos, cell));
+    expect(a.length).toBeGreaterThan(50);
+    expect(a.length).toBeLessThanOrEqual(4096);
+    expect(a).toEqual(cells.flatMap((cell) => buildSceneryCell(structuredClone(pelagos), cell)));
+    for (const instance of a) {
+      const up = new Vector3().fromArray(instance.position).normalize();
+      expect(sceneryExcluded(pelagos, up, [])).toBe(false);
+      expect(terrainHeight(pelagos, up)).toBeGreaterThan(required(pelagos.ocean).level + 4);
+    }
+  });
+  it('excludes survey foundations, cities, approach corridors, roads and water', () => {
+    const city = required(pelagos.settlements?.[0]);
+    expect(sceneryExcluded(pelagos, surfaceDirection(city.latitude, city.longitude), [])).toBe(
+      true,
+    );
+    const zone = required(pelagos.landingZones?.[0]);
+    expect(sceneryExcluded(pelagos, surfaceDirection(zone.latitude, zone.longitude), [])).toBe(
+      true,
+    );
+    const direction = surfaceDirection(0.015, 2.26),
+      a = direction.clone().multiplyScalar(pelagos.radius),
+      b = a.clone().add(new Vector3(30, 0, 0));
+    expect(
+      sceneryExcluded(pelagos, direction, [
+        { id: 'road', points: [a.toArray(), b.toArray()], bridges: 0 },
+      ]),
+    ).toBe(true);
+    const sea = selectSceneryCells(pelagos, surfaceDirection(-0.035, 2.27));
+    expect(sea.flatMap((cell) => buildSceneryCell(pelagos, cell))).toHaveLength(0);
+  });
+});
 describe('districts and shared building recipes', () => {
   it('keeps city blocks bounded, reproduces districts and leaves every port capture path clear', () => {
     for (const system of SYSTEMS) {
@@ -284,51 +350,30 @@ describe('districts and shared building recipes', () => {
   });
 });
 
-describe('bounded geography-aware scenery', () => {
-  it('selects unique stable cells at seams/poles and bounds deterministic instances', () => {
-    for (const direction of [
-      surfaceDirection(0.015, 2.26),
-      new Vector3(0, 1, 0),
-      new Vector3(1, 0, 1).normalize(),
-    ]) {
-      const cells = selectSceneryCells(pelagos, direction);
-      expect(cells.length).toBeLessThanOrEqual(32);
-      expect(new Set(cells.map(sceneryCellKey)).size).toBe(cells.length);
-      expect(cells).toEqual(selectSceneryCells(structuredClone(pelagos), direction));
-    }
-    const cells = selectSceneryCells(pelagos, surfaceDirection(0.015, 2.26));
-    const a = cells.flatMap((cell) => buildSceneryCell(pelagos, cell));
-    expect(a.length).toBeGreaterThan(50);
-    expect(a.length).toBeLessThanOrEqual(4096);
-    expect(a).toEqual(cells.flatMap((cell) => buildSceneryCell(structuredClone(pelagos), cell)));
-    for (const instance of a) {
-      const up = new Vector3().fromArray(instance.position).normalize();
-      expect(sceneryExcluded(pelagos, up, [])).toBe(false);
-      expect(terrainHeight(pelagos, up)).toBeGreaterThan(required(pelagos.ocean).level + 4);
-    }
-  });
-  it('excludes survey foundations, cities, approach corridors, roads and water', () => {
-    const city = required(pelagos.settlements?.[0]);
-    expect(sceneryExcluded(pelagos, surfaceDirection(city.latitude, city.longitude), [])).toBe(
-      true,
+class FakeWorker implements PlanetWorker {
+  onmessage: PlanetWorker['onmessage'] = null;
+  onerror: PlanetWorker['onerror'] = null;
+  sent: PlanetWorkerRequest[] = [];
+  terminated = false;
+  postMessage(request: PlanetWorkerRequest) {
+    this.sent.push(request);
+  }
+  terminate() {
+    this.terminated = true;
+  }
+  finish(request = required(this.sent.at(-1)), revision = SURFACE_GENERATION_REVISION) {
+    this.onmessage?.(
+      new MessageEvent<PlanetWorkerResponse>('message', {
+        data: {
+          id: request.id,
+          revision,
+          ms: 1,
+          result: { kind: 'surface', pixels: new Uint8Array(4) },
+        },
+      }),
     );
-    const zone = required(pelagos.landingZones?.[0]);
-    expect(sceneryExcluded(pelagos, surfaceDirection(zone.latitude, zone.longitude), [])).toBe(
-      true,
-    );
-    const direction = surfaceDirection(0.015, 2.26),
-      a = direction.clone().multiplyScalar(pelagos.radius),
-      b = a.clone().add(new Vector3(30, 0, 0));
-    expect(
-      sceneryExcluded(pelagos, direction, [
-        { id: 'road', points: [a.toArray(), b.toArray()], bridges: 0 },
-      ]),
-    ).toBe(true);
-    const sea = selectSceneryCells(pelagos, surfaceDirection(-0.035, 2.27));
-    expect(sea.flatMap((cell) => buildSceneryCell(pelagos, cell))).toHaveLength(0);
-  });
-});
-
+  }
+}
 describe('generation lifetime and performance accounting', () => {
   const job: PlanetJob = {
     kind: 'surface',
@@ -408,28 +453,22 @@ describe('generation lifetime and performance accounting', () => {
     release();
     expect(visualMetrics.bytes).toBe(before);
   });
+  it('captures a full minute of real frame times and flags background gaps', () => {
+    const capture = new FrameCapture();
+    capture.start();
+    for (let i = 0; i < 3000; i++) capture.push(20);
+    expect(capture.report()).toMatchObject({
+      seconds: 60,
+      frames: 3000,
+      p50: 20,
+      p95: 20,
+      p99: 20,
+      valid: true,
+      complete: true,
+    });
+    capture.start();
+    capture.push(16, false);
+    capture.push(500);
+    expect(capture.report().valid).toBe(false);
+  });
 });
-class FakeWorker implements PlanetWorker {
-  onmessage: PlanetWorker['onmessage'] = null;
-  onerror: PlanetWorker['onerror'] = null;
-  sent: PlanetWorkerRequest[] = [];
-  terminated = false;
-  postMessage(request: PlanetWorkerRequest) {
-    this.sent.push(request);
-  }
-  terminate() {
-    this.terminated = true;
-  }
-  finish(request = required(this.sent.at(-1)), revision = SURFACE_GENERATION_REVISION) {
-    this.onmessage?.(
-      new MessageEvent<PlanetWorkerResponse>('message', {
-        data: {
-          id: request.id,
-          revision,
-          ms: 1,
-          result: { kind: 'surface', pixels: new Uint8Array(4) },
-        },
-      }),
-    );
-  }
-}

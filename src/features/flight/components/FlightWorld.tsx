@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber';
 import { useRef, useState } from 'react';
 import { type Group, PerspectiveCamera } from 'three';
+import { FrameCapture } from '@/engine/rendering/FrameCapture';
 import { CombatScene } from '@/features/combat/components/CombatScene';
 import { HyperspaceTunnel } from '@/features/exploration/rendering/HyperspaceTunnel';
 import { SystemScene } from '@/features/exploration/rendering/SystemScene';
@@ -9,6 +10,7 @@ import { CockpitFrame } from '@/features/flight/components/CockpitFrame';
 import { GAME_CONFIG } from '@/features/flight/config';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { terrainMetrics } from '@/features/planets/rendering/PlanetTerrain';
+import { visualMetrics } from '@/features/planets/rendering/visualBudget';
 import { Starfield } from '@/features/space/components/Starfield';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
 import { useSpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
@@ -19,6 +21,16 @@ import { useRenderStatsStore } from '@/stores/renderStatsStore';
 
 export function FlightWorld({ session }: { session: FlightSession }) {
   const statsClock = useRef({ elapsed: 0, frames: 0 });
+  const capture = useRef(new FrameCapture());
+  const captureRequest = useRef(0);
+  const capturePeaks = useRef({
+    calls: 0,
+    triangles: 0,
+    visualBytes: 0,
+    scenery: 0,
+    cells: 0,
+    blocks: 0,
+  });
   const ship = useRef<Group>(null);
   const gear = useRef(false);
   const enginePower = useRef(0.25);
@@ -33,6 +45,29 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   const systemId = useExplorationStore((state) => state.systemId);
 
   useFrame((state, delta) => {
+    const request = useRenderStatsStore.getState().captureRequest;
+    if (request !== captureRequest.current) {
+      captureRequest.current = request;
+      capture.current.start();
+      capturePeaks.current = {
+        calls: 0,
+        triangles: 0,
+        visualBytes: 0,
+        scenery: 0,
+        cells: 0,
+        blocks: 0,
+      };
+    }
+    if (capture.current.active) {
+      const peaks = capturePeaks.current;
+      peaks.calls = Math.max(peaks.calls, state.gl.info.render.calls);
+      peaks.triangles = Math.max(peaks.triangles, state.gl.info.render.triangles);
+      peaks.visualBytes = Math.max(peaks.visualBytes, visualMetrics.bytes);
+      peaks.scenery = Math.max(peaks.scenery, visualMetrics.sceneryInstances);
+      peaks.cells = Math.max(peaks.cells, visualMetrics.sceneryCells);
+      peaks.blocks = Math.max(peaks.blocks, visualMetrics.cityBlocks);
+    }
+    capture.current.push(delta * 1000, document.visibilityState === 'visible');
     const stats = statsClock.current;
     stats.elapsed += delta;
     stats.frames++;
@@ -47,6 +82,26 @@ export function FlightWorld({ session }: { session: FlightSession }) {
         patches: terrainMetrics.patches,
         cache: terrainMetrics.cache,
         generationMs: terrainMetrics.generationMs,
+        visualMiB: visualMetrics.bytes / 1048576,
+        sceneryCells: visualMetrics.sceneryCells,
+        sceneryInstances: visualMetrics.sceneryInstances,
+        cityBlocks: visualMetrics.cityBlocks,
+        workerFailures: visualMetrics.workerFailures,
+        captureResult: captureRequest.current
+          ? JSON.stringify({
+              ...capture.current.report(),
+              peaks: capturePeaks.current,
+              calls: state.gl.info.render.calls,
+              triangles: state.gl.info.render.triangles,
+              geometries: state.gl.info.memory.geometries,
+              textures: state.gl.info.memory.textures,
+              patches: terrainMetrics.patches,
+              cache: terrainMetrics.cache,
+              workerMs: terrainMetrics.generationMs,
+              width: state.gl.domElement.width,
+              height: state.gl.domElement.height,
+            })
+          : '',
       });
       stats.elapsed = stats.frames = 0;
     }
