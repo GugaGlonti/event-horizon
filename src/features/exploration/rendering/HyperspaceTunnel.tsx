@@ -3,11 +3,17 @@ import { useMemo, useRef } from 'react';
 import {
   type AmbientLight,
   type Group,
+  Object3D,
   type PointLight,
   type ShaderMaterial,
+  type SpotLight,
   Vector2,
   Vector3,
 } from 'three';
+import {
+  sampleTunnelLights,
+  type TunnelLightSample,
+} from '@/features/exploration/hyperspaceLighting';
 import {
   jumpExposure,
   jumpStretch,
@@ -23,7 +29,7 @@ const vertex = /* glsl */ `
 `;
 const fragment = /* glsl */ `
   uniform float uTime, uOpacity, uExposure;
-  uniform vec2 uLens, uDrift;
+  uniform vec2 uLens, uDrift, uLightDirection, uPulse;
   varying vec2 vUv;
   float hash(vec3 p) {
     p = fract(p * 0.1031); p += dot(p, p.yzx + 33.33);
@@ -41,25 +47,31 @@ const fragment = /* glsl */ `
     vec2 ray = (vUv * 2.0 - 1.0 + uDrift) * uLens;
     float radius = max(length(ray), 0.025);
     vec2 radial = ray / radius;
-    vec3 color = vec3(0.003, 0.009, 0.035);
-    // Three bounded depth shells sample a 3D cloud field; no angular rotation or seam.
+    vec3 color = vec3(0.002, 0.006, 0.025);
+    float keyPool = pow(max(0.0, dot(radial, normalize(uLightDirection))), 3.0);
+    float fillPool = pow(max(0.0, dot(radial, -normalize(uLightDirection))), 2.0);
+    // Far-to-near shells: broad folds, creased wisps and fine luminous filaments.
     for (int layer = 0; layer < 3; layer++) {
-      float shell = 3.0 + float(layer) * 3.5;
+      float shell = 10.0 - float(layer) * 3.5;
       float depth = min(240.0, shell / radius);
       float z = depth - uTime * (22.0 + float(layer) * 9.0);
       vec2 bend = vec2(sin(depth * 0.09 + 0.6), cos(depth * 0.06)) * vec2(0.5, 0.35);
       vec3 p = vec3(radial * (2.6 + float(layer) * 0.7) + bend, z * 0.1 + float(layer) * 19.0);
       float broad = noise(p * 0.65);
       float detail = noise(p * 2.3 + broad * 0.8);
-      float cloud = smoothstep(0.25, 0.83, broad * 0.72 + detail * 0.28);
-      float wisps = smoothstep(0.48, 0.82, detail) * (0.3 + cloud * 0.7);
+      float fine = noise(p * 7.0 + vec3(detail, broad, detail) * 1.5);
+      float cloud = smoothstep(0.25, 0.8, broad * 0.55 + detail * 0.3 + fine * 0.15);
+      float wisps = pow(1.0 - abs(detail * 2.0 - 1.0), 7.0) * smoothstep(0.3, 0.7, broad);
+      float filaments = pow(smoothstep(0.45, 0.83, fine), 3.0) * wisps;
       float depthFade = exp(-depth * 0.008);
-      color += mix(vec3(0.008, 0.016, 0.07), vec3(0.09, 0.25, 0.62), cloud * cloud) * depthFade * 0.7;
-      color += vec3(0.12, 0.4, 0.85) * wisps * wisps * depthFade * 0.65;
-      color += vec3(0.3, 0.65, 1.0) * pow(wisps, 5.0) * depthFade * 0.5;
+      float light = 0.3 + keyPool * (0.45 + uPulse.x * 1.8) + fillPool * uPulse.y * 0.6;
+      vec3 wall = mix(vec3(0.003, 0.012, 0.045), vec3(0.025, 0.15, 0.43), cloud * cloud);
+      wall += vec3(0.045, 0.32, 0.67) * wisps * light;
+      wall += vec3(0.3, 0.82, 1.0) * filaments * light * 1.6;
+      color = mix(color, wall * depthFade, 0.55 + cloud * 0.3);
     }
     float mist = noise(vec3(ray * 8.0, uTime * 0.45));
-    color += mix(vec3(0.03, 0.08, 0.2), vec3(0.2, 0.32, 0.5), mist) * exp(-radius * 5.0) * 0.55;
+    color += mix(vec3(0.015, 0.05, 0.12), vec3(0.09, 0.28, 0.42), mist) * exp(-radius * 5.0) * 0.65;
     color *= 1.0 - smoothstep(0.55, 1.7, radius) * 0.2;
     // The actual clouds crossfade directly with the trails. No intermediate blue/white plate.
     color *= 1.0 + uExposure * 0.65;
@@ -74,10 +86,13 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
   const group = useRef<Group>(null);
   const material = useRef<ShaderMaterial>(null);
   const light = useRef<AmbientLight>(null);
-  const reflection = useRef<PointLight>(null);
+  const reflection = useRef<SpotLight>(null);
   const fill = useRef<PointLight>(null);
   const right = useMemo(() => new Vector3(), []);
   const up = useMemo(() => new Vector3(), []);
+  const back = useMemo(() => new Vector3(), []);
+  const aim = useMemo(() => new Object3D(), []);
+  const lamps = useMemo<TunnelLightSample>(() => ({ x: 8, y: 2.4, z: 5, pulse: 0, fill: 0 }), []);
   const reduced = useReducedMotion();
   const uniforms = useMemo(
     () => ({
@@ -87,6 +102,8 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
       uExposure: { value: 0 },
       uLens: { value: new Vector2(1, 1) },
       uDrift: { value: new Vector2() },
+      uLightDirection: { value: new Vector2(1, 0) },
+      uPulse: { value: new Vector2() },
     }),
     [],
   );
@@ -94,12 +111,16 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     const jump = session.exploration.jump;
     if (!group.current) return;
     group.current.visible = jump.busy;
+    if (!jump.busy) return;
     const time = reduced ? 0 : jump.flightElapsed + (jump.variation % 1000) * 0.1;
+    sampleTunnelLights(time, reduced, lamps);
     const target = material.current?.uniforms;
     // Match the logarithmic depth of an 80 m foreground boundary.
     if (target?.uMaskDepth)
       target.uMaskDepth.value = (2 * Math.log2(81)) / Math.log2(camera.far + 1) - 1;
     if (target?.uTime) target.uTime.value = time;
+    if (target?.uLightDirection) target.uLightDirection.value.set(lamps.x, lamps.y);
+    if (target?.uPulse) target.uPulse.value.set(lamps.pulse, lamps.fill);
     if (target?.uDrift)
       target.uDrift.value.set(
         reduced ? 0 : jumpTurbulence(jump, 0) * 0.035,
@@ -114,32 +135,57 @@ export function HyperspaceTunnel({ session }: { session: FlightSession }) {
     );
     if (light.current)
       light.current.intensity =
-        jump.coverage * 1.8 + (reduced ? 0 : jumpStretch(jump) * 0.6) + exposure * 2;
+        jump.coverage * 0.12 +
+        (1 - jump.coverage) * (reduced ? 0 : jumpStretch(jump) * 0.6) +
+        exposure * 0.25;
     if (reflection.current) {
-      const wave = reduced ? 0 : jumpTurbulence(jump, 0) * 0.65 + Math.sin(time * 3.1) * 0.35;
       right.set(1, 0, 0).applyQuaternion(camera.quaternion);
       up.set(0, 1, 0).applyQuaternion(camera.quaternion);
+      back.set(0, 0, 1).applyQuaternion(camera.quaternion);
+      aim.position.copy(session.renderPosition).addScaledVector(up, 0.4);
+      aim.updateMatrixWorld();
       reflection.current.position
-        .copy(camera.position)
-        .addScaledVector(right, wave * 1.6)
-        .addScaledVector(up, 0.4);
-      reflection.current.color.setRGB(0.4 + exposure * 0.5, 0.7 + exposure * 0.25, 1);
+        .copy(session.renderPosition)
+        .addScaledVector(right, lamps.x)
+        .addScaledVector(up, lamps.y)
+        .addScaledVector(back, lamps.z);
+      reflection.current.color.setRGB(0.2 + lamps.pulse * 0.15, 0.52 + lamps.pulse * 0.18, 1);
       reflection.current.intensity =
-        jump.coverage * (18 + wave * 6) + (reduced ? 0 : jumpStretch(jump) * 8) + exposure * 35;
+        jump.coverage * (180 + lamps.pulse * 900) +
+        (reduced ? 0 : jumpStretch(jump) * 18) +
+        exposure * 100;
+      reflection.current.shadow.needsUpdate = !session.exploration.isSuspended;
       if (fill.current) {
         fill.current.position
-          .copy(camera.position)
-          .addScaledVector(right, -wave * 2 - 1.5)
-          .addScaledVector(up, -0.5);
-        fill.current.intensity = jump.coverage * (5 - wave * 2) + exposure * 8;
+          .copy(session.renderPosition)
+          .addScaledVector(right, -lamps.x * 0.7)
+          .addScaledVector(up, -lamps.y * 0.5)
+          .addScaledVector(back, 2);
+        fill.current.intensity = jump.coverage * (10 + lamps.fill * 35) + exposure * 12;
       }
     }
   });
   return (
     <group ref={group} visible={false}>
       <ambientLight ref={light} color="#649de3" intensity={0} />
-      <pointLight ref={reflection} color="#8bcaff" intensity={0} distance={80} />
-      <pointLight ref={fill} color="#4267db" intensity={0} distance={40} />
+      <primitive object={aim} />
+      <spotLight
+        ref={reflection}
+        target={aim}
+        color="#8bcaff"
+        intensity={0}
+        distance={32}
+        angle={0.85}
+        penumbra={0.65}
+        castShadow
+        shadow-mapSize={[512, 512]}
+        shadow-camera-near={0.5}
+        shadow-camera-far={32}
+        shadow-bias={-0.0002}
+        shadow-normalBias={0.018}
+        shadow-autoUpdate={false}
+      />
+      <pointLight ref={fill} color="#326de8" intensity={0} distance={28} />
       <mesh renderOrder={10} frustumCulled={false}>
         <planeGeometry args={[2, 2]} />
         <shaderMaterial

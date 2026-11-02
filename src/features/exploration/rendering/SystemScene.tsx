@@ -1,6 +1,12 @@
 import { useFrame } from '@react-three/fiber';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { type DirectionalLight, type HemisphereLight, SphereGeometry, Vector3 } from 'three';
+import {
+  type AmbientLight,
+  type DirectionalLight,
+  type HemisphereLight,
+  SphereGeometry,
+  Vector3,
+} from 'three';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { CelestialBody } from '@/features/planets/components/CelestialBody';
 import { AtmosphericSky } from '@/features/planets/rendering/AtmosphericSky';
@@ -56,6 +62,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
   }, [detailedBodyId]);
   const geometry = useMemo(() => new SphereGeometry(1, 64, 40), []);
   const light = useRef<DirectionalLight>(null);
+  const ambient = useRef<AmbientLight>(null);
   const skyFill = useRef<HemisphereLight>(null);
   const up = useMemo(() => new Vector3(), []);
   const direction = useMemo(() => new Vector3(), []);
@@ -63,6 +70,10 @@ export function SystemScene({ session }: { session: FlightSession }) {
   // Primitive geometry attachments are shared external resources. This component owns disposal.
   useEffect(() => () => geometry.dispose(), [geometry]);
   useFrame(() => {
+    const worldLight = 1 - session.exploration.jump.coverage;
+    if (ambient.current)
+      ambient.current.intensity = world.definition.environment.ambient * worldLight;
+    if (light.current) light.current.intensity = 2.3 * worldLight;
     if (!detailedBodyId || readyBodyId === detailedBodyId)
       session.exploration.markArrivalReady(world.definition.id);
     const readout = session.planetaryReadout,
@@ -76,7 +87,7 @@ export function SystemScene({ session }: { session: FlightSession }) {
           .normalize();
         skyFill.current.position.copy(up);
         skyFill.current.intensity =
-          Math.sqrt(readout.density) * (0.12 + Math.max(0, up.dot(direction)) * 0.85);
+          Math.sqrt(readout.density) * (0.12 + Math.max(0, up.dot(direction)) * 0.85) * worldLight;
       } else skyFill.current.intensity = 0;
     }
     if (!light.current || !star) return;
@@ -91,7 +102,11 @@ export function SystemScene({ session }: { session: FlightSession }) {
   return (
     <>
       <SpaceBackdrop environment={world.definition.environment} />
-      <ambientLight color="#a9bbde" intensity={world.definition.environment.ambient} />
+      <ambientLight
+        ref={ambient}
+        color="#a9bbde"
+        intensity={world.definition.environment.ambient}
+      />
       <directionalLight ref={light} color={star?.surface.palette[0] ?? '#ffffff'} intensity={2.3} />
       <hemisphereLight ref={skyFill} color="#c7dbea" groundColor="#737660" intensity={0} />
       {world.definition.bodies.map((body) => (
