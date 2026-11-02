@@ -196,6 +196,27 @@ describe('hyperspace visual timing', () => {
     expect(jumpExposure(jump)).toBe(0);
   });
 
+  it('gives clear exit beams the full entry duration without lengthening the flash or world reveal', () => {
+    const jump = new HyperspaceController();
+    jump.phase = 'EXITING';
+    const clear = HYPERSPACE_EXIT.flashEnd * HYPERSPACE_TIMING.EXITING;
+    expect(clear).toBeCloseTo(0.714);
+    expect(HYPERSPACE_TIMING.EXITING - clear).toBeCloseTo(HYPERSPACE_TIMING.ACCELERATING);
+    jump.elapsed = clear;
+    expect(jumpExposure(jump)).toBe(0);
+    expect(jumpStarVisibility(jump)).toBe(1);
+    expect(jumpStretch(jump)).toBe(1);
+    jump.elapsed = clear + HYPERSPACE_TIMING.ACCELERATING * 0.75;
+    expect(jump.busy).toBe(true);
+    expect(jumpStretch(jump)).toBeGreaterThan(0.05);
+    expect(jumpExposure(jump)).toBe(0);
+    expect(jump.coverage).toBe(0);
+    jump.elapsed = clear + HYPERSPACE_TIMING.ACCELERATING;
+    expect(jumpStretch(jump)).toBe(0);
+    expect(HYPERSPACE_EXIT.revealStart * HYPERSPACE_TIMING.EXITING).toBeCloseTo(0.504);
+    expect(HYPERSPACE_EXIT.revealEnd * HYPERSPACE_TIMING.EXITING).toBeCloseTo(0.882);
+  });
+
   it('exchanges beams and clouds only under white and keeps all beams out of the tunnel', () => {
     const jump = new HyperspaceController();
     jump.phase = 'ACCELERATING';

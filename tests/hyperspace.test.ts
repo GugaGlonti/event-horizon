@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  HYPERSPACE_EXIT,
   HYPERSPACE_TIMING,
   HyperspaceController,
   hyperspaceDuration,
@@ -135,10 +136,12 @@ describe('hyperspace state machine', () => {
   it('holds the arrival opaque for the glowing stars, then clears it before the braking beat', () => {
     const jump = new HyperspaceController();
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.24;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealStart;
     expect(jump.coverage).toBe(1);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.42;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.revealEnd;
     expect(jump.coverage).toBe(0);
-    expect(HYPERSPACE_TIMING.EXITING * (0.42 - 0.24)).toBeLessThan(0.4);
+    expect(
+      HYPERSPACE_TIMING.EXITING * (HYPERSPACE_EXIT.revealEnd - HYPERSPACE_EXIT.revealStart),
+    ).toBeLessThan(0.4);
   });
 });

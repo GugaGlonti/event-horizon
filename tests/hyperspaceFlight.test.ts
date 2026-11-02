@@ -147,7 +147,8 @@ describe('continuous jump motion', () => {
     expect(position.distanceTo(launch)).toBeGreaterThan(JUMP_MOTION.departureDistance * 0.6);
     motion.arrive(new SystemRuntime(destination));
     jump.phase = 'EXITING';
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.35;
+    jump.elapsed =
+      HYPERSPACE_TIMING.EXITING * ((HYPERSPACE_EXIT.revealStart + HYPERSPACE_EXIT.revealEnd) / 2);
     motion.sample(jump, position, orientation);
     const before = position.clone();
     jump.elapsed += 0.001;

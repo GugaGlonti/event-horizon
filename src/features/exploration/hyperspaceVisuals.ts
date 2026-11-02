@@ -53,7 +53,8 @@ export function jumpStarTravel(jump: HyperspaceController) {
 export function jumpStarVisibility(jump: HyperspaceController) {
   if (jump.phase === 'ACCELERATING') return 1 - smoothRamp(0.98, 1, jump.progress);
   if (jump.phase === 'HYPERSPACE') return 0;
-  if (jump.phase === 'EXITING') return smoothRamp(0.12, 0.16, jump.progress);
+  if (jump.phase === 'EXITING')
+    return smoothRamp(HYPERSPACE_EXIT.streaksStart, HYPERSPACE_EXIT.streaksVisible, jump.progress);
   return 1;
 }
 
@@ -65,7 +66,10 @@ export function jumpExposure(jump: HyperspaceController, reduced = false) {
   // Carry the entry peak through the phase boundary, then reveal the flowing cloud tunnel.
   if (jump.phase === 'HYPERSPACE') return 1 - smoothRamp(0, 0.42, jump.elapsed);
   if (jump.phase === 'EXITING')
-    return smoothRamp(0, 0.12, jump.progress) * (1 - smoothRamp(0.16, 0.34, jump.progress));
+    return (
+      smoothRamp(0, HYPERSPACE_EXIT.streaksStart, jump.progress) *
+      (1 - smoothRamp(HYPERSPACE_EXIT.streaksVisible, HYPERSPACE_EXIT.flashEnd, jump.progress))
+    );
   return 0;
 }
 

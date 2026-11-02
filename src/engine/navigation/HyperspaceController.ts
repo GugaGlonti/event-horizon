@@ -6,11 +6,14 @@ export type JumpPhase =
   | 'EXITING'
   | 'COOLDOWN';
 
+const BEAM_ANIMATION_SECONDS = 3.4;
+const EXIT_FLASH_SECONDS = 0.714;
+
 export const HYPERSPACE_TIMING = Object.freeze({
   CHARGING: 3.2,
-  ACCELERATING: 3.4,
+  ACCELERATING: BEAM_ANIMATION_SECONDS,
   HYPERSPACE: 3.4,
-  EXITING: 2.1,
+  EXITING: EXIT_FLASH_SECONDS + BEAM_ANIMATION_SECONDS,
   COOLDOWN: 4,
   preparationTimeout: 12,
   maxFrameTime: 0.1,
@@ -40,10 +43,13 @@ export const HYPERSPACE_ENTRY = Object.freeze({
 });
 
 export const HYPERSPACE_EXIT = Object.freeze({
-  streaksVisible: 0.14,
-  revealStart: 0.24,
-  revealEnd: 0.42,
-  settle: 0.9,
+  // Keep the crossing/reveal in seconds; only the clear star-beam animation grows.
+  streaksStart: 0.252 / HYPERSPACE_TIMING.EXITING,
+  streaksVisible: 0.336 / HYPERSPACE_TIMING.EXITING,
+  flashEnd: EXIT_FLASH_SECONDS / HYPERSPACE_TIMING.EXITING,
+  revealStart: 0.504 / HYPERSPACE_TIMING.EXITING,
+  revealEnd: 0.882 / HYPERSPACE_TIMING.EXITING,
+  settle: 1,
 });
 export const EXIT_COAST_DISTANCE =
   HYPERSPACE_TIMING.EXITING *

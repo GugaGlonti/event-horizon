@@ -208,7 +208,7 @@ describe('recorded hyperdrive layers', () => {
     jump.phase = 'EXITING';
     recordings.update(jump);
     expect(stub.gains[1]?.gain.setTargetAtTime.mock.lastCall?.[0]).toBe(transitGain);
-    jump.elapsed = HYPERSPACE_TIMING.EXITING * 0.95;
+    jump.elapsed = HYPERSPACE_TIMING.EXITING * HYPERSPACE_EXIT.settle;
     recordings.update(jump);
     expect(stub.gains[1]?.gain.setTargetAtTime).toHaveBeenLastCalledWith(0, 0, 0.06);
     recordings.dispose();
