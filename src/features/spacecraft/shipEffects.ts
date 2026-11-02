@@ -19,6 +19,26 @@ export function engineEffectPower(throttle: number, boosting: boolean) {
   return boosting ? 1.4 + power : power;
 }
 
+/** Presentation-only boost blend; the shared effect clock freezes it with flight. */
+export class EngineBoostAnimation {
+  private progress = 0;
+  private time: number | null = null;
+
+  update(throttle: number, boosting: boolean, time: number, reducedMotion = false) {
+    const target = boosting ? 1 : 0;
+    if (reducedMotion || this.time === null || time < this.time) {
+      this.progress = target;
+    } else {
+      const step = (time - this.time) / 0.4;
+      this.progress += Math.max(-step, Math.min(step, target - this.progress));
+    }
+    this.time = time;
+    const eased = this.progress * this.progress * (3 - 2 * this.progress);
+    const normal = engineEffectPower(throttle, false);
+    return normal + (engineEffectPower(throttle, true) - normal) * eased;
+  }
+}
+
 /** Fixed-capacity sprite instances; particle seeds never depend on frame time or randomness. */
 export function createShipEffectAttributes(
   engines: readonly EngineMount[],

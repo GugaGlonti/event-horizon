@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import manifest from '@/features/spacecraft/assets/manifest.json';
 import {
   createShipEffectAttributes,
+  EngineBoostAnimation,
   engineEffectPower,
   PARTICLES_PER_ENGINE,
   particleReach,
@@ -127,5 +128,47 @@ describe('spacecraft visibility effects', () => {
       expect(visualEnginePower(invalid)).toBe(0);
       expect(Number.isFinite(particleReach(invalid))).toBe(true);
     }
+  });
+
+  it.each([false, true])('eases both ends of the boost transition from %s', (boosting) => {
+    const animation = new EngineBoostAnimation();
+    const start = engineEffectPower(1, boosting);
+    const end = engineEffectPower(1, !boosting);
+    expect(animation.update(1, boosting, 0)).toBe(start);
+    expect(animation.update(1, !boosting, 0)).toBe(start);
+    const samples = [start];
+    for (const time of [0.1, 0.2, 0.3, 0.4]) {
+      samples.push(animation.update(1, !boosting, time));
+    }
+    expect(samples[2]).toBeCloseTo((start + end) / 2);
+    expect(samples[4]).toBeCloseTo(end);
+    const changes = samples.slice(1).map((power, i) => Math.abs(power - (samples[i] ?? 0)));
+    expect(changes[0]).toBeLessThan(changes[1] ?? 0);
+    expect(changes[3]).toBeLessThan(changes[2] ?? 0);
+    for (const power of samples) {
+      expect(power).toBeGreaterThanOrEqual(Math.min(start, end));
+      expect(power).toBeLessThanOrEqual(Math.max(start, end));
+    }
+  });
+
+  it('preserves the blend on pause and reversal while still following throttle', () => {
+    const animation = new EngineBoostAnimation();
+    animation.update(1, false, 10);
+    const partial = animation.update(1, true, 10.1);
+    expect(animation.update(1, false, 10.1)).toBe(partial);
+    expect(animation.update(0.5, false, 10.1)).toBeCloseTo(partial - 0.5);
+    expect(animation.update(1, false, 10.2)).toBeCloseTo(1);
+  });
+
+  it('uses elapsed effect time independently of frame rate and snaps on reset/reduced motion', () => {
+    const slow = new EngineBoostAnimation();
+    const fast = new EngineBoostAnimation();
+    slow.update(1, false, 0);
+    fast.update(1, false, 0);
+    for (let frame = 1; frame < 24; frame++) fast.update(1, true, frame / 120);
+    expect(fast.update(1, true, 0.2)).toBeCloseTo(slow.update(1, true, 0.2));
+    expect(slow.update(1, false, 0)).toBe(1);
+    expect(slow.update(1, true, 0, true)).toBe(2.4);
+    expect(slow.update(1, false, 0, true)).toBe(1);
   });
 });

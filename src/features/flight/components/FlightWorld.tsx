@@ -14,7 +14,7 @@ import { terrainMetrics } from '@/features/planets/rendering/PlanetTerrain';
 import { visualMetrics } from '@/features/planets/rendering/visualBudget';
 import { Starfield } from '@/features/space/components/Starfield';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
-import { engineEffectPower } from '@/features/spacecraft/shipEffects';
+import { EngineBoostAnimation } from '@/features/spacecraft/shipEffects';
 import { useSpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useReducedMotion } from '@/hooks/useReducedMotion';
 import { useExplorationStore } from '@/stores/explorationStore';
@@ -36,6 +36,7 @@ export function FlightWorld({ session }: { session: FlightSession }) {
   const ship = useRef<Group>(null);
   const gear = useRef(false);
   const enginePower = useRef(0.25);
+  const engineBoost = useRef(new EngineBoostAnimation());
   const effectTime = useRef(0);
   const spacecraft = useSpacecraftModels();
   const cockpit = useRef<Group>(null);
@@ -118,9 +119,15 @@ export function FlightWorld({ session }: { session: FlightSession }) {
       ship.current.position.copy(session.renderPosition);
       ship.current.quaternion.copy(session.orientation);
     }
+    const normalEnginePower = engineBoost.current.update(
+      session.controller.enginePower,
+      session.controller.isBoosting,
+      effectTime.current,
+      reducedMotion,
+    );
     enginePower.current = session.exploration.jump.busy
       ? 0.7 + session.exploration.jump.intensity * 4
-      : engineEffectPower(session.controller.enginePower, session.controller.isBoosting);
+      : normalEnginePower;
     sky.current?.position.copy(session.renderPosition);
     if (camera instanceof PerspectiveCamera) {
       const dt = Math.min(delta, GAME_CONFIG.maxFrameTime);

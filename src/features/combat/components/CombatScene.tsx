@@ -14,7 +14,7 @@ import {
 import { leadTime } from '@/engine/combat/targeting';
 import type { FlightSession } from '@/features/flight/FlightSession';
 import { Starfighter } from '@/features/spacecraft/components/Starfighter';
-import { engineEffectPower } from '@/features/spacecraft/shipEffects';
+import { EngineBoostAnimation } from '@/features/spacecraft/shipEffects';
 import type { SpacecraftModel, SpacecraftModels } from '@/features/spacecraft/useSpacecraftModels';
 import { useCombatStore } from '@/stores/combatStore';
 import { useFlightStore } from '@/stores/flightStore';
@@ -40,6 +40,7 @@ function EnemySlot({
   const model = useRef<Group>(null);
   const gear = useRef(false);
   const enginePower = useRef(0.3);
+  const engineBoost = useRef(new EngineBoostAnimation());
   const shield = useRef<Mesh>(null),
     material = useRef<MeshBasicMaterial>(null);
   const scratch = useMemo(() => ({ position: new Vector3(), orientation: new Quaternion() }), []);
@@ -65,9 +66,11 @@ function EnemySlot({
         material.current.opacity = ship.hitFlash * 1.4;
         material.current.color.set(ship.shieldHit ? '#77dfff' : '#ffac55');
       }
-      enginePower.current = engineEffectPower(
+      enginePower.current = engineBoost.current.update(
         ship.controller.enginePower,
         ship.controller.isBoosting,
+        effectTimeRef.current,
+        reducedMotion,
       );
     }
   }, -0.5);
